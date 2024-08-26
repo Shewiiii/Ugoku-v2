@@ -1,0 +1,2 @@
+class IncorrectURL(Exception):
+    pass
