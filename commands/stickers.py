@@ -38,7 +38,7 @@ class Stickers(commands.Cog):
         await ctx.send(
             file=discord.File(zip_file),
             content=f"Sorry for the wait, <@{
-                ctx.author.id}>! Here's the sticker pack you requested."
+                ctx.author.id}>~ Here's the sticker pack you requested."
         )
 
         # Clean up the file after sending

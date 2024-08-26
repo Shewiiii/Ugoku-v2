@@ -12,6 +12,7 @@ from PIL import Image
 import imageio.v3
 
 from bot.search import link_grabber
+from bot.utils import sanitize_filename
 import config
 
 
@@ -83,9 +84,7 @@ async def get_stickerpack(
         raise IncorrectURL from e
 
     # Remove unwanted characters from the pack name
-    invalid_chars = ['"', '?', ':', '/', '\\', '*', '<', '>', '|']
-    for char in invalid_chars:
-        pack_name = pack_name.replace(char, ' ')
+    pack_name = sanitize_filename(pack_name)
 
     # Setup the folders
     folder_path = Path(sticker_path) / pack_name
