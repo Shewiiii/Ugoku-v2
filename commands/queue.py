@@ -16,7 +16,7 @@ class Queue(commands.Cog):
         guild_id = ctx.guild.id
 
         if not guild_id in server_sessions:
-            await ctx.respond(f'No active sessions !')
+            await ctx.respond(f'No active sessions!')
             return
 
         session: ServerSession = server_sessions[guild_id]

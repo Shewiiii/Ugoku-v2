@@ -1,5 +1,4 @@
 
-from main import bot
 import discord
 from discord.ext import commands
 import config
@@ -19,7 +18,7 @@ class Ping(commands.Cog):
         description='Test the reactivity of Ugoku !'
     )
     async def ping(self, ctx: discord.ApplicationContext) -> None:
-        latency = round(bot.latency*1000, 2)
+        latency = round(self.bot.latency*1000, 2)
         await ctx.respond(f'あわあわあわわわ ! {latency}ms')
         logging.info(f'Pinged latency: {latency}ms.')
 
