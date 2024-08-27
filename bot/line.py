@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 # Setup the folders
-output_path = Path('.') / 'temp'
+output_path = config.TEMP_FOLDER
 
 sticker_path = output_path / 'stickers'
 sticker_path.mkdir(parents=True, exist_ok=True)

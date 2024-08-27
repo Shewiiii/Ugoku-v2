@@ -4,8 +4,10 @@ import logging
 # If you don't have Spotify Premium, you can't disable Spotify features here
 SPOTIFY_ENABLED = True
 
-# Settings
-TEMP_SONGS_PATH = Path('.') / 'temp' / 'vc_songs'
+# SETTINGS
+TEMP_FOLDER = Path('.') / 'temp'
+CACHE_SIZE = 100  # Cache size limit (in number of files) for custom sources
+CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds) for custom sources
 
 # Logs
 logging.basicConfig(

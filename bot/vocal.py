@@ -1,24 +1,20 @@
 import discord
-import requests
 
+from config import CACHE_EXPIRY, CACHE_SIZE, TEMP_FOLDER
 from urllib.parse import unquote
-from requests.exceptions import ConnectionError, MissingSchema
 from pathlib import Path
+from time import time
 import asyncio
 import aiohttp
+import hashlib
 import re
-import io
+import os
 
 from bot.spotify import Spotify_
-from bot.utils import sanitize_filename
 from librespot.audio import AbsChunkedInputStream
-from config import TEMP_SONGS_PATH
 
 
 spotify = Spotify_()
-
-# Temp songs folder
-TEMP_SONGS_PATH.mkdir(parents=True, exist_ok=True)
 
 
 class ServerSession:
@@ -84,7 +80,7 @@ class ServerSession:
         if queue_item['source'] == 'Custom':
             ffmpeg_source = discord.FFmpegOpusAudio(
                 source,
-                pipe=True
+                pipe=pipe
             )
 
         elif queue_item['source'] == 'Spotify':
@@ -184,33 +180,70 @@ async def play_spotify(
         await session.add_to_queue(ctx, track_info, source='Spotify')
 
 
-async def play_custom(
-    ctx: discord.ApplicationContext,
-    query: str,
-    session: ServerSession
-) -> None:
-    file_extension = re.search(r'\.(\w+)(?:\?|$)', query).group(1)
-    legal_query = sanitize_filename(query)
-    filename = f"{legal_query}.{file_extension}"
-    path: Path = TEMP_SONGS_PATH / filename
+# Cache functions for custom sources
 
-    if not path.is_file():
-        try:
-            response = requests.get(query)
-        except (MissingSchema, ConnectionError):
-            await ctx.respond('No audio found!')
-            return
+def get_cache_path(url: str) -> Path:
+    # Hash the URL to create a unique filename
+    hash_digest = hashlib.md5(url.encode('utf-8')).hexdigest()
+    return TEMP_FOLDER / f"{hash_digest}.cache"
 
-        with open(path, 'wb') as file:
-            file.write(response.content)
 
+def cleanup_cache():
+    files = sorted(TEMP_FOLDER.glob('*.cache'), key=os.path.getmtime)
+
+    # Remove files that exceed the cache size limit
+    while len(files) > CACHE_SIZE:
+        oldest_file = files.pop(0)
+        oldest_file.unlink()
+
+    # Remove expired files
+    current_time = time()
+    for file in files:
+        if current_time - file.stat().st_mtime > CACHE_EXPIRY:
+            file.unlink()
+
+
+async def fetch_audio_stream(url: str) -> Path:
+    cache_path = get_cache_path(url)
+
+    # If the file exists and is not expired, return it
+    if cache_path.is_file():
+        if time() - cache_path.stat().st_mtime < CACHE_EXPIRY:
+            return cache_path
+        else:
+            cache_path.unlink()  # Remove expired file
+
+    # Fetch the audio file from the URL asynchronously
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                raise Exception(f"Failed to fetch audio: {response.status}")
+            audio_data = await response.read()
+
+    # Write the fetched audio to the cache file
+    with cache_path.open('wb') as cache_file:
+        cache_file.write(audio_data)
+
+    cleanup_cache()
+
+    return cache_path
+
+
+async def play_custom(ctx: discord.ApplicationContext, query: str, session: ServerSession) -> None:
+    try:
+        audio_path = await fetch_audio_stream(query)
+    except Exception as e:
+        await ctx.respond(f'Error fetching audio: {str(e)}')
+        return
+
+    # Extract display name for the track
     display_name = re.search(r'(?:.+/)([^#?]+)', query)
     display_name = unquote(display_name.group(
         1)) if display_name else 'Custom track'
 
     track_info = {
         'display_name': display_name,
-        'source': path,
+        'source': audio_path,
         'url': query
     }
 
