@@ -10,6 +10,7 @@
 <b>Unticked boxes are work in progress.</b>  
 
 - [x] Ping.
+- [x] Echo messages (make the bot say any message).
 - [x] Download stickers from LINE.   
 - [ ] Download songs, albums or playlists from Spotify.
 - [x] Play songs in a voice channel.
