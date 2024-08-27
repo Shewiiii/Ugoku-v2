@@ -1,6 +1,7 @@
 from librespot.core import Session
 from librespot.metadata import TrackId
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
+from librespot.audio import AbsChunkedInputStream
 from librespot.zeroconf import ZeroconfServer
 from dotenv import load_dotenv
 
@@ -8,7 +9,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
 from bot.search import is_url, similar
-from config import TEMP_SONGS_PATH, SPOTIFY_ENABLED
+from config import SPOTIFY_ENABLED
 import config
 
 from io import BytesIO
@@ -21,6 +22,7 @@ import re
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+
 # Variables
 SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
 SPOTIPY_CLIENT_SECRET = os.getenv('SPOTIPY_CLIENT_SECRET')
@@ -35,7 +37,6 @@ if SPOTIFY_ENABLED:
         logging.warning("Not logged into Spotify. Please log in to Librespot "
                         "from Spotify's official client!")
 
-        # Wait until credentials file exists
         while not credentials_path.exists():
             time.sleep(1)
 
@@ -53,25 +54,15 @@ if SPOTIFY_ENABLED:
 
 class Spotify_:
 
-    async def get_track_source(self, id: str) -> bytes:
-        '''Get the data of a track from a single ID.
-        Returns an info dictionary.
+    async def generate_stream(self, id: str) -> AbsChunkedInputStream:
+        '''Get the stream of a track from a single ID.
         '''
         track_id: TrackId = TrackId.from_uri(f"spotify:track:{id}")
         stream = session.content_feeder().load(
             track_id, VorbisOnlyAudioQuality(
                 AudioQuality.VERY_HIGH), False, None
         )
-
-        source: bytes = stream.input_stream.stream().read()
-        return source
-
-    def write_track_from_source(self, source: bytes, file_path: str) -> None:
-        '''Write an OGG file from bytes.
-        '''
-        if not os.path.isfile(file_path):
-            with open(file_path, 'wb') as audio_file:
-                audio_file.write(source)
+        return stream.input_stream.stream()
 
     async def get_track_name(self, id: str) -> str | None:
         try:
@@ -167,18 +158,13 @@ class Spotify_:
 
     # ..And that one :elaina_magic:
     async def get_track(self, id: str) -> dict[str, str, BytesIO] | None:
-        '''Returns an info dictionary.
+        '''Returns an info dictionary containing an audio stream
         '''
         display_name: str = await self.get_track_name(id)
-        file_path = TEMP_SONGS_PATH / f'{display_name}.ogg'
-
-        if not file_path.is_file():
-            source: BytesIO = await self.get_track_source(id)
-            self.write_track_from_source(source, file_path)
-
+        stream = await self.generate_stream(id)
         info_dict = {
             'display_name': display_name,
             'url': f'https://open.spotify.com/track/{id}',
-            'source': file_path
+            'source': stream
         }
         return info_dict

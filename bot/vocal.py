@@ -5,12 +5,14 @@ from urllib.parse import unquote
 from requests.exceptions import ConnectionError, MissingSchema
 from pathlib import Path
 import asyncio
+import aiohttp
 import re
+import io
 
 from bot.spotify import Spotify_
 from bot.utils import sanitize_filename
+from librespot.audio import AbsChunkedInputStream
 from config import TEMP_SONGS_PATH
-from main import bot
 
 
 spotify = Spotify_()
@@ -20,7 +22,7 @@ TEMP_SONGS_PATH.mkdir(parents=True, exist_ok=True)
 
 
 class ServerSession:
-    def __init__(self, guild_id: int, voice_client: discord.voice_client):
+    def __init__(self, guild_id: int, voice_client: discord.voice_client, bot=discord.Bot):
         self.guild_id = guild_id
         self.voice_client = voice_client
         self.queue = []
@@ -28,6 +30,7 @@ class ServerSession:
         self.loop_current = False
         self.loop_queue = False
         self.skipped = False
+        self.bot = bot
         # When skipping while looping current, that variable will be
         # True, so it tells the start_playing method that the song has been
         # skipped, and that that it has to show the "Now playing" message
@@ -69,20 +72,33 @@ class ServerSession:
 
         if successor:
             await ctx.edit(content=message)
-        else:
-            if not self.loop_current or self.skipped:
-                await ctx.send(message)
+        elif not self.loop_current or self.skipped:
+            await ctx.send(message)
 
         # Reset skipped status
         self.skipped = False
 
-        # Play audio from a source file
-        audio_source = discord.FFmpegOpusAudio(
-            queue_item['element']['source'],
-            bitrate=510,
-        )
+        source = queue_item['element']['source']
+        pipe = isinstance(source, AbsChunkedInputStream)
+
+        if queue_item['source'] == 'Custom':
+            ffmpeg_source = discord.FFmpegOpusAudio(
+                source,
+                pipe=True
+            )
+
+        elif queue_item['source'] == 'Spotify':
+            ffmpeg_source = discord.FFmpegOpusAudio(
+                source,
+                pipe=True
+            )
+
+        else:
+            await ctx.send("Unsupported source type!")
+            return
+
         self.voice_client.play(
-            audio_source,
+            ffmpeg_source,
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
@@ -109,16 +125,15 @@ class ServerSession:
     def after_playing(
         self,
         ctx: discord.ApplicationContext,
-        error: Exception,
+        error: Exception
     ) -> None:
         if error:
             raise error
 
         if self.queue:
-            asyncio.run_coroutine_threadsafe(self.play_next(ctx), bot.loop)
+            asyncio.run_coroutine_threadsafe(
+                self.play_next(ctx), self.bot.loop)
 
-    # should be called only after making the
-    # first element of the queue the song to play
     async def play_next(self, ctx: discord.ApplicationContext) -> None:
         if self.loop_queue and not self.loop_current:
             self.to_loop.append(self.queue[0])
@@ -135,7 +150,7 @@ class ServerSession:
 server_sessions: dict[ServerSession] = {}
 
 
-async def connect(ctx: discord.ApplicationContext) -> ServerSession | None:
+async def connect(ctx: discord.ApplicationContext, bot: discord.Bot) -> ServerSession | None:
     user_voice = ctx.user.voice
     guild_id = ctx.guild.id
     if not user_voice:
@@ -149,7 +164,7 @@ async def connect(ctx: discord.ApplicationContext) -> ServerSession | None:
     if ctx.voice_client.is_connected():
         if guild_id not in server_sessions:
             server_sessions[guild_id] = ServerSession(
-                guild_id, ctx.voice_client)
+                guild_id, ctx.voice_client, bot)
         return server_sessions[guild_id]
 
 
@@ -165,7 +180,6 @@ async def play_spotify(
         return
 
     for track_id in track_ids:
-        await ctx.edit(content='Getting the song...')
         track_info = await spotify.get_track(track_id)
         await session.add_to_queue(ctx, track_info, source='Spotify')
 
