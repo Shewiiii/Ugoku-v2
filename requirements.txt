@@ -1,7 +1,7 @@
-py-cord == 2.6.0
-requests==2.30.0
+py-cord >= 2.6.0
 spotipy>=2.11.0
-librespot == 0.0.9
+librespot >= 0.0.9
+requests
 python-dotenv
 yt-dlp
 openai
