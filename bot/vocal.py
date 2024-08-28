@@ -80,13 +80,15 @@ class ServerSession:
         if queue_item['source'] == 'Custom':
             ffmpeg_source = discord.FFmpegOpusAudio(
                 source,
-                pipe=pipe
+                pipe=pipe,
+                bitrate=510
             )
 
         elif queue_item['source'] == 'Spotify':
             ffmpeg_source = discord.FFmpegOpusAudio(
                 source,
-                pipe=True
+                pipe=True,
+                bitrate=510
             )
 
         else:
