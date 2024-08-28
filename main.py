@@ -1,6 +1,7 @@
 import os
 import logging
 import config
+from config import COMMANDS_FOLDER
 
 import discord
 from dotenv import load_dotenv
@@ -21,10 +22,12 @@ async def on_ready():
     print(f"{bot.user} is running !")
 
 
-for filename in os.listdir('./commands'):
-    if filename.endswith('.py'):
-        logging.info(f'Loading {filename}')
-        bot.load_extension(f'commands.{filename[:-3]}')
+for filepath in COMMANDS_FOLDER.rglob('*.py'):
+    relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')
+    module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
+
+    logging.info(f'Loading {module_name}')
+    bot.load_extension(module_name)
 
 
 bot.run(BOT_TOKEN)

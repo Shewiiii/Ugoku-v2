@@ -14,12 +14,12 @@ class Queue(commands.Cog):
     )
     async def queue(self, ctx: discord.ApplicationContext):
         guild_id = ctx.guild.id
+        session = server_sessions.get(guild_id)
 
-        if not guild_id in server_sessions:
-            await ctx.respond(f'No active sessions!')
+        if session is None:
+            await ctx.respond('No active sessions!')
             return
 
-        session: ServerSession = server_sessions[guild_id]
         await ctx.respond(f'{session.display_queue()}')
 
 
