@@ -48,7 +48,7 @@ class ServerSession:
         def format_song(index: int, song: dict) -> str:
             title = song['element']['display_name']
             url = song['element']['url']
-            return f'{index}. [{title}](<{url}>) ({song['source']})\n'
+            return f"{index}. [{title}](<{url}>) ({song['source']})\n"
 
         elements = [
             'Currently playing: ' + format_song('', self.queue[0])
@@ -86,6 +86,10 @@ class ServerSession:
 
         source = queue_item['element']['source']
         pipe = isinstance(source, AbsChunkedInputStream)
+
+        if pipe:
+            # Don't change this
+            source.seek(167)
 
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
