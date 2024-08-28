@@ -12,7 +12,7 @@ class Pause(commands.Cog):
         name='pause',
         description='Pause the current song.'
     )
-    async def pause(self, ctx: discord.ApplicationContext):
+    async def pause(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
         session: ServerSession | None = server_sessions.get(guild_id)
 

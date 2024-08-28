@@ -1,0 +1,31 @@
+import discord
+from discord.ext import commands
+from bot.vocal import server_sessions
+
+
+class Resume(commands.Cog):
+    def __init__(self, bot) -> None:
+        self.bot = bot
+
+    @commands.slash_command(
+        name='resume',
+        description='Resume the current song.'
+    )
+    async def resume(self, ctx: discord.ApplicationContext) -> None:
+        session = server_sessions.get(ctx.guild.id)
+
+        if not session:
+            await ctx.respond('Nothing to resume!')
+            return
+
+        voice_client = session.voice_client
+
+        if voice_client.is_paused():
+            voice_client.resume()
+            await ctx.respond('Resumed!')
+        else:
+            await ctx.respond('The audio is not paused.')
+
+
+def setup(bot):
+    bot.add_cog(Resume(bot))

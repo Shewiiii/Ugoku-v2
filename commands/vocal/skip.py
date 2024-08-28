@@ -12,7 +12,7 @@ class Skip(commands.Cog):
         name='skip',
         description='Skip the current song.'
     )
-    async def skip(self, ctx: discord.ApplicationContext):
+    async def skip(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
 
         if guild_id not in server_sessions:
