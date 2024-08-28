@@ -1,14 +1,17 @@
-import discord
-
-from config import CACHE_EXPIRY, CACHE_SIZE, TEMP_FOLDER
+from config import CACHE_EXPIRY, CACHE_SIZE, TEMP_FOLDER, AUTO_LEAVE_DURATION
+from datetime import datetime, timedelta
 from urllib.parse import unquote
+from datetime import datetime
 from pathlib import Path
 from time import time
+import logging
 import asyncio
 import aiohttp
 import hashlib
 import re
 import os
+
+import discord
 
 from bot.spotify import Spotify_
 from librespot.audio import AbsChunkedInputStream
@@ -18,11 +21,12 @@ spotify = Spotify_()
 
 
 class ServerSession:
-    def __init__(self, guild_id: int, voice_client: discord.voice_client, bot=discord.Bot):
+    def __init__(self, guild_id: int, voice_client: discord.ApplicationContext.voice_client, bot=discord.Bot):
         self.guild_id = guild_id
         self.voice_client = voice_client
         self.queue = []
         self.to_loop = []
+        self.last_played_time = datetime.now()
         self.loop_current = False
         self.loop_queue = False
         self.skipped = False
@@ -73,32 +77,24 @@ class ServerSession:
 
         # Reset skipped status
         self.skipped = False
+        # Update last time playing
+        self.last_played_time = datetime.now()
 
         source = queue_item['element']['source']
         pipe = isinstance(source, AbsChunkedInputStream)
 
-        if queue_item['source'] == 'Custom':
-            ffmpeg_source = discord.FFmpegOpusAudio(
-                source,
-                pipe=pipe,
-                bitrate=510
-            )
-
-        elif queue_item['source'] == 'Spotify':
-            ffmpeg_source = discord.FFmpegOpusAudio(
-                source,
-                pipe=True,
-                bitrate=510
-            )
-
-        else:
-            await ctx.send("Unsupported source type!")
-            return
+        ffmpeg_source = discord.FFmpegOpusAudio(
+            source,
+            pipe=pipe,
+            bitrate=510
+        )
 
         self.voice_client.play(
             ffmpeg_source,
             after=lambda e=None: self.after_playing(ctx, e)
         )
+
+        await self.check_auto_leave(ctx)
 
     async def add_to_queue(
         self,
@@ -144,6 +140,19 @@ class ServerSession:
 
         await self.start_playing(ctx)
 
+    async def check_auto_leave(self, ctx: discord.ApplicationContext):
+        while self.voice_client.is_connected():
+            if datetime.now() - self.last_played_time > timedelta(seconds=AUTO_LEAVE_DURATION):
+                await self.voice_client.disconnect()
+                await ctx.send('Baibai~')
+                del server_sessions[self.guild_id]
+                logging.info(
+                    f'Deleted audio session in {self.guild_id} '
+                    'due to inactivity'
+                )
+                break
+            await asyncio.sleep(30)  # Check every 30 seconds
+
 
 server_sessions: dict[ServerSession] = {}
 
@@ -164,6 +173,8 @@ async def connect(ctx: discord.ApplicationContext, bot: discord.Bot) -> ServerSe
             server_sessions[guild_id] = ServerSession(
                 guild_id, ctx.voice_client, bot)
         return server_sessions[guild_id]
+
+
 
 
 async def play_spotify(
