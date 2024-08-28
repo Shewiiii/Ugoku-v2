@@ -21,7 +21,13 @@ spotify = Spotify_()
 
 
 class ServerSession:
-    def __init__(self, guild_id: int, voice_client: discord.ApplicationContext.voice_client, bot=discord.Bot):
+    def __init__(
+        self,
+        guild_id: int,
+        voice_client: discord.VoiceClient,
+        bot: discord.Bot,
+        channel_id: int
+    ):
         self.guild_id = guild_id
         self.voice_client = voice_client
         self.queue = []
@@ -31,21 +37,21 @@ class ServerSession:
         self.loop_queue = False
         self.skipped = False
         self.bot = bot
-        # When skipping while looping current, that variable will be
-        # True, so it tells the start_playing method that the song has been
-        # skipped, and that that it has to show the "Now playing" message
+        self.channel_id = channel_id
+        self.auto_leave_task = asyncio.create_task(
+            self.check_auto_leave())
 
     def display_queue(self) -> str:
         if not self.queue:
             return 'No songs in queue!'
 
-        def format_song(index, song):
+        def format_song(index: int, song: dict) -> str:
             title = song['element']['display_name']
             url = song['element']['url']
-            return f"{index}. [{title}](<{url}>) ({song['source']})\n"
+            return f'{index}. [{title}](<{url}>) ({song['source']})\n'
 
         elements = [
-            "Currently playing: " + format_song("", self.queue[0])
+            'Currently playing: ' + format_song('', self.queue[0])
         ]
 
         elements.extend(
@@ -60,11 +66,12 @@ class ServerSession:
 
         return ''.join(elements)
 
-    async def start_playing(
-        self,
-        ctx: discord.ApplicationContext,
-        successor: bool = False
-    ) -> None:
+    async def start_playing(self, ctx: discord.ApplicationContext, successor: bool = False) -> None:
+        if not self.queue:
+            self.last_played_time = datetime.now()
+            logging.info(f'Playback stopped in {self.guild_id}')
+            return  # No songs to play
+
         queue_item = self.queue[0]
         title = queue_item['element']['display_name']
         url = queue_item['element']['url']
@@ -75,10 +82,7 @@ class ServerSession:
         elif not self.loop_current or self.skipped:
             await ctx.send(message)
 
-        # Reset skipped status
         self.skipped = False
-        # Update last time playing
-        self.last_played_time = datetime.now()
 
         source = queue_item['element']['source']
         pipe = isinstance(source, AbsChunkedInputStream)
@@ -94,14 +98,7 @@ class ServerSession:
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
-        await self.check_auto_leave(ctx)
-
-    async def add_to_queue(
-        self,
-        ctx: discord.ApplicationContext,
-        element: dict | str,
-        source: str
-    ) -> None:  # does not auto start playing the playlist
+    async def add_to_queue(self, ctx: discord.ApplicationContext, element: dict, source: str) -> None:
         queue_item = {'element': element, 'source': source}
         self.queue.append(queue_item)
 
@@ -109,24 +106,20 @@ class ServerSession:
             title = element['display_name']
             url = element['url']
             await ctx.edit(
-                content=f"Added to queue: [{title}](<{url}>) !"
+                content=f'Added to queue: [{title}](<{url}>) !'
             )
 
-        # Trigger playback
-        if not self.voice_client.is_playing() and len(self.queue) <= 1:
-            await self.start_playing(ctx=ctx, successor=True)
+        if not self.voice_client.is_playing() and len(self.queue) == 1:
+            await self.start_playing(ctx, successor=True)
 
-    def after_playing(
-        self,
-        ctx: discord.ApplicationContext,
-        error: Exception
-    ) -> None:
+    def after_playing(self, ctx: discord.ApplicationContext, error: Exception) -> None:
         if error:
             raise error
 
         if self.queue:
             asyncio.run_coroutine_threadsafe(
-                self.play_next(ctx), self.bot.loop)
+                self.play_next(ctx), self.bot.loop
+            )
 
     async def play_next(self, ctx: discord.ApplicationContext) -> None:
         if self.loop_queue and not self.loop_current:
@@ -140,18 +133,32 @@ class ServerSession:
 
         await self.start_playing(ctx)
 
-    async def check_auto_leave(self, ctx: discord.ApplicationContext):
+    async def check_auto_leave(self) -> None:
         while self.voice_client.is_connected():
-            if datetime.now() - self.last_played_time > timedelta(seconds=AUTO_LEAVE_DURATION):
-                await self.voice_client.disconnect()
-                await ctx.send('Baibai~')
-                del server_sessions[self.guild_id]
+            if not self.voice_client.is_playing():
+                time_since_last_played = datetime.now() - self.last_played_time
+                time_until_disconnect = timedelta(
+                    seconds=AUTO_LEAVE_DURATION) - time_since_last_played
+
                 logging.info(
-                    f'Deleted audio session in {self.guild_id} '
-                    'due to inactivity'
+                    'Time until disconnect due to '
+                    f'inactivity in {self.guild_id}: '
+                    f'{time_until_disconnect}'
                 )
-                break
-            await asyncio.sleep(30)  # Check every 30 seconds
+
+                if time_until_disconnect <= timedelta(seconds=0):
+                    await self.voice_client.disconnect()
+                    del server_sessions[self.guild_id]
+                    channel = self.bot.get_channel(self.channel_id)
+                    if channel:
+                        await channel.send('Baibai~')
+                    logging.info(
+                        f'Deleted audio session in {self.guild_id} '
+                        'due to inactivity.'
+                    )
+                    break
+
+            await asyncio.sleep(17)
 
 
 server_sessions: dict[ServerSession] = {}
@@ -171,10 +178,12 @@ async def connect(ctx: discord.ApplicationContext, bot: discord.Bot) -> ServerSe
     if ctx.voice_client.is_connected():
         if guild_id not in server_sessions:
             server_sessions[guild_id] = ServerSession(
-                guild_id, ctx.voice_client, bot)
+                guild_id,
+                ctx.voice_client,
+                bot,
+                ctx.channel_id
+            )
         return server_sessions[guild_id]
-
-
 
 
 async def play_spotify(
@@ -198,7 +207,7 @@ async def play_spotify(
 def get_cache_path(url: str) -> Path:
     # Hash the URL to create a unique filename
     hash_digest = hashlib.md5(url.encode('utf-8')).hexdigest()
-    return TEMP_FOLDER / f"{hash_digest}.cache"
+    return TEMP_FOLDER / f'{hash_digest}.cache'
 
 
 def cleanup_cache():
@@ -230,7 +239,7 @@ async def fetch_audio_stream(url: str) -> Path:
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             if response.status != 200:
-                raise Exception(f"Failed to fetch audio: {response.status}")
+                raise Exception(f'Failed to fetch audio: {response.status}')
             audio_data = await response.read()
 
     # Write the fetched audio to the cache file
