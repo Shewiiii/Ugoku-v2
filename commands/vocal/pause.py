@@ -28,7 +28,7 @@ class Pause(commands.Cog):
 
         if voice_client.is_playing():
             voice_client.pause()
-            self.last_played_time = datetime.now()
+            session.last_played_time = datetime.now()
             await ctx.respond("Paused!")
         else:
             await ctx.respond("No audio is playing!")
