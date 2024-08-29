@@ -4,6 +4,7 @@ from urllib.parse import unquote
 from datetime import datetime
 from pathlib import Path
 from time import time
+from typing import Callable
 import logging
 import asyncio
 import aiohttp
@@ -85,9 +86,11 @@ class ServerSession:
         self.skipped = False
 
         source = queue_item['element']['source']
-        pipe = isinstance(source, AbsChunkedInputStream)
+        pipe = isinstance(source, Callable)
 
         if pipe:
+            # Generate a fresh stream to prevent any issues, like bandwidth heavy availability checks
+            source = await source()
             # Don't change this
             source.seek(167)
 
@@ -270,7 +273,8 @@ async def play_custom(ctx: discord.ApplicationContext, query: str, session: Serv
     track_info = {
         'display_name': display_name,
         'source': audio_path,
-        'url': query
+        'url': query,
+        'id': None
     }
 
     await session.add_to_queue(ctx, track_info, source='Custom')
