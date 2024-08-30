@@ -3,7 +3,7 @@ import logging
 import config
 import asyncio
 from config import COMMANDS_FOLDER
-from contextlib import asynccontextmanager
+from api import server
 
 from fastapi import FastAPI
 import uvicorn
@@ -33,14 +33,6 @@ for filepath in COMMANDS_FOLDER.rglob('*.py'):
 
     logging.info(f'Loading {module_name}')
     bot.load_extension(module_name)
-
-app = FastAPI()
-config = uvicorn.Config(app, loop="asyncio")
-server = uvicorn.Server(config)
-
-@app.get("/")
-async def ping():
-    return {"message": "pong"}
 
 async def start() -> None:
     await asyncio.gather(bot.start(BOT_TOKEN), server.serve())
