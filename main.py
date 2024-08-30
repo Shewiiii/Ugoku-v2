@@ -1,12 +1,8 @@
 import os
 import logging
-import config
 import asyncio
 from config import COMMANDS_FOLDER
-from api import server
-
-from fastapi import FastAPI
-import uvicorn
+import api
 
 import discord
 from dotenv import load_dotenv
@@ -21,10 +17,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 loop = asyncio.get_event_loop()
 bot = discord.Bot(intents=intents, loop=loop)
+server = api.server
+api.bot = bot
 
 
 @bot.event
-async def on_ready():
+async def on_ready() -> None:
     print(f"{bot.user} is running !")
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
