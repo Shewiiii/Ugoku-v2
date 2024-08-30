@@ -1,5 +1,6 @@
 import re
 from difflib import SequenceMatcher
+from urllib.parse import urlparse
 
 # string from https://www.geeksforgeeks.org/python-check-url-string/
 link_grabber = (r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2"
@@ -9,14 +10,13 @@ link_grabber = (r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2"
 
 
 def is_url(string: str, from_: list | None = None) -> bool:
-    search = re.findall(link_grabber, string)
-    if len(search) == 0:
+    search = re.match(link_grabber, string)
+    if not search:
         return False
     if from_:
-        for website in from_:
-            if website in search[0][0]:
-                return True
-        return False
+        parsed_url = urlparse(string)
+        domain = parsed_url.netloc
+        return any(domain.endswith(website) for website in from_)
     else:
         return True
 

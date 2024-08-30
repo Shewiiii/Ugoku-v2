@@ -76,7 +76,7 @@ class Spotify_:
         )
         return display_name
 
-    async def get_id_from_url(self, url: str) -> dict | None:
+    def get_id_from_url(self, url: str) -> dict | None:
         track_url_search = re.findall(
             r"^(https?://)?open\.spotify\.com/(track|album|playlist)/(?P<ID>[0-9a-zA-Z]{22})(\?si=.+?)?$",
             string=url
@@ -144,7 +144,7 @@ class Spotify_:
     # Ok so basically only that method should be used in the bot..
     async def get_track_ids(self, user_input: str) -> list | None:
         if is_url(user_input, ['open.spotify.com']):
-            result: dict = await self.get_id_from_url(user_input)
+            result: dict = self.get_id_from_url(user_input)
         else:
             result: dict = await self.get_id_from_query(query=user_input)
         if not result:
@@ -157,14 +157,17 @@ class Spotify_:
         return [result['id']]
 
     # ..And that one :elaina_magic:
-    async def get_track(self, id: str) -> dict[str, str, BytesIO] | None:
+    async def get_track(self, id: str) -> dict:
         '''Returns an info dictionary containing an audio stream
         '''
         display_name: str = await self.get_track_name(id)
-        stream = await self.generate_stream(id)
+
+        async def generate_stream_func() -> AbsChunkedInputStream:
+            return await self.generate_stream(id)
+
         info_dict = {
             'display_name': display_name,
             'url': f'https://open.spotify.com/track/{id}',
-            'source': stream
+            'source': generate_stream_func
         }
         return info_dict
