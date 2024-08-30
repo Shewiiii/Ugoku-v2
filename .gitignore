@@ -5,6 +5,6 @@ credentials.json
 logs.log
 .cache
 temp
-.chinono
-.pyrightconfig.json
+chinono/
+pyrightconfig.json
 .DS_Store
