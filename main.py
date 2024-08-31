@@ -1,6 +1,5 @@
 import os
 import logging
-import config
 from config import COMMANDS_FOLDER
 
 import discord
@@ -8,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+DEV_TOKEN = os.getenv('DEV_TOKEN')
 logger = logging.getLogger(__name__)
 
 
