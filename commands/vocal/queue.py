@@ -20,7 +20,7 @@ class Queue(commands.Cog):
             await ctx.respond('No active sessions!')
             return
 
-        await ctx.respond(f'{session.display_queue()}')
+        await session.display_queue(ctx)
 
 
 def setup(bot):

@@ -1,20 +1,21 @@
 from librespot.core import Session
 from librespot.metadata import TrackId
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
-from librespot.audio import AbsChunkedInputStream
 from librespot.zeroconf import ZeroconfServer
 from dotenv import load_dotenv
 
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-from bot.search import is_url, similar
+from bot.search import is_url, token_sort_ratio
+from bot.utils import get_accent_color
 from config import SPOTIFY_ENABLED
-import config
 
-from io import BytesIO
+from typing import Dict, List, Optional
 from pathlib import Path
+import discord
 import logging
+import aiohttp
 import time
 import os
 import re
@@ -53,121 +54,145 @@ if SPOTIFY_ENABLED:
 
 
 class Spotify_:
+    async def generate_info_embed(self, track_id: str) -> discord.Embed:
+        """Generates a Discord Embed with track information."""
+        track_API = sp.track(track_id)
+        track_name = track_API['name']
+        track_url = f"https://open.spotify.com/track/{track_API['id']}"
+        artist_string = ', '.join(
+            f"[{artist['name']}]({artist['external_urls']['spotify']})" for artist in track_API['artists']
+        )
 
-    async def generate_stream(self, id: str) -> AbsChunkedInputStream:
-        '''Get the stream of a track from a single ID.
-        '''
-        track_id: TrackId = TrackId.from_uri(f"spotify:track:{id}")
+        album = track_API['album']
+        album_name = album['name']
+        album_url = album['external_urls']['spotify']
+        cover_url = album['images'][0]['url']
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(cover_url) as response:
+                cover_bytes = await response.read()
+                dominant_rgb = get_accent_color(cover_bytes)
+
+        embed = discord.Embed(
+            title=track_name,
+            url=track_url,
+            description=f"By {artist_string}",
+            color=discord.Colour.from_rgb(*dominant_rgb)
+        )
+        embed.add_field(
+            name="Part of the album",
+            value=f"[{album_name}]({album_url})",
+            inline=True
+        )
+        embed.set_author(name="Now playing")
+        embed.set_thumbnail(url=cover_url)
+
+        return embed
+
+    async def generate_stream(self, id: str):
+        """Generates a stream for a given track ID."""
+        track_id = TrackId.from_uri(f"spotify:track:{id}")
         stream = session.content_feeder().load(
             track_id, VorbisOnlyAudioQuality(
                 AudioQuality.VERY_HIGH), False, None
         )
         return stream.input_stream.stream()
 
-    async def get_track_name(self, id: str) -> str | None:
-        try:
-            track_API: dict = sp.track(id)
-        except TypeError:
-            return
+    def get_display_name(self, track_API: dict) -> Optional[str]:
+        """Returns a formatted display name for the track."""
+        if not track_API:
+            return None
+        return f"{track_API['artists'][0]['name']} - {track_API['name']}"
 
-        display_name: str = (
-            f"{track_API['artists'][0]['name']} "
-            f"- {track_API['name']}"
+    def get_id_from_url(self, url: str) -> Optional[Dict[str, str]]:
+        """Extracts the Spotify ID and type from a URL."""
+        match = re.match(
+            r"https?://open\.spotify\.com/(track|album|playlist)/(?P<ID>[0-9a-zA-Z]{22})",
+            url
         )
-        return display_name
+        if match:
+            return {'id': match.group('ID'), 'type': match.group(1)}
+        return None
 
-    def get_id_from_url(self, url: str) -> dict | None:
-        track_url_search = re.findall(
-            r"^(https?://)?open\.spotify\.com/(track|album|playlist)/(?P<ID>[0-9a-zA-Z]{22})(\?si=.+?)?$",
-            string=url
-        )
-        if not track_url_search:
-            return
-        id: str = track_url_search[0][2]
-        type = track_url_search[0][1]
-
-        if type == 'album' or type == 'playlist':
-            is_collection = True
-        else:
-            is_collection = False
-
-        return {'id': id, 'is_collection': is_collection}
-
-    async def get_id_from_query(self, query: str) -> dict | None:
+    async def get_id_from_query(self, query: str) -> Optional[Dict[str, str]]:
+        """Searches for a track or album by query and returns its ID and type."""
         search = sp.search(q=query, limit=1)
-        if not search:
-            return
-        items: str = search['tracks']['items']
-        if not items:
-            return
-        item = items[0]
+        if not search or not search['tracks']['items']:
+            return None
+        item = search['tracks']['items'][0]
 
-        # Basically searching if the query is an album or song
-        track_ratio: float = similar(
-            query,
-            # E.g: Thaehan Intro
-            f"{item['artists'][0]['name']} {item['name']}"
-        )
-        album_ratio: float = similar(
-            query,
-            # E.g: Thaehan Two Poles
-            f"{item['album']['artists'][0]['name']} {item['album']['name']}"
-        )
+        # Search is the query is a song or an album
+        track_ratio = token_sort_ratio(
+            query, f"{item['artists'][0]['name']} {item['name']}")
+        album_ratio = token_sort_ratio(
+            query, f"{item['album']['artists'][0]['name']} {item['album']['name']}")
+
         if track_ratio > album_ratio:
-            id: str = item['id']
-            is_collection = False
+            return {'id': item['id'], 'type': 'track'}
         else:
-            id: str = item['album']['id']
-            is_collection = True
+            return {'id': item['album']['id'], 'type': 'album'}
 
-        return {'id': id, 'is_collection': is_collection}
+    def get_track_info(self, track_API: dict) -> dict:
+        """Returns an info dictionary containing display name, URL, stream generator, and embed generator."""
+        id = track_API['id']
+        display_name = self.get_display_name(track_API)
 
-    async def get_track_items_from_collection(self, id: str) -> list:
-        try:
-            return sp.album_tracks(id)['items']
-        except spotipy.SpotifyException:
-            # It's a playlist
-            items = sp.playlist_items(id)['items']
-            return [item['track'] for item in items]
-
-    async def get_collection_track_ids(self, id: str) -> list[str]:
-        items: list = await self.get_track_items_from_collection(id)
-        track_ids = [item['id'] for item in items]
-        return track_ids
-
-    async def get_track_urls(self, user_input: str) -> list | None:
-        ids = await self.get_track_ids(user_input)
-        if not ids:
-            return
-        return [f'https://open.spotify.com/track/{id}' for id in ids]
-
-    # Ok so basically only that method should be used in the bot..
-    async def get_track_ids(self, user_input: str) -> list | None:
-        if is_url(user_input, ['open.spotify.com']):
-            result: dict = self.get_id_from_url(user_input)
-        else:
-            result: dict = await self.get_id_from_query(query=user_input)
-        if not result:
-            return
-
-        if result['is_collection']:
-            ids: list = await self.get_collection_track_ids(result['id'])
-            return ids
-
-        return [result['id']]
-
-    # ..And that one :elaina_magic:
-    async def get_track(self, id: str) -> dict:
-        '''Returns an info dictionary containing an audio stream
-        '''
-        display_name: str = await self.get_track_name(id)
-
-        async def generate_stream_func() -> AbsChunkedInputStream:
+        async def generate_stream_func():
             return await self.generate_stream(id)
 
-        info_dict = {
+        async def generate_info_embed_func():
+            return await self.generate_info_embed(id)
+
+        return {
             'display_name': display_name,
-            'url': f'https://open.spotify.com/track/{id}',
-            'source': generate_stream_func
+            'url': f"https://open.spotify.com/track/{id}",
+            'id': id,
+            'source': generate_stream_func,
+            'embed': generate_info_embed_func
         }
-        return info_dict
+
+    # Only that method should be used in the bot :elaina_magic:
+    async def get_tracks(self, user_input: str) -> List[dict]:
+        """Returns a list of track info dictionaries based on the user input (URL or search query)."""
+        if is_url(user_input, ['open.spotify.com']):
+            result = self.get_id_from_url(user_input)
+        else:
+            result = await self.get_id_from_query(user_input)
+
+        if not result:
+            return []
+
+        type_ = result['type']
+        id = result['id']
+        tracks_info = []
+
+        if type_ == 'track':
+            track_API = sp.track(id)
+            tracks_info.append(self.get_track_info(track_API))
+        elif type_ == 'album':
+            album_API = sp.album_tracks(id)
+            tracks_info.extend(self.get_track_info(track)
+                               for track in album_API['items'])
+        elif type_ == 'playlist':
+            playlist_API = sp.playlist_tracks(id)
+            tracks_info.extend(self.get_track_info(
+                track['track']) for track in playlist_API['items'])
+
+        return tracks_info
+
+    async def get_cover_data(self, track_id: str) -> dict:
+        track_API = sp.track(track_id)
+        album = track_API['album']
+        cover_url = album['images'][0]['url']
+
+        # Get the dominant colors
+        async with aiohttp.ClientSession() as session:
+            async with session.get(cover_url) as response:
+                cover_bytes = await response.read()
+                dominant_rgb = get_accent_color(cover_bytes)
+
+        return {'url': cover_url, 'dominant_rgb': dominant_rgb}
+
+
+if __name__ == '__main__':
+    aa = Spotify_()
