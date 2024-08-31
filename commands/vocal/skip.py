@@ -22,6 +22,7 @@ class Skip(commands.Cog):
         session: ServerSession = server_sessions[guild_id]
 
         if session.queue:
+            await ctx.respond('Skipping!')
             if session.loop_current:
                 session.queue.pop(0)
 
@@ -32,7 +33,6 @@ class Skip(commands.Cog):
                 # Less latency, ffmpeg process not terminated
                 session.voice_client.pause()
                 await session.play_next(ctx)
-            await ctx.respond('Skipped!')
         else:
             await ctx.respond('No songs in queue!')
 
