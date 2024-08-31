@@ -7,11 +7,11 @@
 </div>
 <b>A work in progress rework of <a href='https://github.com/Shewiiii/Ugoku-bot'>Ugoku !</a>, completely refactored and lightweight~</b>
 <h2>Features/To do</h2>
-<b>Unticked boxes are work in progress.</b>  
+<b>Unticked boxes are work in progress.</b>
 
 - [x] Ping.
 - [x] Echo messages (make the bot say any message).
-- [x] Download stickers from LINE.   
+- [x] Download stickers from LINE.
 - [ ] Download songs, albums or playlists from Spotify.
 - [x] Play songs in a voice channel.
   - [x] Skip, Show queue, Autodetect and add songs/albums, or playlists.
@@ -23,4 +23,6 @@
 > [!NOTE]
 > Ugoku-v2 is only using Spotify or Youtube as streaming service sources, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs
 - [ ] Chat using GPT-4o Mini.
+- [ ] Log users out no matter the token? To avoid user stuck and cannot log out.
+- [ ] Implement a refresh token logic
 - [ ] And maybe more in the future~

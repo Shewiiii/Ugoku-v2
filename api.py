@@ -1,10 +1,13 @@
-from fastapi import FastAPI, Query
-from fastapi.responses import RedirectResponse, JSONResponse
+from datetime import datetime, timedelta
+from fastapi import FastAPI, Query, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from discord import Bot
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
 import secrets
 import requests
@@ -54,8 +57,21 @@ def get_user_details(access_token: str, token_type: str):
 config = uvicorn.Config(app, loop="asyncio")
 server = uvicorn.Server(config)
 
-bot: Bot = None
-user_details_dict = {}
+bot: Optional[Bot] = None
+user_sessions = {}
+
+def create_session(user_details: dict):
+    session_token = secrets.token_urlsafe(32)
+    refresh_token = secrets.token_urlsafe(32)
+    expiration = datetime.now() + timedelta(days=7)
+
+    user_sessions[session_token] = {
+        "user_details": user_details,
+        "refresh_token": refresh_token,
+        "expiration": expiration
+    }
+
+    return session_token, refresh_token, expiration
 
 @app.get("/")
 async def ping():
@@ -64,6 +80,8 @@ async def ping():
 @app.get("/play")
 async def play():
     return { "message": str(bot.voice_clients) }
+
+security = HTTPBearer()
 
 @app.get("/auth/discord")
 async def auth_discord(code: str = Query(...)):
@@ -76,22 +94,55 @@ async def auth_discord(code: str = Query(...)):
         user_details = get_user_details(access_token, token_type)
 
         # Generate a temporary token
-        temp_token = secrets.token_urlsafe(32)
-        user_details["temp_token"] = temp_token
+        user_id = user_details["id"]
+        session_token, refresh_token, expiration = create_session(user_details)
 
         # Add the avatar URL
-        user_details["avatar"] = f"https://cdn.discordapp.com/avatars/{user_details['id']}/{user_details['avatar']}.png"
+        user_details["avatar"] = f"https://cdn.discordapp.com/avatars/{user_id}/{user_details['avatar']}.png"
 
-        user_details_dict[temp_token] = user_details
-
-        return RedirectResponse(url=f"http://localhost:5173/auth-callback?token={temp_token}")
+        return RedirectResponse(
+            url=f"http://localhost:5173/auth-callback?token={session_token}"
+        )
     except Exception as e:
         return JSONResponse(content={ "error": str(e) }, status_code=400)
-    
-@app.get("/api/user")
-async def get_user(token: str = Query(...)):
-    if token in user_details_dict:
-        return { "message": "Success!", "user": user_details_dict[token] }
+
+@app.post("/auth/logout")
+async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    if token in user_sessions:
+        del user_sessions[token]
+        return { "message": "Logged out successfully!" }
     else:
-        return { "message": "Invalid token" }
-    
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@app.get("/api/user")
+async def get_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    session = user_sessions[token]
+
+    if session["expiration"] < datetime.now():
+        del user_sessions[token]
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    if token in user_sessions:
+        return { "message": "Success!", "user": session["user_details"] }
+    else:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@app.post("/auth/refresh")
+async def refresh(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    refresh_token = credentials.credentials
+    # Check if the refresh token is valid
+    for token, session in user_sessions.items():
+        if session["refresh_token"] == refresh_token:
+            new_token, new_refresh_token, new_expiration = create_session(session["user_details"])
+            # Delete the old session
+            del user_sessions[token]
+            return JSONResponse({
+                "access_token": new_token,
+                "refresh_token": new_refresh_token,
+                "expires_at": new_expiration.isoformat()
+            })
+
+    raise HTTPException(status_code=401, detail="Invalid refresh token")
