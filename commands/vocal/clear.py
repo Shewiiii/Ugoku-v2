@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import discord
 from discord.ext import commands
 from bot.vocal import ServerSession, server_sessions
@@ -21,6 +23,7 @@ class Clear(commands.Cog):
             session.to_loop.clear()
 
             if voice_client.is_playing():
+                session.last_played_time = datetime.now()
                 voice_client.stop()
 
             await ctx.respond('Queue cleared!')
