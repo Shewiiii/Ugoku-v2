@@ -9,7 +9,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 from bot.search import is_url, token_sort_ratio
 from bot.utils import get_accent_color
-from config import SPOTIFY_ENABLED
+from config import SPOTIFY_ENABLED, SPOTIFY_TOP_COUNTRY
 
 from typing import Dict, List, Optional
 from pathlib import Path
@@ -107,7 +107,7 @@ class Spotify_:
     def get_id_from_url(self, url: str) -> Optional[Dict[str, str]]:
         """Extracts the Spotify ID and type from a URL."""
         match = re.match(
-            r"https?://open\.spotify\.com/(track|album|playlist)/(?P<ID>[0-9a-zA-Z]{22})",
+            r"https?://open\.spotify\.com/(track|album|playlist|artist)/(?P<ID>[0-9a-zA-Z]{22})",
             url
         )
         if match:
@@ -177,6 +177,10 @@ class Spotify_:
             playlist_API = sp.playlist_tracks(id)
             tracks_info.extend(self.get_track_info(
                 track['track']) for track in playlist_API['items'])
+        elif type_ == 'artist':
+            artist_API = sp.artist_top_tracks(id, country=SPOTIFY_TOP_COUNTRY)
+            tracks_info.extend(self.get_track_info(
+                track) for track in artist_API['tracks'])
 
         return tracks_info
 
@@ -195,4 +199,4 @@ class Spotify_:
 
 
 if __name__ == '__main__':
-    aa = Spotify_()
+    spotify = Spotify_()
