@@ -47,12 +47,7 @@ class ServerSession:
         view = QueueView(self.queue, self.to_loop, self.bot)
         await view.display(ctx)
 
-    async def start_playing(self, ctx: discord.ApplicationContext) -> None:
-        """Handles the playback of the next track in the queue."""
-        if not self.queue:
-            logging.info(f'Playback stopped in {self.guild_id}')
-            return  # No songs to play
-
+    async def send_now_playing(self, ctx: discord.ApplicationContext) -> None:
         # Retrieve the current track_info from the queue
         track_info: dict = self.queue[0]['track_info']
         embed: Optional[discord.Embed] = track_info['embed']
@@ -60,7 +55,6 @@ class ServerSession:
         url: str = track_info['url']
         title_markdown = f'[{title}](<{url}>)'
 
-        # Update the embed with remaining tracks and next track if embed exists
         if embed:
             embed = await embed()
             if len(self.queue) > 1:
@@ -70,6 +64,7 @@ class ServerSession:
             else:
                 next_track = 'End of queue!'
 
+            # Update the embed with remaining tracks
             embed.add_field(
                 name="Remaining Tracks",
                 value=str(len(self.queue) - 1),
@@ -87,10 +82,13 @@ class ServerSession:
         # Send the message or edit the previous message based on the context
         await ctx.send(content=message, embed=embed)
 
-        # Reset skip flag
-        self.skipped = False
+    async def start_playing(self, ctx: discord.ApplicationContext) -> None:
+        """Handles the playback of the next track in the queue."""
+        if not self.queue:
+            logging.info(f'Playback stopped in {self.guild_id}')
+            return  # No songs to play
 
-        source = track_info['source']
+        source = self.queue[0]['track_info']['source']
         # If source is a stream generator
         if isinstance(source, Callable):
             source = await source()  # Generate a fresh stream
@@ -106,6 +104,12 @@ class ServerSession:
             ffmpeg_source,
             after=lambda e=None: self.after_playing(ctx, e)
         )
+
+        # Send "Now playing" at the end to slightly reduce audio latency
+        if self.skipped or not self.loop_current:
+            await self.send_now_playing(ctx)
+            # Reset skip flag
+            self.skipped = False
 
     async def add_to_queue(self, ctx: discord.ApplicationContext, tracks_info: list, source: str) -> None:
         for track_info in tracks_info:
@@ -348,11 +352,7 @@ async def connect(ctx: discord.ApplicationContext, bot: discord.Bot) -> ServerSe
         return server_sessions[guild_id]
 
 
-async def play_spotify(
-    ctx: discord.ApplicationContext,
-    query: str,
-    session: ServerSession
-) -> None:
+async def play_spotify(ctx: discord.ApplicationContext, query: str, session: ServerSession) -> None:
     tracks_info = await spotify.get_tracks(user_input=query)
 
     if not tracks_info:
