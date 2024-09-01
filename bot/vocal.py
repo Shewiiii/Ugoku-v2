@@ -189,6 +189,9 @@ class ServerSession:
             await asyncio.sleep(17)
 
 
+server_sessions: dict[ServerSession] = {}
+
+
 class QueueView(View):
     def __init__(self, queue, to_loop, bot, page=1) -> None:
         super().__init__()
@@ -207,7 +210,7 @@ class QueueView(View):
 
     @discord.ui.button(
         label="Previous",
-        style=discord.ButtonStyle.primary
+        style=discord.ButtonStyle.secondary
     )
     async def previous_button(
         self,
@@ -220,7 +223,7 @@ class QueueView(View):
 
     @discord.ui.button(
         label="Next",
-        style=discord.ButtonStyle.primary
+        style=discord.ButtonStyle.secondary
     )
     async def next_button(
         self,
@@ -321,9 +324,6 @@ class QueueView(View):
         """Update the view when a button is pressed."""
         self.update_buttons()
         await interaction.response.edit_message(embed=await self.create_embed(), view=self)
-
-
-server_sessions: dict[ServerSession] = {}
 
 
 async def connect(ctx: discord.ApplicationContext, bot: discord.Bot) -> ServerSession | None:
