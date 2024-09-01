@@ -415,7 +415,7 @@ async def play_custom(ctx: discord.ApplicationContext, query: str, session: Serv
     try:
         audio_path = await fetch_audio_stream(query)
     except Exception as e:
-        await ctx.respond(f'Error fetching audio: {str(e)}')
+        await ctx.edit(content=f'Error fetching audio: {str(e)}')
         return
 
     # Extract display name for the track

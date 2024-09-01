@@ -23,10 +23,11 @@ class Skip(commands.Cog):
 
         if session.queue:
             await ctx.respond('Skipping!')
+            session.skipped = True
+
             if session.loop_current:
                 session.queue.pop(0)
 
-            session.skipped = True
             if len(session.queue) == 1:
                 session.voice_client.stop()
             else:
