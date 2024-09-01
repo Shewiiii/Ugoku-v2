@@ -143,7 +143,7 @@ class ServerSession:
         if error:
             raise error
 
-        if self.queue:
+        if self.queue and self.voice_client.is_connected():
             asyncio.run_coroutine_threadsafe(
                 self.play_next(ctx), self.bot.loop
             )
