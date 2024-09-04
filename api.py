@@ -1,19 +1,29 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Query, Depends, HTTPException
+from fastapi import FastAPI, Query, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
-from discord import Bot
+from discord import Bot, VoiceClient
+from sse_starlette.sse import EventSourceResponse
 import uvicorn
 import os
+import json
 from dotenv import load_dotenv
 import secrets
 import requests
-from typing import Optional, Dict, Any
+import asyncio
+from typing import Optional, Dict, Any, List, Set, Dict
+
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 config = uvicorn.Config(app, loop="asyncio")
 server = uvicorn.Server(config)
+active_servers: List[Dict[str, Any]] = []
+connected_clients: Set[asyncio.Queue] = set()
+
 load_dotenv()
 
 bot : Optional[Bot] = None
@@ -23,6 +33,8 @@ API_ENDPOINT = "https://discord.com/api/v10"
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = "http://localhost:8000/auth/discord"
+
+IMAGE_BASE_URL = "https://cdn.discordapp.com"
 
 # Add CORS middleware
 app.add_middleware(
@@ -34,6 +46,11 @@ app.add_middleware(
 )
 
 user_sessions: Dict[str, Dict[str, Any]] = {}
+active_servers: List[Dict[str, Any]] = []
+connected_clients: Set[asyncio.Queue] = set()
+
+
+security = HTTPBearer()
 
 def exchange_code(code: str) -> Dict[str, Any]:
     data = {
@@ -72,16 +89,55 @@ def create_session(user_details: Dict[str, Any]) -> tuple[str, str, datetime]:
 
     return session_token, refresh_token, expiration
 
-security = HTTPBearer()
+async def notify_clients():
+    logger.info(f"Notifying {len(connected_clients)} clients of server update")
+    for queue in connected_clients:
+        await queue.put(json.dumps({
+            "message": "Success!" if active_servers else "No active voice connections",
+            "guilds": active_servers
+        }))
+    logger.info("All clients notified")
+
+async def update_active_servers(guild_infos: List[Dict[str, Any]]):
+    global active_servers
+    active_servers = guild_infos
+    logger.info(f"Active servers updated: {active_servers}")
+    await notify_clients()
 
 @app.get("/")
 async def ping():
     return {"message": "pong"}
 
-@app.get("/play")
-async def play():
-    if bot is not None:
-        return { "message": str(bot.voice_clients) }
+@app.get("/play/stream")
+async def stream_active_servers(request: Request):
+    if bot is None:
+        return { "message": "Bot is not online" }
+
+    async def event_generator():
+        queue = asyncio.Queue()
+        connected_clients.add(queue)
+        try:
+            # Send initial update
+            initial_data = json.dumps({
+                "message": "Success!" if active_servers else "No active voice connections",
+                "guilds": active_servers
+            })
+            yield {
+                "event": "message",
+                "data": initial_data
+            }
+            while True:
+                if await request.is_disconnected():
+                    break
+                data = await queue.get()
+                yield {
+                    "event": "message",
+                    "data": data
+                }
+        finally:
+            connected_clients.remove(queue)
+
+    return EventSourceResponse(event_generator())
 
 @app.get("/auth/discord")
 async def auth_discord(code: str = Query(...)):
@@ -94,7 +150,7 @@ async def auth_discord(code: str = Query(...)):
         user_id = user_details["id"]
         session_token, _, _ = create_session(user_details)
 
-        user_details["avatar"] = f"https://cdn.discordapp.com/avatars/{user_id}/{user_details['avatar']}.png"
+        user_details["avatar"] = f"{IMAGE_BASE_URL}/avatars/{user_id}/{user_details['avatar']}.png" if user_details["avatar"] else None
 
         return RedirectResponse(
             url=f"http://localhost:5173/auth-callback?token={session_token}"

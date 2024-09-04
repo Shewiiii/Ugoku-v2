@@ -25,6 +25,30 @@ api.bot = bot
 async def on_ready() -> None:
     print(f"{bot.user} is running !")
 
+@bot.event
+async def on_voice_state_update(member, before, after):
+    logger.info(f"Voice state update detected for {member.name}")
+    logger.info(f"Before: {before.channel}, After: {after.channel}")
+    if before.channel != after.channel:
+        logger.info("Channel change detected, updating active servers")
+        await update_active_servers()
+    else:
+        logger.info("No channel change detected, ignoring")
+
+async def update_active_servers():
+    active_guilds = []
+    for vc in bot.voice_clients:
+        guild = vc.guild
+        guild_info = {
+            "id": guild.id,
+            "name": guild.name,
+            "icon": guild.icon.url if guild.icon else None
+        }
+        active_guilds.append(guild_info)
+
+    logger.info(f"Updating active servers. Current voice clients: {active_guilds}")
+    await api.update_active_servers(active_guilds)
+
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')
     module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
