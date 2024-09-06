@@ -5,7 +5,7 @@
   <p>Art by Shironappa</p>
   <h1>Ugoku-v2 Discord Bot</h1>
 </div>
-<b>A work in progress rework of <a href='https://github.com/Shewiiii/Ugoku-bot'>Ugoku !</a>, completely refactored and lightweight~</b>
+<b>Chinono's branch of Ugoku, forked from Shewi's <a href='https://github.com/Shewiiii/Ugoku-v2'>Ugoku-v2 !</a>. I forked this mainly to try and develop a webpage dashboard <a href='https://github.com/ChinHongTan/Ugoku-frontend'>here</a>, which is still work in progress.</b>
 <h2>Features/To do</h2>
 <b>Unticked boxes are work in progress.</b>
 
@@ -25,4 +25,5 @@
 - [ ] Chat using GPT-4o Mini.
 - [ ] Log users out no matter the token? To avoid user stuck and cannot log out.
 - [ ] Implement a refresh token logic
+- [ ] Clean up spotipy.py
 - [ ] And maybe more in the future~
