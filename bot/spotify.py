@@ -257,7 +257,7 @@ class Spotify_:
         """Retrieve cover image and dominant color from the track."""
         cover_url = await loop.run_in_executor(
             None,
-            lambda: sp.track(track_id)
+            lambda: sp.track(track_id)['album']['images'][0]['url']
         )
         async with aiohttp.ClientSession() as session:
             async with session.get(cover_url) as response:
