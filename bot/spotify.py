@@ -67,6 +67,7 @@ class Spotify_:
     async def get_track_name(self, id: str) -> str | None:
         try:
             track_API: dict = sp.track(id)
+            logger.info(f"Track: {sp.track(id)}")
         except TypeError:
             return
 
@@ -161,12 +162,25 @@ class Spotify_:
         '''Returns an info dictionary containing an audio stream
         '''
         display_name: str = await self.get_track_name(id)
+        track_API: dict = sp.track(id)
+        duration: int = track_API['duration_ms']
+        cover: str = track_API['album']['images'][0]['url']
+        album: str = track_API['album']['name']
+
+        # Display all artists
+        artist: str = ', '.join(
+            [artist['name'] for artist in track_API['artists']]
+        )
 
         async def generate_stream_func() -> AbsChunkedInputStream:
             return await self.generate_stream(id)
 
         info_dict = {
             'display_name': display_name,
+            'artist': artist,
+            'album': album,
+            'cover': cover,
+            'duration': duration,
             'url': f'https://open.spotify.com/track/{id}',
             'source': generate_stream_func
         }

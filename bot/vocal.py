@@ -17,6 +17,7 @@ import discord
 from bot.spotify import Spotify_
 from librespot.audio import AbsChunkedInputStream
 
+from bot.utils import update_active_servers
 
 spotify = Spotify_()
 
@@ -71,10 +72,15 @@ class ServerSession:
         if not self.queue:
             self.last_played_time = datetime.now()
             logging.info(f'Playback stopped in {self.guild_id}')
+            await update_active_servers(self.bot)
             return  # No songs to play
 
         queue_item = self.queue[0]
         title = queue_item['element']['display_name']
+        artist = queue_item['element']['artist']
+        album = queue_item['element']['album']
+        cover = queue_item['element']['cover']
+        duration = queue_item['element']['duration']
         url = queue_item['element']['url']
         message = f'Now playing: [{title}](<{url}>)'
 
@@ -104,6 +110,8 @@ class ServerSession:
             ffmpeg_source,
             after=lambda e=None: self.after_playing(ctx, e)
         )
+
+        await update_active_servers(self.bot, queue_item['element'])
 
     async def add_to_queue(self, ctx: discord.ApplicationContext, element: dict, source: str) -> None:
         queue_item = {'element': element, 'source': source}

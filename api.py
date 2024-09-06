@@ -52,6 +52,34 @@ connected_clients: Set[asyncio.Queue] = set()
 
 security = HTTPBearer()
 
+@app.on_event("startup")
+async def startup_event():
+    global user_sessions
+    user_sessions = load_sessions()
+    logger.info(f"Loaded {len(user_sessions)} sessions from file")
+
+def load_sessions():
+    try:
+        with open("sessions.json", "r") as f:
+            sessions = json.load(f)
+        # Convert expiration strings back to datetime objects
+        for session in sessions.values():
+            session['expiration'] = datetime.fromisoformat(session['expiration'])
+        return sessions
+    except FileNotFoundError:
+        return {}
+
+def save_sessions():
+    sessions_to_save = {
+        token: {
+            **session,
+            'expiration': session['expiration'].isoformat()
+        }
+        for token, session in user_sessions.items()
+    }
+    with open("sessions.json", "w") as f:
+        json.dump(sessions_to_save, f)
+
 def exchange_code(code: str) -> Dict[str, Any]:
     data = {
         "grant_type": "authorization_code",
@@ -86,6 +114,9 @@ def create_session(user_details: Dict[str, Any]) -> tuple[str, str, datetime]:
         "refresh_token": refresh_token,
         "expiration": expiration
     }
+
+    # Save the session to the json file
+    save_sessions()
 
     return session_token, refresh_token, expiration
 
@@ -163,6 +194,7 @@ async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     if token in user_sessions:
         del user_sessions[token]
+        save_sessions()
         return {"message": "Logged out successfully!"}
     raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -187,6 +219,7 @@ async def refresh(credentials: HTTPAuthorizationCredentials = Depends(security))
         if session["refresh_token"] == refresh_token:
             new_token, new_refresh_token, new_expiration = create_session(session["user_details"])
             del user_sessions[token]
+            save_sessions()
             return JSONResponse({
                 "access_token": new_token,
                 "refresh_token": new_refresh_token,
@@ -194,3 +227,33 @@ async def refresh(credentials: HTTPAuthorizationCredentials = Depends(security))
             })
 
     raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+@app.post("/api/playback/toggle")
+async def toggle_playback(guild_id: int, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    session = user_sessions.get(token)
+
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if session["expiration"] < datetime.now():
+        del user_sessions[token]
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    if bot is None:
+        raise HTTPException(status_code=400, detail="Bot is not online")
+
+    guild = bot.get_guild(guild_id)
+    if guild is None:
+        raise HTTPException(status_code=400, detail="Guild not found")
+
+    voice_client = guild.voice_client
+    if voice_client is None:
+        raise HTTPException(status_code=400, detail="Bot is not connected to a voice channel")
+
+    if voice_client.is_playing():
+        voice_client.pause()
+    else:
+        voice_client.resume()
+
+    return {"message": "Success!"}
