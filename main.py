@@ -1,9 +1,13 @@
 import os
 import logging
-from config import COMMANDS_FOLDER
+from config import COMMANDS_FOLDER, SPOTIFY_ENABLED
 
 import discord
 from dotenv import load_dotenv
+
+
+if SPOTIFY_ENABLED:
+    from bot.spotify import init_spotify
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -19,7 +23,9 @@ bot = discord.Bot(intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user} is running !")
+    logging.info(f"{bot.user} is running !")
+    if SPOTIFY_ENABLED:
+        await init_spotify()
 
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
@@ -30,4 +36,4 @@ for filepath in COMMANDS_FOLDER.rglob('*.py'):
     bot.load_extension(module_name)
 
 
-bot.run(BOT_TOKEN)
+bot.run(DEV_TOKEN)
