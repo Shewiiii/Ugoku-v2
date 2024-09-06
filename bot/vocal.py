@@ -1,10 +1,10 @@
 from config import CACHE_EXPIRY, CACHE_SIZE, TEMP_FOLDER, AUTO_LEAVE_DURATION
 from datetime import datetime, timedelta
+from typing import Callable, Optional
 from urllib.parse import unquote
 from datetime import datetime
 from pathlib import Path
 from time import time
-from typing import Callable, Optional
 import logging
 import asyncio
 import aiohttp
@@ -12,11 +12,11 @@ import hashlib
 import re
 import os
 
-from discord.ui import Button, View
+from discord.ui import View
 import discord
 
-from bot.spotify import Spotify_
 from librespot.audio import AbsChunkedInputStream
+from bot.spotify import Spotify_
 
 
 spotify = Spotify_()
@@ -41,7 +41,8 @@ class ServerSession:
         self.bot = bot
         self.channel_id = channel_id
         self.auto_leave_task = asyncio.create_task(
-            self.check_auto_leave())
+            self.check_auto_leave()
+        )
 
     async def display_queue(self, ctx: discord.ApplicationContext) -> None:
         view = QueueView(self.queue, self.to_loop, self.bot)
@@ -210,7 +211,7 @@ class QueueView(View):
         # Hide or show buttons based on the current page and the number of queue items
         self.children[0].disabled = self.page <= 1
         self.children[1].disabled = len(
-            self.queue) <= self.page * self.max_per_page
+            self.queue) < self.page * self.max_per_page
 
     @discord.ui.button(
         label="Previous",
