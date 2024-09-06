@@ -21,5 +21,14 @@ def is_url(string: str, from_: list | None = None) -> bool:
         return True
 
 
-def similar(a: str, b: str) -> float:
-    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+def token_sort_ratio(str1, str2):
+    tokens1 = str1.split()
+    tokens2 = str2.split()
+
+    sorted_tokens1 = sorted(tokens1)
+    sorted_tokens2 = sorted(tokens2)
+
+    sorted_str1 = ' '.join(sorted_tokens1)
+    sorted_str2 = ' '.join(sorted_tokens2)
+
+    return SequenceMatcher(None, sorted_str1, sorted_str2).ratio()
