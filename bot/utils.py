@@ -57,7 +57,10 @@ def rgb_to_hsv(r, g, b):
     return h, s, v
 
 
-def get_accent_color(image_bytes: bytes, threshold: int = 50):
+def get_accent_color(
+    image_bytes: bytes,
+    threshold: int = 50
+) -> tuple[int, int, int]:
     image = Image.open(BytesIO(image_bytes))
     image = image.convert('RGB')  # Ensure image RGB
 
@@ -102,7 +105,7 @@ def get_cache_path(string: str) -> Path:
     return TEMP_FOLDER / f'{hash_digest}.cache'
 
 
-def cleanup_cache():
+def cleanup_cache() -> None:
     files = sorted(TEMP_FOLDER.glob('*.cache'), key=os.path.getmtime)
 
     # Remove files that exceed the cache size limit
@@ -155,7 +158,16 @@ def extract_cover_art(file_path) -> bytes | None:
 def get_metadata(file_path) -> dict:
     audio_file = mutagen.File(file_path)
     if audio_file is None:
-        return "idk bro"
+        return {}
+
+    # files using ID3 tags (mp3, sometimes WAV)
+    if isinstance(audio_file, (MP3, ID3, WAVE)):
+        return {
+            'title': audio_file.get('TIT2'),
+            'album': audio_file.get('TALB'),
+            'artist': audio_file.get('TPE1')
+        }
+
     metadata = {}
     for key, value in audio_file.items():
         metadata[key] = value
