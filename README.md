@@ -15,7 +15,7 @@
 - [ ] Download songs, albums or playlists from Spotify.
 - [x] Play songs in a voice channel.
   - [x] Skip, Show queue, Autodetect and add songs/albums, or playlists.
-  - [ ] Loop song, Loop queue, pause, resume...
+  - [x] Loop song, Loop queue, pause, resume...
   - [x] Bypasses the channel's audio bitrate.
   - [x] Real time Spotify playback.
   - [x] Cache audio from custom sources.
