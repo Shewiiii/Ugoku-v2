@@ -254,7 +254,7 @@ class Spotify_:
         return []
 
     async def get_cover_data(self, track_id: str) -> dict:
-        """Retrieve cover image and dominant color from the track."""
+        """Return a dict with the cover URL and its dominant color."""
         cover_url = await loop.run_in_executor(
             None,
             lambda: sp.track(track_id)['album']['images'][0]['url']

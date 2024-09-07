@@ -1,23 +1,19 @@
-from config import CACHE_EXPIRY, CACHE_SIZE, TEMP_FOLDER, AUTO_LEAVE_DURATION
+from config import AUTO_LEAVE_DURATION, DEFAULT_EMBED_COLOR
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 from urllib.parse import unquote
 from datetime import datetime
-from pathlib import Path
-from time import time
 import logging
 import asyncio
-import aiohttp
-import hashlib
 import re
-import os
 
 from discord.ui import View
 import discord
 
+from bot.utils import get_metadata, extract_cover_art
+from bot.custom import fetch_audio_stream, generate_info_embed, get_cover_data_from_hash, upload_cover
 from librespot.audio import AbsChunkedInputStream
 from bot.spotify import Spotify_
-
 
 spotify = Spotify_()
 
@@ -44,11 +40,17 @@ class ServerSession:
             self.check_auto_leave()
         )
 
-    async def display_queue(self, ctx: discord.ApplicationContext) -> None:
+    async def display_queue(
+        self,
+        ctx: discord.ApplicationContext
+    ) -> None:
         view = QueueView(self.queue, self.to_loop, self.bot)
         await view.display(ctx)
 
-    async def send_now_playing(self, ctx: discord.ApplicationContext) -> None:
+    async def send_now_playing(
+        self,
+        ctx: discord.ApplicationContext
+    ) -> None:
         # Retrieve the current track_info from the queue
         track_info: dict = self.queue[0]['track_info']
         embed: Optional[discord.Embed] = track_info['embed']
@@ -57,6 +59,8 @@ class ServerSession:
         title_markdown = f'[{title}](<{url}>)'
 
         if embed:
+            # In case it requires additional api calls,
+            # The embed is generated when needed only.
             embed = await embed()
             if len(self.queue) > 1:
                 next_track_info = self.queue[1]['track_info']
@@ -83,7 +87,10 @@ class ServerSession:
         # Send the message or edit the previous message based on the context
         await ctx.send(content=message, embed=embed)
 
-    async def start_playing(self, ctx: discord.ApplicationContext) -> None:
+    async def start_playing(
+        self,
+        ctx: discord.ApplicationContext
+    ) -> None:
         """Handles the playback of the next track in the queue."""
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
@@ -112,7 +119,12 @@ class ServerSession:
             # Reset skip flag
             self.skipped = False
 
-    async def add_to_queue(self, ctx: discord.ApplicationContext, tracks_info: list, source: str) -> None:
+    async def add_to_queue(
+        self,
+        ctx: discord.ApplicationContext,
+        tracks_info: list,
+        source: str
+    ) -> None:
         for track_info in tracks_info:
             queue_item = {'track_info': track_info, 'source': source}
             self.queue.append(queue_item)
@@ -138,12 +150,20 @@ class ServerSession:
                 for track_info in tracks_info[:3]
             )
             additional_songs = len(tracks_info) - 3
-            await ctx.edit(content=f'Added to queue: {titles_urls}, and {additional_songs} more song(s) !')
+            await ctx.edit(
+                content=(
+                    f'Added to queue: {titles_urls}, and '
+                    f'{additional_songs} more song(s) !')
+            )
 
         if not self.voice_client.is_playing() and len(self.queue) >= 1:
             await self.start_playing(ctx)
 
-    def after_playing(self, ctx: discord.ApplicationContext, error: Exception) -> None:
+    def after_playing(
+        self,
+        ctx: discord.ApplicationContext,
+        error: Exception
+    ) -> None:
         self.last_played_time = datetime.now()
         if error:
             raise error
@@ -153,7 +173,10 @@ class ServerSession:
                 self.play_next(ctx), self.bot.loop
             )
 
-    async def play_next(self, ctx: discord.ApplicationContext) -> None:
+    async def play_next(
+        self,
+        ctx: discord.ApplicationContext
+    ) -> None:
         if self.loop_queue and not self.loop_current:
             self.to_loop.append(self.queue[0])
 
@@ -198,7 +221,13 @@ server_sessions: dict[ServerSession] = {}
 
 
 class QueueView(View):
-    def __init__(self, queue, to_loop, bot, page=1) -> None:
+    def __init__(
+        self,
+        queue,
+        to_loop,
+        bot,
+        page=1
+    ) -> None:
         super().__init__()
         self.queue = queue
         self.to_loop = to_loop
@@ -208,7 +237,8 @@ class QueueView(View):
         self.update_buttons()
 
     def update_buttons(self) -> None:
-        # Hide or show buttons based on the current page and the number of queue items
+        # Hide or show buttons based on the current page
+        # and the number of queue items
         self.children[0].disabled = self.page <= 1
         self.children[1].disabled = len(
             self.queue) < self.page * self.max_per_page
@@ -249,10 +279,12 @@ class QueueView(View):
             self.page += 1
 
         self.update_buttons()
-        await interaction.response.edit_message(embed=await self.create_embed(), view=self)
+        await interaction.response.edit_message(
+            embed=await self.create_embed(),
+            view=self
+        )
 
     async def create_embed(self) -> discord.Embed:
-
         if not self.queue:
             embed = discord.Embed(
                 title='Queue Overview',
@@ -264,14 +296,20 @@ class QueueView(View):
                 value=f"[{title}]({url})",
                 inline=False
             )
-
             return embed
 
-        # Get cover and color
-        if self.queue[0]['source'] == 'Spotify':
-            cover_data = await spotify.get_cover_data(self.queue[0]['track_info']['id'])
-        else:
-            cover_data = {'url': None, 'dominant_rgb': (145, 153, 252)}
+        # Get cover and colors of the NOW PLAYING song
+        source: str = self.queue[0]['source']
+        track_info: dict = self.queue[0]['track_info']
+        if source == 'Spotify':
+            # Cover data is not stored in the track info,
+            # but only got when requested like here.
+            # It allows the bot to bulk add songs (e.g from a playlist),
+            # with way few API requests
+            # TODO: cache the cover data
+            cover_data = await spotify.get_cover_data(track_info['id'])
+        elif source == 'Custom':
+            cover_data = await get_cover_data_from_hash(track_info['id'])
 
         # Create the embed
         embed = discord.Embed(
@@ -321,17 +359,29 @@ class QueueView(View):
 
         return embed
 
-    async def display(self, ctx: discord.ApplicationContext) -> None:
+    async def display(
+        self,
+        ctx: discord.ApplicationContext
+    ) -> None:
         embed = await self.create_embed()
         await ctx.respond(embed=embed, view=self)
 
-    async def update_view(self, interaction: discord.Interaction) -> None:
+    async def update_view(
+        self,
+        interaction: discord.Interaction
+    ) -> None:
         """Update the view when a button is pressed."""
         self.update_buttons()
-        await interaction.response.edit_message(embed=await self.create_embed(), view=self)
+        await interaction.response.edit_message(
+            embed=await self.create_embed(),
+            view=self
+        )
 
 
-async def connect(ctx: discord.ApplicationContext, bot: discord.Bot) -> ServerSession | None:
+async def connect(
+    ctx: discord.ApplicationContext,
+    bot: discord.Bot
+) -> ServerSession | None:
     user_voice = ctx.user.voice
     guild_id = ctx.guild.id
     if not user_voice:
@@ -353,7 +403,11 @@ async def connect(ctx: discord.ApplicationContext, bot: discord.Bot) -> ServerSe
         return server_sessions[guild_id]
 
 
-async def play_spotify(ctx: discord.ApplicationContext, query: str, session: ServerSession) -> None:
+async def play_spotify(
+    ctx: discord.ApplicationContext,
+    query: str,
+    session: ServerSession
+) -> None:
     tracks_info = await spotify.get_tracks(user_input=query)
 
     if not tracks_info:
@@ -363,73 +417,63 @@ async def play_spotify(ctx: discord.ApplicationContext, query: str, session: Ser
     await session.add_to_queue(ctx, tracks_info, source='Spotify')
 
 
-# Cache functions for custom sources
-
-def get_cache_path(url: str) -> Path:
-    # Hash the URL to create a unique filename
-    hash_digest = hashlib.md5(url.encode('utf-8')).hexdigest()
-    return TEMP_FOLDER / f'{hash_digest}.cache'
-
-
-def cleanup_cache():
-    files = sorted(TEMP_FOLDER.glob('*.cache'), key=os.path.getmtime)
-
-    # Remove files that exceed the cache size limit
-    while len(files) > CACHE_SIZE:
-        oldest_file = files.pop(0)
-        oldest_file.unlink()
-
-    # Remove expired files
-    current_time = time()
-    for file in files:
-        if current_time - file.stat().st_mtime > CACHE_EXPIRY:
-            file.unlink()
-
-
-async def fetch_audio_stream(url: str) -> Path:
-    cache_path = get_cache_path(url)
-
-    # If the file exists and is not expired, return it
-    if cache_path.is_file():
-        if time() - cache_path.stat().st_mtime < CACHE_EXPIRY:
-            return cache_path
-        else:
-            cache_path.unlink()  # Remove expired file
-
-    # Fetch the audio file from the URL asynchronously
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status != 200:
-                raise Exception(f'Failed to fetch audio: {response.status}')
-            audio_data = await response.read()
-
-    # Write the fetched audio to the cache file
-    with cache_path.open('wb') as cache_file:
-        cache_file.write(audio_data)
-
-    cleanup_cache()
-
-    return cache_path
-
-
-async def play_custom(ctx: discord.ApplicationContext, query: str, session: ServerSession) -> None:
+async def play_custom(
+    ctx: discord.ApplicationContext,
+    query: str,
+    session: ServerSession
+) -> None:
     try:
         audio_path = await fetch_audio_stream(query)
     except Exception as e:
         await ctx.edit(content=f'Error fetching audio: {str(e)}')
         return
 
-    # Extract display name for the track
-    display_name = re.search(r'(?:.+/)([^#?]+)', query)
-    display_name = unquote(display_name.group(
-        1)) if display_name else 'Custom track'
+    # Extract metadata
+    metadata = get_metadata(audio_path)
+    # Idk why title and album are lists :elaina_huh:
+    titles = metadata.get('title')
+    albums = metadata.get('album')
+    artists = metadata.get('artist', ['?'])
+
+    display_name = (
+        f'{artists[0]} - {titles[0]}' if titles
+        else get_display_name_from_query(query)
+    )
+
+    # Extract cover art
+    cover_bytes: bytes | None = extract_cover_art(audio_path)
+
+    if cover_bytes:
+        cover_dict = await upload_cover(cover_bytes)
+        cover_url = cover_dict.get('url')
+        id = cover_dict.get('cover_hash')
+        dominant_rgb = cover_dict.get('dominant_rgb')
+    else:
+        cover_url, id = None, None
+        dominant_rgb = DEFAULT_EMBED_COLOR
+
+    def embed():
+        return generate_info_embed(
+            url=query,
+            title=titles[0] if titles else display_name,
+            album=albums[0] if albums else '?',
+            artists=artists,
+            cover_url=cover_url,
+            dominant_rgb=dominant_rgb
+        )
 
     track_info = {
         'display_name': display_name,
         'source': audio_path,
         'url': query,
-        'embed': None,
-        'id': None
+        'embed': embed,
+        'id': id
     }
 
     await session.add_to_queue(ctx, [track_info], source='Custom')
+
+
+def get_display_name_from_query(query: str) -> str:
+    """Extracts a display name from the query URL if no title is found."""
+    match = re.search(r'(?:.+/)([^#?]+)', query)
+    return unquote(match.group(1)) if match else 'Custom track'

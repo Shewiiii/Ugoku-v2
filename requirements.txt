@@ -8,3 +8,4 @@ openai
 bs4
 imageio
 PyNaCl
+mutagen

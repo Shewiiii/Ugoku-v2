@@ -12,7 +12,7 @@ CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds) for custom sources
 AUTO_LEAVE_DURATION = 300 # Duration before killing an audio session (in seconds)
 LIBRESPOT_REFRESH_INTERVAL = 1800 # Default: 1800. Defines how often Librespot session should be refreshed (in seconds)
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
-
+DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
 # Logs
 logging.basicConfig(
     level=logging.INFO,

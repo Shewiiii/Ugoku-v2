@@ -1,7 +1,31 @@
+from dotenv import load_dotenv
+from pathlib import Path
+from time import time
+import logging
+import hashlib
+import base64
 import re
+import os
+
+from collections import Counter
 from PIL import Image
 from io import BytesIO
-from collections import Counter
+
+from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
+
+from mutagen.oggvorbis import OggVorbis
+from mutagen.oggopus import OggOpus
+from mutagen.id3 import ID3, APIC
+from mutagen.flac import Picture
+from mutagen.flac import FLAC
+from mutagen.wave import WAVE
+from mutagen.mp3 import MP3
+from mutagen.mp4 import MP4
+from mutagen.m4a import M4A
+import mutagen
+
+
+logger = logging.getLogger(__name__)
 
 
 def sanitize_filename(filename: str) -> str:
@@ -33,7 +57,7 @@ def rgb_to_hsv(r, g, b):
     return h, s, v
 
 
-def get_accent_color(image_bytes, threshold=50):
+def get_accent_color(image_bytes: bytes, threshold: int = 50):
     image = Image.open(BytesIO(image_bytes))
     image = image.convert('RGB')  # Ensure image RGB
 
@@ -69,3 +93,70 @@ def get_accent_color(image_bytes, threshold=50):
                 accent_color = color
 
     return accent_color
+
+
+# Cache functions for custom sources
+def get_cache_path(string: str) -> Path:
+    # Hash the URL to create a unique filename
+    hash_digest = hashlib.md5(string).hexdigest()
+    return TEMP_FOLDER / f'{hash_digest}.cache'
+
+
+def cleanup_cache():
+    files = sorted(TEMP_FOLDER.glob('*.cache'), key=os.path.getmtime)
+
+    # Remove files that exceed the cache size limit
+    while len(files) > CACHE_SIZE:
+        oldest_file = files.pop(0)
+        oldest_file.unlink()
+
+    # Remove expired files
+    current_time = time()
+    for file in files:
+        if current_time - file.stat().st_mtime > CACHE_EXPIRY:
+            file.unlink()
+
+
+def extract_cover_art(file_path) -> bytes | None:
+    audio_file = mutagen.File(file_path)
+    # files using ID3 tags (mp3, sometimes WAV)
+    if isinstance(audio_file, (MP3, ID3, WAVE)):
+        for tag in audio_file.tags.values():
+            if isinstance(tag, APIC):
+                cover_data = tag.data
+                img = cover_data
+                return img
+
+    # files using PICTURE block (OGG, Opus)
+    elif isinstance(audio_file, (OggVorbis, OggOpus)):
+        covers_data = audio_file.get('metadata_block_picture')
+        if covers_data:
+            b64_data: str = covers_data[0]
+            data = base64.b64decode(b64_data)
+            picture = Picture(data)
+            return picture.data
+
+    # files using PICTURE block but FLAC x)
+    elif isinstance(audio_file, FLAC):
+        if audio_file.pictures:
+            img = audio_file.pictures[0].data
+            return img
+
+    # MP4/M4A containers (mp4, ALAC, AAC and idk)
+    elif isinstance(audio_file, (MP4, M4A)):
+        tags = audio_file.tags
+        if tags:
+            cover_data = tags.get("covr")
+            if cover_data:
+                img = cover_data[0]
+                return img
+
+
+def get_metadata(file_path) -> dict:
+    audio_file = mutagen.File(file_path)
+    if audio_file is None:
+        return "idk bro"
+    metadata = {}
+    for key, value in audio_file.items():
+        metadata[key] = value
+    return metadata
