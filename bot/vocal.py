@@ -107,7 +107,9 @@ class ServerSession:
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
-        await update_active_servers(self.bot, queue_item['element'])
+        playback_start_time = datetime.now().isoformat()
+        self.queue[0]['track_info']['playback_start_time'] = playback_start_time
+        await update_active_servers(self.bot, self.queue[0]['track_info'])
 
         # Send "Now playing" at the end to slightly reduce audio latency
         if self.skipped or not self.loop_current:

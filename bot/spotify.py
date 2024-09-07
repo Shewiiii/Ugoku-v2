@@ -137,6 +137,7 @@ class Spotify_:
         id = track_API['id']
         display_name = self.get_display_name(track_API)
         track_API: dict = sp.track(id)
+        title: str = track_API['name']
         duration: int = track_API['duration_ms']
         cover: str = track_API['album']['images'][0]['url']
         album: str = track_API['album']['name']
@@ -154,6 +155,7 @@ class Spotify_:
 
         return {
             'display_name': display_name,
+            'title': title,
             'artist': artist,
             'album': album,
             'cover': cover,

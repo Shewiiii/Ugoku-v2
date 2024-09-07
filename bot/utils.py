@@ -80,15 +80,16 @@ async def update_active_servers(bot: discord.Bot, song_info: Dict[str, str] | No
         if vc.is_playing():
             guild = vc.guild
             guild_info = {
-                "id": guild.id,
+                "id": str(guild.id), # Convert to string to avoid overflow in JavaScript
                 "name": guild.name,
                 "icon": guild.icon.url if guild.icon else None,
                 "currentSong": {
-                    "title": song_info["display_name"] if song_info else None,
+                    "title": song_info["title"] if song_info else None,
                     "artist": song_info["artist"] if song_info else None,
                     "album": song_info["album"] if song_info else None,
                     "cover": song_info["cover"] if song_info else None,
                     "duration": song_info["duration"] if song_info else None,
+                    "playback_start_time": song_info["playback_start_time"] if song_info else None,
                 }
             }
             active_guilds.append(guild_info)

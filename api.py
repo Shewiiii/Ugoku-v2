@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Query, Depends, HTTPException, Request
+from fastapi import FastAPI, Query, Depends, HTTPException, Request, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -125,6 +125,7 @@ async def notify_clients():
     for queue in connected_clients:
         await queue.put(json.dumps({
             "message": "Success!" if active_servers else "No active voice connections",
+            "server_time": datetime.now().isoformat(),
             "guilds": active_servers
         }))
     logger.info("All clients notified")
@@ -229,7 +230,10 @@ async def refresh(credentials: HTTPAuthorizationCredentials = Depends(security))
     raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 @app.post("/api/playback/toggle")
-async def toggle_playback(guild_id: int, credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def toggle_playback(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    data = await request.json()
+    guild_id = data.get("guildId")
+    logger.info(f"Received playback toggle request for guild {guild_id}")
     token = credentials.credentials
     session = user_sessions.get(token)
 
@@ -243,7 +247,7 @@ async def toggle_playback(guild_id: int, credentials: HTTPAuthorizationCredentia
     if bot is None:
         raise HTTPException(status_code=400, detail="Bot is not online")
 
-    guild = bot.get_guild(guild_id)
+    guild = bot.get_guild(int(guild_id))
     if guild is None:
         raise HTTPException(status_code=400, detail="Guild not found")
 
