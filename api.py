@@ -13,6 +13,8 @@ import secrets
 import requests
 import asyncio
 from typing import Optional, Dict, Any, List, Set, Dict
+from pydantic import BaseModel
+from bot.vocal import seek_playback
 
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -51,6 +53,10 @@ connected_clients: Set[asyncio.Queue] = set()
 
 
 security = HTTPBearer()
+
+class SeekRequest(BaseModel):
+    guildId: str
+    position: int
 
 @app.on_event("startup")
 async def startup_event():
@@ -261,3 +267,11 @@ async def toggle_playback(request: Request, credentials: HTTPAuthorizationCreden
         voice_client.resume()
 
     return {"message": "Success!"}
+
+@app.post("/api/playback/seek")
+async def seek_playback_route(request: SeekRequest):
+    success = await seek_playback(request.guildId, request.position)
+    if success:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to seek. The guild might not be playing any audio.")

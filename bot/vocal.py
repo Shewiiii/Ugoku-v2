@@ -22,7 +22,6 @@ from bot.utils import update_active_servers
 
 spotify = Spotify_()
 
-
 class ServerSession:
     def __init__(
         self,
@@ -43,6 +42,8 @@ class ServerSession:
         self.channel_id = channel_id
         self.auto_leave_task = asyncio.create_task(
             self.check_auto_leave())
+        self.last_context = None
+        self.is_seeking = False
 
     async def display_queue(self, ctx: discord.ApplicationContext) -> None:
         view = QueueView(self.queue, self.to_loop, self.bot)
@@ -83,8 +84,30 @@ class ServerSession:
         # Send the message or edit the previous message based on the context
         await ctx.send(content=message, embed=embed)
 
-    async def start_playing(self, ctx: discord.ApplicationContext) -> None:
+    async def seek(self, position: int):
+        if not self.voice_client or not self.voice_client.is_playing():
+            return False
+
+        # Flag to indicate that the player is seeking
+        self.is_seeking = True
+        # Stop the current playback
+        self.voice_client.stop()
+
+        # Wait a short time to ensure the stop has been processed
+        await asyncio.sleep(0.1)
+
+        # Send "Seeking" message
+        if self.last_context:
+            await self.last_context.send(f"Seeking to {position} seconds")
+
+        # Use start_playing with the new position
+        await self.start_playing(self.last_context, start_position=position)
+
+        return True
+
+    async def start_playing(self, ctx: discord.ApplicationContext, start_position: int = 0) -> None:
         """Handles the playback of the next track in the queue."""
+        self.last_context = ctx
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
             await update_active_servers(self.bot)
@@ -96,10 +119,16 @@ class ServerSession:
             source = await source()  # Generate a fresh stream
             source.seek(167)  # Skip the non-audio content
 
+        # Set up FFmpeg options for seeking
+        ffmpeg_options = {
+            'options': f'-vn -ss {start_position}'
+        }
+
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
             pipe=isinstance(source, AbsChunkedInputStream),
-            bitrate=510
+            bitrate=510,
+            **ffmpeg_options
         )
 
         self.voice_client.play(
@@ -112,10 +141,12 @@ class ServerSession:
         await update_active_servers(self.bot, self.queue[0]['track_info'])
 
         # Send "Now playing" at the end to slightly reduce audio latency
-        if self.skipped or not self.loop_current:
+        if not self.is_seeking and (self.skipped or not self.loop_current):
             await self.send_now_playing(ctx)
             # Reset skip flag
             self.skipped = False
+        # Reset the seeking flag
+        self.is_seeking = False
 
     async def add_to_queue(self, ctx: discord.ApplicationContext, tracks_info: list, source: str) -> None:
         for track_info in tracks_info:
@@ -152,6 +183,10 @@ class ServerSession:
         self.last_played_time = datetime.now()
         if error:
             raise error
+
+        if self.is_seeking:
+            # If we're seeking, don't do anything
+            return
 
         if self.queue and self.voice_client.is_connected():
             asyncio.run_coroutine_threadsafe(
@@ -438,3 +473,11 @@ async def play_custom(ctx: discord.ApplicationContext, query: str, session: Serv
     }
 
     await session.add_to_queue(ctx, [track_info], source='Custom')
+
+async def seek_playback(guild_id: str, position: int):
+    guild_id = int(guild_id)
+    if guild_id not in server_sessions:
+        return False
+
+    session = server_sessions[guild_id]
+    return await session.seek(position)
