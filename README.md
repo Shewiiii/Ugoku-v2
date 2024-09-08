@@ -16,11 +16,11 @@
 - [X] Play songs in a voice channel.
   - [X] Skip, Show queue, Autodetect and add songs/albums, or playlists.
   - [X] Loop song, Loop queue, pause, resume...
-  - [X] Bypasses the channel's audio bitrate.
+  - [X] Bypass the channel's audio bitrate.
   - [X] Stream songs from Spotify.
   - [X] Play songs from a URL (custom source).
   - [X] Cache audio from custom sources.
-  - [ ] Embeds info messages with metadata (partially done).
+  - [ ] Embed info messages with metadata (partially done).
 
 > [!NOTE]
 > Ugoku-v2 is only using Spotify or Youtube as streaming service sources, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs
@@ -33,3 +33,4 @@
 
 - Queue not showing when too many characters in the queue/loop section.
   ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in length.").
+- Can't play audio works without MP3 Files in it.
