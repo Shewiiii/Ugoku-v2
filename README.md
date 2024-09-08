@@ -25,7 +25,7 @@
 > [!NOTE]
 > Ugoku-v2 is only using Spotify or Youtube as streaming service sources, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs
 
-- [X] Play 音声作品 (audio works) in a voice channel (because why not).
+- [X] Stream audio works (音声作品) in a voice channel (because why not).
 - [ ] Chat using GPT-4o Mini.
 - [ ] And maybe more in the future~
 
