@@ -7,20 +7,29 @@
 </div>
 <b>A work in progress rework of <a href='https://github.com/Shewiiii/Ugoku-bot'>Ugoku !</a>, completely refactored and lightweight~</b>
 <h2>Features/To do</h2>
-<b>Unticked boxes are work in progress.</b>  
+<b>Unticked boxes are work in progress.</b>
 
-- [x] Ping.
-- [x] Echo messages (make the bot say any message).
-- [x] Download stickers from LINE.   
+- [X] Ping.
+- [X] Echo messages (make the bot say any message).
+- [X] Download stickers from LINE.
 - [ ] Download songs, albums or playlists from Spotify.
-- [x] Play songs in a voice channel.
-  - [x] Skip, Show queue, Autodetect and add songs/albums, or playlists.
-  - [x] Loop song, Loop queue, pause, resume...
-  - [x] Bypasses the channel's audio bitrate.
-  - [x] Real time Spotify playback.
-  - [x] Cache audio from custom sources.
-  - [ ] Embeds info messages.
+- [X] Play songs in a voice channel.
+  - [X] Skip, Show queue, Autodetect and add songs/albums, or playlists.
+  - [X] Loop song, Loop queue, pause, resume...
+  - [X] Bypasses the channel's audio bitrate.
+  - [X] Stream songs from Spotify.
+  - [X] Play songs from a URL (custom source).
+  - [X] Cache audio from custom sources.
+  - [ ] Embeds info messages with metadata (partially done).
+
 > [!NOTE]
 > Ugoku-v2 is only using Spotify or Youtube as streaming service sources, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs
+
+- [X] Play 音声作品 (audio works) in a voice channel (because why not).
 - [ ] Chat using GPT-4o Mini.
 - [ ] And maybe more in the future~
+
+<h2>Known bugs to fix</h2>
+
+- Queue not showing when too many characters in the queue/loop section.
+  ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in length.").

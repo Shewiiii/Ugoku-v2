@@ -1,6 +1,6 @@
-from dotenv import load_dotenv
 from pathlib import Path
 from time import time
+import aiohttp
 import logging
 import hashlib
 import base64
@@ -26,6 +26,16 @@ import mutagen
 
 
 logger = logging.getLogger(__name__)
+
+
+def extract_number(string: str) -> str | None:
+    """Extract a natural number from a string.
+    Returns a str"""
+    search = re.search(r'\d+', string)
+    if not search:
+        return
+
+    return search.group()
 
 
 def sanitize_filename(filename: str) -> str:
@@ -98,6 +108,18 @@ def get_accent_color(
     return accent_color
 
 
+async def get_accent_color_from_url(
+    image_url: str
+) -> tuple[int, int, int]:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(image_url) as response:
+            response.raise_for_status()
+            cover_bytes = await response.read()
+            dominant_rgb = get_accent_color(cover_bytes)
+
+    return dominant_rgb
+
+
 # Cache functions for custom sources
 def get_cache_path(string: str) -> Path:
     # Hash the URL to create a unique filename
@@ -122,7 +144,8 @@ def cleanup_cache() -> None:
 
 def extract_cover_art(file_path) -> bytes | None:
     audio_file = mutagen.File(file_path)
-    # files using ID3 tags (mp3, sometimes WAV)
+
+    # For files using ID3 tags (mp3, sometimes WAV)
     if isinstance(audio_file, (MP3, ID3, WAVE)):
         for tag in audio_file.tags.values():
             if isinstance(tag, APIC):
@@ -130,7 +153,7 @@ def extract_cover_art(file_path) -> bytes | None:
                 img = cover_data
                 return img
 
-    # files using PICTURE block (OGG, Opus)
+    # For files using PICTURE block (OGG, Opus)
     elif isinstance(audio_file, (OggVorbis, OggOpus)):
         covers_data = audio_file.get('metadata_block_picture')
         if covers_data:
@@ -139,7 +162,7 @@ def extract_cover_art(file_path) -> bytes | None:
             picture = Picture(data)
             return picture.data
 
-    # files using PICTURE block but FLAC x)
+    # For files using PICTURE block but FLAC x)
     elif isinstance(audio_file, FLAC):
         if audio_file.pictures:
             img = audio_file.pictures[0].data
@@ -157,18 +180,16 @@ def extract_cover_art(file_path) -> bytes | None:
 
 def get_metadata(file_path) -> dict:
     audio_file = mutagen.File(file_path)
-    if audio_file is None:
+
+    if not audio_file:
         return {}
 
-    # files using ID3 tags (mp3, sometimes WAV)
+    # For files using ID3 tags (e.g. MP3, sometimes WAV)
     if isinstance(audio_file, (MP3, ID3, WAVE)):
         return {
-            'title': audio_file.get('TIT2'),
-            'album': audio_file.get('TALB'),
-            'artist': audio_file.get('TPE1')
+            'title': audio_file.get('TIT2', ['?']),
+            'album': audio_file.get('TALB', ['?']),
+            'artist': audio_file.get('TPE1', ['?'])
         }
 
-    metadata = {}
-    for key, value in audio_file.items():
-        metadata[key] = value
-    return metadata
+    return {key: value for key, value in audio_file.items()}

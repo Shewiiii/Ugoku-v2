@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 import spotipy
 
 from config import SPOTIFY_TOP_COUNTRY, LIBRESPOT_REFRESH_INTERVAL
+from bot.utils import get_accent_color, get_accent_color_from_url
 from spotipy.oauth2 import SpotifyClientCredentials
 from bot.search import is_url, token_sort_ratio
-from bot.utils import get_accent_color
 
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -99,26 +99,26 @@ class Librespot:
 class Spotify_:
     async def generate_info_embed(self, track_id: str) -> discord.Embed:
         """Generates a Discord Embed with track information."""
+        # API Request
         track_API = await loop.run_in_executor(
             None,
             lambda: sp.track(track_id)
         )
-        track_name, album = track_API['name'], track_API['album']
+        # Grab all the data needed
+        track_name = track_API['name']
+        album = track_API['album']
+        cover_url = album['images'][0]['url']
+        track_url = f"https://open.spotify.com/track/{track_API['id']}"
+        album_url = album['external_urls']['spotify']
+        dominant_rgb = await get_accent_color_from_url(cover_url)
+
+        # Create the artist string for the embed
         artist_string = ', '.join(
             f"[{artist['name']}]({artist['external_urls']['spotify']})"
             for artist in track_API['artists']
         )
-        cover_url, track_url, album_url = (
-            album['images'][0]['url'],
-            f"https://open.spotify.com/track/{track_API['id']}",
-            album['external_urls']['spotify']
-        )
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(cover_url) as response:
-                cover_bytes = await response.read()
-                dominant_rgb = get_accent_color(cover_bytes)
-
+        # Create the embed
         embed = discord.Embed(
             title=track_name,
             url=track_url,
@@ -259,10 +259,7 @@ class Spotify_:
             None,
             lambda: sp.track(track_id)['album']['images'][0]['url']
         )
-        async with aiohttp.ClientSession() as session:
-            async with session.get(cover_url) as response:
-                cover_bytes = await response.read()
-                dominant_rgb = get_accent_color(cover_bytes)
+        dominant_rgb = await get_accent_color_from_url(cover_url)
         return {'url': cover_url, 'dominant_rgb': dominant_rgb}
 
 

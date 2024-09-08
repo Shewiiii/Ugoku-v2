@@ -2,7 +2,9 @@ from config import AUTO_LEAVE_DURATION, DEFAULT_EMBED_COLOR
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 from urllib.parse import unquote
+from requests import HTTPError
 from datetime import datetime
+import aiohttp
 import logging
 import asyncio
 import re
@@ -10,12 +12,14 @@ import re
 from discord.ui import View
 import discord
 
-from bot.utils import get_metadata, extract_cover_art
 from bot.custom import fetch_audio_stream, generate_info_embed, get_cover_data_from_hash, upload_cover
+from bot.utils import get_metadata, extract_cover_art, extract_number, get_accent_color_from_url
 from librespot.audio import AbsChunkedInputStream
 from bot.spotify import Spotify_
+from bot.onsei import Onsei
 
 spotify = Spotify_()
+onsei = Onsei()
 
 
 class ServerSession:
@@ -288,13 +292,8 @@ class QueueView(View):
         if not self.queue:
             embed = discord.Embed(
                 title='Queue Overview',
-                thumbnail=cover_data['url'],
-                color=discord.Color.blurple()
-            )
-            embed.add_field(
-                name='No songs in queue!',
-                value=f"[{title}]({url})",
-                inline=False
+                color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR),
+                description='No songs in queue!'
             )
             return embed
 
@@ -422,13 +421,14 @@ async def play_custom(
     query: str,
     session: ServerSession
 ) -> None:
+    # Request and cache
     try:
         audio_path = await fetch_audio_stream(query)
     except Exception as e:
         await ctx.edit(content=f'Error fetching audio: {str(e)}')
         return
 
-    # Extract metadata
+    # Extract the metadata
     metadata = get_metadata(audio_path)
     # Idk why title and album are lists :elaina_huh:
     titles = metadata.get('title')
@@ -440,9 +440,8 @@ async def play_custom(
         else get_display_name_from_query(query)
     )
 
-    # Extract cover art
+    # Extract the cover art
     cover_bytes: bytes | None = extract_cover_art(audio_path)
-
     if cover_bytes:
         cover_dict = await upload_cover(cover_bytes)
         cover_url = cover_dict.get('url')
@@ -452,6 +451,7 @@ async def play_custom(
         cover_url, id = None, None
         dominant_rgb = DEFAULT_EMBED_COLOR
 
+    # Prepare the track
     def embed():
         return generate_info_embed(
             url=query,
@@ -477,3 +477,50 @@ def get_display_name_from_query(query: str) -> str:
     """Extracts a display name from the query URL if no title is found."""
     match = re.search(r'(?:.+/)([^#?]+)', query)
     return unquote(match.group(1)) if match else 'Custom track'
+
+
+async def play_onsei(
+    ctx: discord.ApplicationContext,
+    query: str,
+    session: ServerSession
+) -> None:
+    work_id = extract_number(query)
+
+    # API requests
+    try:
+        tracks_api: dict = await onsei.get_tracks_api(work_id)
+        work_api: dict = await onsei.get_work_api(work_id)
+        cover_url = onsei.get_cover(work_id)
+        dominant_rgb = await get_accent_color_from_url(cover_url)
+    except HTTPError:
+        await ctx.edit(content='No onsei has been found!')
+        return
+
+    # Grab the data needed
+    tracks = onsei.get_tracks(tracks_api, tracks={})
+    work_title = work_api.get('title')
+    artists = [i['name'] for i in work_api['vas']]
+
+    # Prepare the tracks
+    tracks_info = []
+    for track_title, stream_url in tracks.items():
+        def embed(track_title=track_title, stream_url=stream_url):
+            return generate_info_embed(
+                url=stream_url,
+                title=track_title,
+                album=work_title,
+                artists=artists,
+                cover_url=cover_url,
+                dominant_rgb=dominant_rgb
+            )
+
+        track_info = {
+            'display_name': track_title,
+            'source': stream_url,
+            'url': stream_url,
+            'embed': embed,
+            'id': None
+        }
+
+        tracks_info.append(track_info)
+    await session.add_to_queue(ctx, tracks_info, source='Custom')
