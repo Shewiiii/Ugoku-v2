@@ -42,8 +42,11 @@ class ServerSession:
         self.channel_id = channel_id
         self.auto_leave_task = asyncio.create_task(
             self.check_auto_leave())
+        self.playback_start_time = None
         self.last_context = None
         self.is_seeking = False
+        self.history = []
+        self.max_history = 50
 
     async def display_queue(self, ctx: discord.ApplicationContext) -> None:
         view = QueueView(self.queue, self.to_loop, self.bot)
@@ -110,7 +113,7 @@ class ServerSession:
         self.last_context = ctx
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
-            await update_active_servers(self.bot)
+            await update_active_servers(self.bot, server_sessions, None)
             return  # No songs to play
 
         source = self.queue[0]['track_info']['source']
@@ -136,9 +139,8 @@ class ServerSession:
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
-        playback_start_time = datetime.now().isoformat()
-        self.queue[0]['track_info']['playback_start_time'] = playback_start_time
-        await update_active_servers(self.bot, self.queue[0]['track_info'])
+        self.playback_start_time = datetime.now().isoformat()
+        await update_active_servers(self.bot, server_sessions)
 
         # Send "Now playing" at the end to slightly reduce audio latency
         if not self.is_seeking and (self.skipped or not self.loop_current):
@@ -179,12 +181,26 @@ class ServerSession:
         if not self.voice_client.is_playing() and len(self.queue) >= 1:
             await self.start_playing(ctx)
 
+    def get_queue(self):
+        return [
+            {
+                "title": track['track_info']['title'],
+                "artist": track['track_info'].get('artist'),
+                "album": track['track_info'].get('album'),
+                "cover": track['track_info'].get('cover'),
+                "duration": track['track_info'].get('duration'),
+                "url": track['track_info']['url']
+            }
+            for track in self.queue
+        ]
+
     def after_playing(self, ctx: discord.ApplicationContext, error: Exception) -> None:
         self.last_played_time = datetime.now()
         if error:
             raise error
 
         if self.is_seeking:
+            print("Seeking flag")
             # If we're seeking, don't do anything
             return
 
@@ -194,16 +210,31 @@ class ServerSession:
             )
 
     async def play_next(self, ctx: discord.ApplicationContext) -> None:
+        if self.queue and not self.loop_current:
+            played_song = self.queue.pop(0)
+            self.history.insert(0, played_song)
+            self.history = self.history[:self.max_history]
+
         if self.loop_queue and not self.loop_current:
             self.to_loop.append(self.queue[0])
-
-        if not self.loop_current:
-            self.queue.pop(0)
 
         if not self.queue and self.loop_queue:
             self.queue, self.to_loop = self.to_loop, []
 
         await self.start_playing(ctx)
+
+    def get_history(self):
+        return [
+            {
+                "title": track['track_info']['title'],
+                "artist": track['track_info'].get('artist'),
+                "album": track['track_info'].get('album'),
+                "cover": track['track_info'].get('cover'),
+                "duration": track['track_info'].get('duration'),
+                "url": track['track_info']['url']
+            }
+            for track in self.history
+        ]
 
     async def check_auto_leave(self) -> None:
         while self.voice_client.is_connected():

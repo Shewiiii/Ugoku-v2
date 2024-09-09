@@ -3,8 +3,10 @@ from PIL import Image
 from io import BytesIO
 from collections import Counter
 
+from discord.ext.commands.core import NotOwner
+
 import api, discord, logging
-from typing import Dict
+from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 def sanitize_filename(filename: str) -> str:
@@ -74,25 +76,33 @@ def get_accent_color(image_bytes, threshold=50):
     return accent_color
 
 
-async def update_active_servers(bot: discord.Bot, song_info: Dict[str, str] | None = None):
+async def update_active_servers(bot: discord.Bot, server_sessions: Dict[Any, Any]):
     active_guilds = []
     for vc in bot.voice_clients:
         if vc.is_playing():
             guild = vc.guild
+            session = server_sessions.get(guild.id)
+            queue = session.get_queue() if session else []
+            song_info = queue.pop(0) # Skip the first item as it's the currently playing song
+            history = session.get_history() if session else []
+            current_song = {
+                "title": song_info['title'],
+                "artist": song_info.get('artist'),
+                "album": song_info.get('album'),
+                "cover": song_info.get('cover'),
+                "duration": song_info.get('duration'),
+                "playback_start_time": session.playback_start_time,
+                "url": song_info['url']
+            } if song_info else None
             guild_info = {
                 "id": str(guild.id), # Convert to string to avoid overflow in JavaScript
                 "name": guild.name,
                 "icon": guild.icon.url if guild.icon else None,
-                "currentSong": {
-                    "title": song_info["title"] if song_info else None,
-                    "artist": song_info["artist"] if song_info else None,
-                    "album": song_info["album"] if song_info else None,
-                    "cover": song_info["cover"] if song_info else None,
-                    "duration": song_info["duration"] if song_info else None,
-                    "playback_start_time": song_info["playback_start_time"] if song_info else None,
-                }
+                "currentSong": current_song,
+                "queue": queue,
+                "history": history
             }
             active_guilds.append(guild_info)
 
-    logger.info(f"Updating active servers. Current voice clients: {active_guilds}")
+    logger.info(f"Updating active servers.")
     await api.update_active_servers(active_guilds)

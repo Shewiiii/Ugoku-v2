@@ -139,7 +139,7 @@ async def notify_clients():
 async def update_active_servers(guild_infos: List[Dict[str, Any]]):
     global active_servers
     active_servers = guild_infos
-    logger.info(f"Active servers updated: {active_servers}")
+    logger.info(f"Active servers updated.")
     await notify_clients()
 
 @app.get("/")
