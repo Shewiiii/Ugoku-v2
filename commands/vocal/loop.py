@@ -34,9 +34,6 @@ class Loop(commands.Cog):
 
             if session.loop_current:
                 response = 'You are now looping the current song!'
-                # Disable queue loop when looping a song
-                session.loop_queue = False
-                session.to_loop = []
             else:
                 response = 'You are not looping the current song anymore.'
 
