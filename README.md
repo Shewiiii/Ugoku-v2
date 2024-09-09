@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://twitter.com/shironappa_">
-      <img src="https://cdn.discordapp.com/attachments/1255158843546271866/1277637460620480533/main.png?ex=66cde41b&is=66cc929b&hm=9a91acfc9e3f34f5946d59a4f6fbbed8486c98bf6b92e79635616287827d37ab&" alt="Illustration by Shironappa">
+      <img src="https://i.imgur.com/gj3SRcY.png&" alt="Illustration by Shironappa">
   </a>
   <p>Art by Shironappa</p>
   <h1>Ugoku-v2 Discord Bot</h1>
