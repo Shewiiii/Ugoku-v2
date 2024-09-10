@@ -15,7 +15,7 @@ import requests
 import asyncio
 from typing import Optional, Dict, Any, List, Set, Dict
 from pydantic import BaseModel
-from bot.vocal import seek_playback, toggle_loop, skip_track
+from bot.vocal import seek_playback, toggle_loop, skip_track, shuffle_queue, previous_track
 
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -64,6 +64,13 @@ class LoopRequest(BaseModel):
     mode: str
 
 class SkipRequest(BaseModel):
+    guildId: str
+
+class ShuffleRequest(BaseModel):
+    guildId: str
+    isActive: bool
+
+class PreviousRequest(BaseModel):
     guildId: str
 
 @app.on_event("startup")
@@ -320,6 +327,42 @@ async def skip_track_route(request: SkipRequest, credentials: HTTPAuthorizationC
     else:
         raise HTTPException(status_code=400, detail="Failed to skip track. The guild might not be playing any audio.")
 
+@app.post("/api/playback/shuffle")
+async def shuffle_playback(request: ShuffleRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    session = user_sessions.get(token)
+
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if session["expiration"] < datetime.now():
+        del user_sessions[token]
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    success = await shuffle_queue(request.guildId, request.isActive)
+    if success:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to shuffle. The guild might not be playing any audio.")
+
+@app.post("/api/playback/previous")
+async def play_previous_track_route(request: PreviousRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    session = user_sessions.get(token)
+
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if session["expiration"] < datetime.now():
+        del user_sessions[token]
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    success = await previous_track(request.guildId)
+
+    if success:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to play previous track. The guild might not be playing any audio.")
 # @app.post("/api/playback/volume")
 # async def set_volume(request: VolumeRequest):
 #    pass
