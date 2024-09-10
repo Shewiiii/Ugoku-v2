@@ -113,7 +113,7 @@ class ServerSession:
         self.last_context = ctx
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
-            await update_active_servers(self.bot, server_sessions, None)
+            await update_active_servers(self.bot, server_sessions)
             return  # No songs to play
 
         source = self.queue[0]['track_info']['source']
@@ -124,7 +124,7 @@ class ServerSession:
 
         # Set up FFmpeg options for seeking
         ffmpeg_options = {
-            'options': f'-vn -ss {start_position}'
+            'options': f'-vn -ss {start_position} -af aresample=async=1'
         }
 
         ffmpeg_source = discord.FFmpegOpusAudio(
@@ -200,7 +200,6 @@ class ServerSession:
             raise error
 
         if self.is_seeking:
-            print("Seeking flag")
             # If we're seeking, don't do anything
             return
 
@@ -235,6 +234,25 @@ class ServerSession:
             }
             for track in self.history
         ]
+
+    async def toggle_loop(self, mode):
+        if mode == 'noLoop':
+            self.loop_current = False
+            self.loop_queue = False
+        elif mode == 'loopAll':
+            self.loop_current = False
+            self.loop_queue = True
+        elif mode == 'loopOne':
+            self.loop_current = True
+            self.loop_queue = False
+        else:
+            return False
+
+        # Send message to the server
+        channel = self.bot.get_channel(self.channel_id)
+        if channel and isinstance(channel, discord.TextChannel):
+            await channel.send(f'Loop mode set to {mode} !')
+        return True
 
     async def check_auto_leave(self) -> None:
         while self.voice_client.is_connected():
@@ -512,3 +530,46 @@ async def seek_playback(guild_id: str, position: int):
 
     session = server_sessions[guild_id]
     return await session.seek(position)
+
+async def toggle_loop(guild_id: str, mode: str):
+    guild_id = int(guild_id)
+    if guild_id not in server_sessions:
+        return False
+
+    session = server_sessions[guild_id]
+
+    return await session.toggle_loop(mode)
+
+async def skip_track(guild_id: str):
+    guild_id = int(guild_id)
+    if guild_id not in server_sessions:
+        return False
+
+    session = server_sessions[guild_id]
+
+    if not session.voice_client or not session.voice_client.is_playing():
+        return False
+
+    current_track = session.queue[0]['track_info'] if session.queue else None
+    session.skipped = True
+
+    # Send skip message
+    if session.bot and session.channel_id:
+        channel = session.bot.get_channel(session.channel_id)
+        if isinstance(channel, discord.TextChannel):
+            if current_track:
+                await channel.send(f"Skipped: {current_track['display_name']}")
+            else:
+                await channel.send("Skipped the current track.")
+
+    if session.loop_current:
+        session.queue.pop(0)
+
+    if len(session.queue) == 1:
+        session.voice_client.stop()
+    else:
+        # Less latency, ffmpeg process not terminated
+        session.voice_client.pause()
+        await session.play_next(session.last_context)
+
+    return True

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Query, Depends, HTTPException, Request, Body
+from fastapi.params import Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +15,7 @@ import requests
 import asyncio
 from typing import Optional, Dict, Any, List, Set, Dict
 from pydantic import BaseModel
-from bot.vocal import seek_playback
+from bot.vocal import seek_playback, toggle_loop, skip_track
 
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -57,6 +58,13 @@ security = HTTPBearer()
 class SeekRequest(BaseModel):
     guildId: str
     position: int
+
+class LoopRequest(BaseModel):
+    guildId: str
+    mode: str
+
+class SkipRequest(BaseModel):
+    guildId: str
 
 @app.on_event("startup")
 async def startup_event():
@@ -275,3 +283,43 @@ async def seek_playback_route(request: SeekRequest):
         return {"status": "success"}
     else:
         raise HTTPException(status_code=400, detail="Failed to seek. The guild might not be playing any audio.")
+
+@app.post("/api/playback/loop")
+async def toggle_loop_route(request: LoopRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    session = user_sessions.get(token)
+
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if session["expiration"] < datetime.now():
+        del user_sessions[token]
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    success = await toggle_loop(request.guildId, request.mode)
+    if success:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to toggle loop. The guild might not be playing any audio.")
+
+@app.post('/api/playback/skip')
+async def skip_track_route(request: SkipRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    session = user_sessions.get(token)
+
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if session["expiration"] < datetime.now():
+        del user_sessions[token]
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    success = await skip_track(request.guildId)
+    if success:
+        return {"status": "success", "message": "Skipped track!"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to skip track. The guild might not be playing any audio.")
+
+# @app.post("/api/playback/volume")
+# async def set_volume(request: VolumeRequest):
+#    pass
