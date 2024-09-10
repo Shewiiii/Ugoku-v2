@@ -6,8 +6,6 @@ import api
 
 import discord
 from dotenv import load_dotenv
-from bot_instance import bot, BOT_TOKEN
-
 
 if SPOTIFY_ENABLED:
     from bot.spotify import init_spotify
