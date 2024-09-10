@@ -6,6 +6,7 @@ import api
 
 import discord
 from dotenv import load_dotenv
+from bot_instance import bot, BOT_TOKEN
 
 
 if SPOTIFY_ENABLED:
@@ -13,7 +14,7 @@ if SPOTIFY_ENABLED:
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-DEV_TOKEN = os.getenv('DEV_TOKEN')
+# DEV_TOKEN = os.getenv('DEV_TOKEN')
 logger = logging.getLogger(__name__)
 
 
