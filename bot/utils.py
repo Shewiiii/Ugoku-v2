@@ -1,7 +1,41 @@
+from pathlib import Path
+from time import time
+import aiohttp
+import logging
+import hashlib
+import base64
 import re
+import os
+
+from collections import Counter
 from PIL import Image
 from io import BytesIO
-from collections import Counter
+
+from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
+
+from mutagen.oggvorbis import OggVorbis
+from mutagen.oggopus import OggOpus
+from mutagen.id3 import ID3, APIC
+from mutagen.flac import Picture
+from mutagen.flac import FLAC
+from mutagen.wave import WAVE
+from mutagen.mp3 import MP3
+from mutagen.mp4 import MP4
+from mutagen.m4a import M4A
+import mutagen
+
+
+logger = logging.getLogger(__name__)
+
+
+def extract_number(string: str) -> str | None:
+    """Extract a natural number from a string.
+    Returns a str"""
+    search = re.search(r'\d+', string)
+    if not search:
+        return
+
+    return search.group()
 
 from discord.ext.commands.core import NotOwner
 
@@ -38,7 +72,10 @@ def rgb_to_hsv(r, g, b):
     return h, s, v
 
 
-def get_accent_color(image_bytes, threshold=50):
+def get_accent_color(
+    image_bytes: bytes,
+    threshold: int = 50
+) -> tuple[int, int, int]:
     image = Image.open(BytesIO(image_bytes))
     image = image.convert('RGB')  # Ensure image RGB
 
@@ -74,6 +111,93 @@ def get_accent_color(image_bytes, threshold=50):
                 accent_color = color
 
     return accent_color
+
+
+async def get_accent_color_from_url(
+    image_url: str
+) -> tuple[int, int, int]:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(image_url) as response:
+            response.raise_for_status()
+            cover_bytes = await response.read()
+            dominant_rgb = get_accent_color(cover_bytes)
+
+    return dominant_rgb
+
+
+# Cache functions for custom sources
+def get_cache_path(string: str) -> Path:
+    # Hash the URL to create a unique filename
+    hash_digest = hashlib.md5(string).hexdigest()
+    return TEMP_FOLDER / f'{hash_digest}.cache'
+
+
+def cleanup_cache() -> None:
+    files = sorted(TEMP_FOLDER.glob('*.cache'), key=os.path.getmtime)
+
+    # Remove files that exceed the cache size limit
+    while len(files) > CACHE_SIZE:
+        oldest_file = files.pop(0)
+        oldest_file.unlink()
+
+    # Remove expired files
+    current_time = time()
+    for file in files:
+        if current_time - file.stat().st_mtime > CACHE_EXPIRY:
+            file.unlink()
+
+
+def extract_cover_art(file_path) -> bytes | None:
+    audio_file = mutagen.File(file_path)
+
+    # For files using ID3 tags (mp3, sometimes WAV)
+    if isinstance(audio_file, (MP3, ID3, WAVE)):
+        for tag in audio_file.tags.values():
+            if isinstance(tag, APIC):
+                cover_data = tag.data
+                img = cover_data
+                return img
+
+    # For files using PICTURE block (OGG, Opus)
+    elif isinstance(audio_file, (OggVorbis, OggOpus)):
+        covers_data = audio_file.get('metadata_block_picture')
+        if covers_data:
+            b64_data: str = covers_data[0]
+            data = base64.b64decode(b64_data)
+            picture = Picture(data)
+            return picture.data
+
+    # For files using PICTURE block but FLAC x)
+    elif isinstance(audio_file, FLAC):
+        if audio_file.pictures:
+            img = audio_file.pictures[0].data
+            return img
+
+    # MP4/M4A containers (mp4, ALAC, AAC and idk)
+    elif isinstance(audio_file, (MP4, M4A)):
+        tags = audio_file.tags
+        if tags:
+            cover_data = tags.get("covr")
+            if cover_data:
+                img = cover_data[0]
+                return img
+
+
+def get_metadata(file_path) -> dict:
+    audio_file = mutagen.File(file_path)
+
+    if not audio_file:
+        return {}
+
+    # For files using ID3 tags (e.g. MP3, sometimes WAV)
+    if isinstance(audio_file, (MP3, ID3, WAVE)):
+        return {
+            'title': audio_file.get('TIT2', ['?']),
+            'album': audio_file.get('TALB', ['?']),
+            'artist': audio_file.get('TPE1', ['?'])
+        }
+
+    return {key: value for key, value in audio_file.items()}
 
 
 async def update_active_servers(bot: discord.Bot, server_sessions: Dict[Any, Any]):
