@@ -54,8 +54,9 @@ class ServerSession:
         self.max_history = 50
         self.original_queue = []
         self.is_shuffled = False
-        self.current_track_index = 0
-        self.backward_count = 0
+        self.current_index = 0
+        self.shuffled_queue = []
+        self.volume = 100
 
     async def display_queue(
         self,
@@ -141,15 +142,17 @@ class ServerSession:
 
         # Set up FFmpeg options for seeking
         ffmpeg_options = {
-            'options': f'-vn -ss {start_position} -af aresample=async=1'
+            'options': f'-vn -ss {start_position} -af aresample=async=1 -ar 48000 -acodec pcm_s16le -ac 2'
         }
 
-        ffmpeg_source = discord.FFmpegOpusAudio(
+        ffmpeg_source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(
             source,
             pipe=isinstance(source, AbsChunkedInputStream),
-            bitrate=510,
             **ffmpeg_options
-        )
+        ))
+
+        # Set the volume
+        ffmpeg_source.volume = self.volume / 100
 
         self.voice_client.play(
             ffmpeg_source,
@@ -177,6 +180,12 @@ class ServerSession:
             queue_item = {'track_info': track_info, 'source': source}
             self.queue.append(queue_item)
             self.original_queue.append(queue_item) # Add to original queue for shuffle
+
+        if self.is_shuffled:
+            current_song = self.queue[0] if self.queue else None
+            remaining_songs = self.queue[1:] if current_song else self.queue
+            random.shuffle(remaining_songs)
+            self.queue = [current_song] + remaining_songs if current_song else remaining_songs
 
         # If only one song is added
         if len(tracks_info) == 1:
@@ -208,68 +217,28 @@ class ServerSession:
         if not self.voice_client.is_playing() and len(self.queue) >= 1:
             await self.start_playing(ctx)
 
-    async def play_previous(self):
-        if not self.voice_client or not self.voice_client.is_playing():
-            return False
+    async def previous_track(self, ctx: discord.ApplicationContext) -> None:
+        if self.current_index > 0:
+            self.current_index -= 1
+        else:
+            self.current_index = len(self.original_queue) - 1
 
-        logger.info(datetime.now() - datetime.fromisoformat(self.playback_start_time) < timedelta(seconds=5))
-        # If the current track has been playing for less than 5 seconds
-        if datetime.now() - datetime.fromisoformat(self.playback_start_time) < timedelta(seconds=5):
-            # Restart the current track
-            await self.seek(0)
-            self.backward_count = 0
-            return True
+        previous_song = self.original_queue[self.current_index]
+        self.queue.insert(0, previous_song)
 
-        self.backward_count += 1
-        target_index = (self.current_track_index - self.backward_count + len(self.original_queue)) % len(self.original_queue)
-        logger.info(f"Playing previous track: {target_index}")
+        if len(self.queue) > len(self.original_queue):
+            self.queue.pop()
 
-        # Update the queue to reflect the new order
-        self.queue.insert(0, self.original_queue[target_index])
-
-        # Stop the current playback
-        self.voice_client.stop()
-
-        # Start playing the previous track
-        await self.start_playing(self.last_context)
-
-        self.current_track_index = target_index
+        self.voice_client.pause()
+        await self.start_playing(ctx)
         return True
 
-    async def skip_track(self):
+    async def skip_track(self, ctx: discord.ApplicationContext) -> None:
         if not self.voice_client or not self.voice_client.is_playing():
             return False
 
-        self.backward_count = 0
-        current_track = self.queue[0]['track_info'] if self.queue else None
-        self.skipped = True
-        channel = self.bot.get_channel(self.channel_id)
-
-        self.current_track_index = (self.current_track_index + 1) % len(self.original_queue)
-
-        # Send skip message
-        if self.bot and self.channel_id:
-            if isinstance(channel, discord.TextChannel):
-                if current_track:
-                    await channel.send(f"Skipped: {current_track['display_name']}")
-                else:
-                    await channel.send("Skipped the current track.")
-
-        if self.loop_current:
-            played_song = self.queue.pop(0)
-            self.history.insert(0, played_song)
-            self.history = self.history[:self.max_history]
-            if isinstance(channel, discord.TextChannel):
-                await channel.send('Switching loop mode to queue.')
-            self.loop_current, self.loop_queue = False, True
-
-        if len(self.queue) == 1:
-            self.voice_client.stop()
-        else:
-            # Less latency, ffmpeg process not terminated
-            self.voice_client.pause()
-            await self.play_next(self.last_context)
-
+        self.voice_client.pause()
+        await self.play_next(ctx)
         return True
 
     def get_queue(self):
@@ -289,17 +258,20 @@ class ServerSession:
         if len(self.queue) <= 1:
             return True  # No need to shuffle if queue has 0 or 1 song
 
-        current_song = self.queue.pop(0)  # Remove the currently playing song from the queue
+        current_song = self.queue[0]
 
         if is_active and not self.is_shuffled:
-            random.shuffle(self.queue)
+            self.shuffled_queue = self.queue[1:]
+            random.shuffle(self.shuffled_queue)
+            self.queue = [current_song] + self.shuffled_queue
             self.is_shuffled = True
         elif not is_active and self.is_shuffled:
             # Restore the original order
-            self.queue = [item for item in self.original_queue if item in self.queue]
+            current_index = self.original_queue.index(current_song)
+            self.queue = [current_song] + self.original_queue[current_index + 1:]
             self.is_shuffled = False
 
-        self.queue.insert(0, current_song)  # Put the current song back at the start of the queue
+        self.current_index = self.original_queue.index(current_song)
         return True
 
     def after_playing(
@@ -324,19 +296,19 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
-        if self.queue and not self.loop_current:
-            played_song = self.queue.pop(0)
-            self.history.insert(0, played_song)
-            self.history = self.history[:self.max_history]
-            if not self.is_shuffled:
-                self.original_queue.pop(0)  # Remove from original queue only if not shuffled
-        if self.loop_queue and not self.loop_current:
-            self.to_loop.append(self.queue[0])
+        if not self.queue:
+            logging.info(f'Playback stopped in {self.guild_id}')
+            await update_active_servers(self.bot, server_sessions)
+            return  # No songs to play
+        if self.current_index < len(self.original_queue) - 1:
+            self.current_index += 1
 
-        if not self.queue and self.loop_queue:
-            self.queue, self.to_loop = self.to_loop, []
-            if not self.is_shuffled:
-                self.original_queue = self.queue.copy()  # Update original queue
+        played_song = self.queue.pop(0)
+        self.history.insert(0, played_song)
+        self.history = self.history[:self.max_history]
+
+        if self.loop_queue and not self.loop_current:
+            self.queue.append(played_song)
 
         await self.start_playing(ctx)
 
@@ -710,7 +682,7 @@ async def seek_playback(guild_id: str, position: int):
     if guild_id not in server_sessions:
         return False
 
-    session = server_sessions[guild_id]
+    session: ServerSession = server_sessions[guild_id]
     return await session.seek(position)
 
 async def toggle_loop(guild_id: str, mode: str):
@@ -718,7 +690,7 @@ async def toggle_loop(guild_id: str, mode: str):
     if guild_id not in server_sessions:
         return False
 
-    session = server_sessions[guild_id]
+    session: ServerSession = server_sessions[guild_id]
 
     return await session.toggle_loop(mode)
 
@@ -727,23 +699,23 @@ async def skip_track(guild_id: str):
     if guild_id not in server_sessions:
         return False
 
-    session = server_sessions[guild_id]
-    return await session.skip_track()
+    session: ServerSession = server_sessions[guild_id]
+    return await session.skip_track(session.last_context)
 
-async def previous_track(guild_id: str) -> Dict[str, Any]:
+async def previous_track(guild_id: str):
     guild_id = int(guild_id)
     if guild_id not in server_sessions:
         return False
 
-    session = server_sessions[guild_id]
-    return await session.play_previous()
+    session: ServerSession = server_sessions[guild_id]
+    return await session.previous_track(session.last_context)
 
 async def shuffle_queue(guild_id: str, is_active: bool):
     guild_id = int(guild_id)
     if guild_id not in server_sessions:
         return False
 
-    session = server_sessions[guild_id]
+    session: ServerSession = server_sessions[guild_id]
     success = await session.shuffle_queue(is_active)
 
     # Update the queue for all connected clients
@@ -751,10 +723,12 @@ async def shuffle_queue(guild_id: str, is_active: bool):
 
     return success
 
-async def play_previous_track(guild_id: str):
+async def set_volume(guild_id: str, volume: int):
     guild_id = int(guild_id)
     if guild_id not in server_sessions:
         return False
 
-    session = server_sessions[guild_id]
-    return await server_session.play_previous()
+    session: ServerSession = server_sessions[guild_id]
+    session.voice_client.source.volume = volume / 100
+    session.volume = volume
+    return True

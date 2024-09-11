@@ -15,7 +15,7 @@ import requests
 import asyncio
 from typing import Optional, Dict, Any, List, Set, Dict
 from pydantic import BaseModel
-from bot.vocal import seek_playback, toggle_loop, skip_track, shuffle_queue, previous_track
+from bot.vocal import seek_playback, toggle_loop, skip_track, shuffle_queue, previous_track, set_volume
 
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -72,6 +72,10 @@ class ShuffleRequest(BaseModel):
 
 class PreviousRequest(BaseModel):
     guildId: str
+
+class VolumeRequest(BaseModel):
+    guildId: str
+    volume: int
 
 @app.on_event("startup")
 async def startup_event():
@@ -363,6 +367,20 @@ async def play_previous_track_route(request: PreviousRequest, credentials: HTTPA
         return {"status": "success"}
     else:
         raise HTTPException(status_code=400, detail="Failed to play previous track. The guild might not be playing any audio.")
-# @app.post("/api/playback/volume")
-# async def set_volume(request: VolumeRequest):
-#    pass
+@app.post("/api/playback/volume")
+async def set_volume_route(request: VolumeRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    session = user_sessions.get(token)
+
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if session["expiration"] < datetime.now():
+        del user_sessions[token]
+        raise HTTPException(status_code=401, detail="Token expired")
+
+    success = await set_volume(request.guildId, request.volume)
+    if success:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to set volume. The guild might not be playing any audio.")
