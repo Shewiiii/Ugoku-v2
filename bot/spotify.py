@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import spotipy
 
 from config import SPOTIFY_TOP_COUNTRY, LIBRESPOT_REFRESH_INTERVAL
-from bot.utils import get_accent_color, get_accent_color_from_url
+from bot.utils import get_accent_color_from_url
 from spotipy.oauth2 import SpotifyClientCredentials
 from bot.search import is_url, token_sort_ratio
 
@@ -15,7 +15,6 @@ from pathlib import Path
 import asyncio
 import discord
 import logging
-import aiohttp
 import os
 import re
 
@@ -36,28 +35,29 @@ loop = None
 
 
 # Initialize Librespot and Spotipy sessions
-async def init_spotify():
+async def init_spotify(bot: discord.Bot) -> None:
     global lp, sp, loop
     # Bot loop
     loop = asyncio.get_event_loop()
     # Librespot
-    lp = Librespot()
-    await lp.create_session()
+    lp = Librespot(bot)
+    await lp.check_credentials_file()
     await lp.start_auto_refresh()
     # Spotipy
     sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
 
 
 class Librespot:
-    def __init__(self) -> None:
+    def __init__(self, bot: discord.Bot) -> None:
+        self.bot = bot
         self.updated = None
         self.session = None
 
-    async def create_session(
+    async def check_credentials_file(
         self,
         path: Path = Path('./credentials.json')
     ) -> None:
-        """Check for credentials and create a session."""
+        """Wait for credentials and generate a json file if needed."""
         if not path.exists():
             logging.error(
                 "Please log in to Librespot from Spotify's official client! "
@@ -75,22 +75,31 @@ class Librespot:
             )
             session.close_session()
 
-    async def update_session(self) -> None:
+    async def regenerate_session(self) -> None:
         loop = asyncio.get_running_loop()
+        if self.session:
+            self.session.close()
         self.session = await loop.run_in_executor(
             None,
             lambda: Session.Builder().stored_file().create()
         )
         self.updated = datetime.now()
-        logging.info('Librespot session refreshed!')
+        logging.info('Librespot session regenerated!')
 
     async def auto_refresh(self) -> None:
+        refresh_interval = timedelta(seconds=LIBRESPOT_REFRESH_INTERVAL)
+        sleep_interval = refresh_interval // 5
+
         while True:
-            if not self.updated or (
-                datetime.now() - self.updated) >= timedelta(
-                    seconds=LIBRESPOT_REFRESH_INTERVAL):
-                await self.update_session()
-            await asyncio.sleep(LIBRESPOT_REFRESH_INTERVAL // 5)
+            now = datetime.now()
+            time_since_update = (now - self.updated if self.updated
+                                 else timedelta.max)
+
+            if not self.updated or time_since_update >= refresh_interval:
+                if not self.bot.voice_clients:
+                    await self.regenerate_session()
+
+            await asyncio.sleep(sleep_interval.total_seconds())
 
     async def start_auto_refresh(self):
         asyncio.create_task(self.auto_refresh())

@@ -25,7 +25,7 @@ bot = discord.Bot(intents=intents)
 async def on_ready():
     logging.info(f"{bot.user} is running !")
     if SPOTIFY_ENABLED:
-        await init_spotify()
+        await init_spotify(bot)
 
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
