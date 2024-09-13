@@ -5,7 +5,7 @@ from librespot.core import Session
 from dotenv import load_dotenv
 import spotipy
 
-from config import SPOTIFY_TOP_COUNTRY, LIBRESPOT_REFRESH_INTERVAL
+from config import SPOTIFY_TOP_COUNTRY
 from bot.utils import get_accent_color_from_url
 from spotipy.oauth2 import SpotifyClientCredentials
 from bot.search import is_url, token_sort_ratio
