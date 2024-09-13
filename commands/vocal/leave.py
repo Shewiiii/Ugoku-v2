@@ -20,7 +20,7 @@ class Leave(commands.Cog):
             voice_client: discord.VoiceClient = session.voice_client
             await voice_client.disconnect()
             voice_client.cleanup()
-            del server_sessions[guild_id]
+            del session_manager.server_sessions[guild_id]
 
 
 def setup(bot):
