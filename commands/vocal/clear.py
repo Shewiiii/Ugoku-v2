@@ -21,6 +21,7 @@ class Clear(commands.Cog):
             voice_client = session.voice_client
             session.queue.clear()
             session.to_loop.clear()
+            session.stack_previous.clear()
 
             if voice_client.is_playing():
                 session.last_played_time = datetime.now()
