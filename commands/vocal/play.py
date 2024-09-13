@@ -25,13 +25,12 @@ class Play(commands.Cog):
             default='Spotify'
         )  # type: ignore
     ) -> None:
+        await ctx.respond('Give me a second~')
         # Connect to the voice channel
         session = await connect(ctx, self.bot)
         if not session:
             await ctx.respond('You are not in a voice channel!')
             return
-        await ctx.respond('Give me a second~')
-
         source = source.lower()
         
         if source == 'spotify':
