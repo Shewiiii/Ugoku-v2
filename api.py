@@ -43,7 +43,7 @@ IMAGE_BASE_URL = "https://cdn.discordapp.com"
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["https://ugoku-frontend-100.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,29 +1,27 @@
+import base64
+import hashlib
+import logging
+import os
+import re
+from collections import Counter
+from io import BytesIO
 from pathlib import Path
 from time import time
+
 import aiohttp
-import logging
-import hashlib
-import base64
-import re
-import os
-
-from collections import Counter
+import mutagen
 from PIL import Image
-from io import BytesIO
-
-from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
-
-from mutagen.oggvorbis import OggVorbis
-from mutagen.oggopus import OggOpus
-from mutagen.id3 import ID3, APIC
-from mutagen.flac import Picture
 from mutagen.flac import FLAC
-from mutagen.wave import WAVE
+from mutagen.flac import Picture
+from mutagen.id3 import ID3, APIC
+from mutagen.m4a import M4A
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
-from mutagen.m4a import M4A
-import mutagen
+from mutagen.oggopus import OggOpus
+from mutagen.oggvorbis import OggVorbis
+from mutagen.wave import WAVE
 
+from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +35,9 @@ def extract_number(string: str) -> str | None:
 
     return search.group()
 
-from discord.ext.commands.core import NotOwner
 
-import api, discord, logging
+import api, discord
 from typing import Dict, Any
-logger = logging.getLogger(__name__)
 
 def sanitize_filename(filename: str) -> str:
     # Define a regular expression pattern that matches any character not allowed in filenames
