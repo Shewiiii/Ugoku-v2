@@ -1,23 +1,24 @@
-from datetime import datetime, timedelta
-from fastapi import FastAPI, Query, Depends, HTTPException, Request, Body
-from fastapi.params import Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import JSONResponse, RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
-from discord import Bot, VoiceClient
-from sse_starlette.sse import EventSourceResponse
-import uvicorn
-import os
-import json
-from dotenv import load_dotenv
-import secrets
-import requests
 import asyncio
-from typing import Optional, Dict, Any, List, Set, Dict
-from pydantic import BaseModel
-from bot.vocal import seek_playback, toggle_loop, skip_track, shuffle_queue, previous_track, set_volume
-
+import json
 import logging
+import os
+import secrets
+from datetime import datetime, timedelta
+from typing import Optional, Any, List, Set, Dict
+
+import requests
+import uvicorn
+from discord import Bot
+from dotenv import load_dotenv
+from fastapi import FastAPI, Query, Depends, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
+
+from bot.audio_controls import seek_playback, toggle_loop, skip_track, previous_track, shuffle_queue, set_volume
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 

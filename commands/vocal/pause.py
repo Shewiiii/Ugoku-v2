@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
-from bot.vocal import server_sessions, ServerSession
+from bot.session_manager import server_sessions
+from bot.server_session import ServerSession
 from datetime import datetime
 
 

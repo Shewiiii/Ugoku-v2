@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from bot.vocal import server_sessions
+from bot.session_manager import server_sessions
 
 
 class Loop(commands.Cog):

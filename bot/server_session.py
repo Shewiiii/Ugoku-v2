@@ -1,27 +1,21 @@
 import asyncio
 import logging
 import random
-import re
-from datetime import datetime
-from datetime import timedelta
-from typing import Callable, Optional
-from urllib.parse import unquote
+from datetime import datetime, timedelta
+from typing import Optional, Callable
 
 import discord
-from discord.ui import View
 from librespot.audio import AbsChunkedInputStream
-from requests import HTTPError
 
-from bot.custom import fetch_audio_stream, generate_info_embed, get_cover_data_from_hash, upload_cover
-from bot.onsei import Onsei
-from bot.spotify import SpotifySessions
-from bot.utils import get_metadata, extract_cover_art, extract_number, get_accent_color_from_url
 from bot.utils import update_active_servers
-from config import AUTO_LEAVE_DURATION, DEFAULT_EMBED_COLOR
+from bot.queue_view import QueueView
+from config import AUTO_LEAVE_DURATION
 
-onsei = Onsei()
+from typing import TYPE_CHECKING
 
-logger = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from bot.session_manager import SessionManager
+
 
 class ServerSession:
     def __init__(
@@ -29,7 +23,8 @@ class ServerSession:
         guild_id: int,
         voice_client: discord.VoiceClient,
         bot: discord.Bot,
-        channel_id: int
+        channel_id: int,
+        session_manager: 'SessionManager'
     ):
         self.guild_id = guild_id
         self.voice_client = voice_client
@@ -41,6 +36,7 @@ class ServerSession:
         self.skipped = False
         self.bot = bot
         self.channel_id = channel_id
+        self.session_manager = session_manager
         self.auto_leave_task = asyncio.create_task(
             self.check_auto_leave()
         )
@@ -128,7 +124,7 @@ class ServerSession:
         self.last_context = ctx
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
-            await update_active_servers(self.bot, server_sessions)
+            await update_active_servers(self.bot, self.session_manager.server_sessions)
             return  # No songs to play
 
         source = self.queue[0]['track_info']['source']
@@ -157,7 +153,7 @@ class ServerSession:
         )
 
         self.playback_start_time = datetime.now().isoformat()
-        await update_active_servers(self.bot, server_sessions)
+        await update_active_servers(self.bot, self.session_manager.server_sessions)
 
         # Send "Now playing" at the end to slightly reduce audio latency
         if not self.is_seeking and (self.skipped or not self.loop_current):
@@ -295,7 +291,7 @@ class ServerSession:
     ) -> None:
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
-            await update_active_servers(self.bot, server_sessions)
+            await update_active_servers(self.bot, self.session_manager.server_sessions)
             return  # No songs to play
         if self.current_index < len(self.original_queue) - 1:
             self.current_index += 1
@@ -357,7 +353,7 @@ class ServerSession:
 
                 if time_until_disconnect <= timedelta(seconds=0):
                     await self.voice_client.disconnect()
-                    del server_sessions[self.guild_id]
+                    del self.session_manager.server_sessions[self.guild_id]
                     channel = self.bot.get_channel(self.channel_id)
                     if channel:
                         await channel.send('Baibai~')
@@ -368,364 +364,3 @@ class ServerSession:
                     break
 
             await asyncio.sleep(17)
-
-
-server_sessions: dict[ServerSession] = {}
-
-
-class QueueView(View):
-    def __init__(
-        self,
-        queue,
-        to_loop,
-        bot,
-        page=1
-    ) -> None:
-        super().__init__()
-        self.queue = queue
-        self.to_loop = to_loop
-        self.bot = bot
-        self.page = page
-        self.max_per_page = 7
-        self.update_buttons()
-
-    def update_buttons(self) -> None:
-        # Hide or show buttons based on the current page
-        # and the number of queue items
-        self.children[0].disabled = self.page <= 1
-        self.children[1].disabled = len(
-            self.queue) < self.page * self.max_per_page
-
-    @discord.ui.button(
-        label="Previous",
-        style=discord.ButtonStyle.secondary
-    )
-    async def previous_button(
-        self,
-        button: discord.ui.Button,
-        interaction: discord.Interaction
-    ) -> None:
-        """Handles the 'Previous' button click."""
-        self.page -= 1
-        await self.update_view(interaction)
-
-    @discord.ui.button(
-        label="Next",
-        style=discord.ButtonStyle.secondary
-    )
-    async def next_button(
-        self,
-        button: discord.ui.Button,
-        interaction: discord.Interaction
-    ) -> None:
-        """Handles the 'Next' button click."""
-        self.page += 1
-        await self.update_view(interaction)
-
-    async def on_button_click(
-        self,
-        interaction: discord.Interaction
-    ) -> None:
-        if interaction.custom_id == 'prev_page':
-            self.page -= 1
-        elif interaction.custom_id == 'next_page':
-            self.page += 1
-
-        self.update_buttons()
-        await interaction.response.edit_message(
-            embed=await self.create_embed(),
-            view=self
-        )
-
-    async def create_embed(self) -> discord.Embed:
-        if not self.queue:
-            embed = discord.Embed(
-                title='Queue Overview',
-                color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR),
-                description='No songs in queue!'
-            )
-            return embed
-
-        # Get cover and colors of the NOW PLAYING song
-        source: str = self.queue[0]['source']
-        track_info: dict = self.queue[0]['track_info']
-        if source == 'Spotify':
-            # Cover data is not stored in the track info,
-            # but only got when requested like here.
-            # It allows the bot to bulk add songs (e.g from a playlist),
-            # with way few API requests
-            # TODO: cache the cover data
-            cover_data = await self.bot.spotify.get_cover_data(track_info['id'])
-        elif source == 'Custom':
-            cover_data = await get_cover_data_from_hash(track_info['id'])
-
-        # Create the embed
-        embed = discord.Embed(
-            title="Queue Overview",
-            thumbnail=cover_data['url'],
-            color=discord.Color.from_rgb(*cover_data['dominant_rgb'])
-        )
-
-        # "Now playing" track section
-        now_playing = self.queue[0]['track_info']
-        title = now_playing['display_name']
-        url = now_playing['url']
-        embed.add_field(
-            name="Now Playing",
-            value=f"[{title}]({url})",
-            inline=False
-        )
-
-        # Queue section
-        start_index = (self.page - 1) * self.max_per_page
-        end_index = min(start_index + self.max_per_page, len(self.queue))
-
-        if len(self.queue) > 1:
-            if start_index < end_index:
-                queue_details = "\n".join(
-                    f"{i}. [{self.queue[i]['track_info']['display_name']}]"
-                    f"({self.queue[i]['track_info']['url']})"
-                    for i in range(start_index + 1, end_index)
-                )
-                embed.add_field(
-                    name="Queue", value=queue_details, inline=False)
-
-        # Songs in loop section
-        end_index = min(start_index + self.max_per_page, len(self.to_loop))
-
-        if self.to_loop:
-            loop_details = "\n".join(
-                f"{i + 1}. [{self.to_loop[i]['track_info']['display_name']}]"
-                f"({self.to_loop[i]['track_info']['url']})"
-                for i in range(start_index, end_index)
-            )
-            embed.add_field(
-                name="Songs in Loop",
-                value=loop_details,
-                inline=False
-            )
-
-        return embed
-
-    async def display(
-        self,
-        ctx: discord.ApplicationContext
-    ) -> None:
-        embed = await self.create_embed()
-        await ctx.respond(embed=embed, view=self)
-
-    async def update_view(
-        self,
-        interaction: discord.Interaction
-    ) -> None:
-        """Update the view when a button is pressed."""
-        self.update_buttons()
-        await interaction.response.edit_message(
-            embed=await self.create_embed(),
-            view=self
-        )
-
-
-async def connect(
-    ctx: discord.ApplicationContext,
-    bot: discord.Bot
-) -> ServerSession | None:
-    user_voice = ctx.user.voice
-    guild_id = ctx.guild.id
-    if not user_voice:
-        return
-
-    channel = user_voice.channel
-
-    if not ctx.voice_client:
-        await channel.connect()
-
-    if ctx.voice_client.is_connected():
-        if guild_id not in server_sessions:
-            server_sessions[guild_id] = ServerSession(
-                guild_id,
-                ctx.voice_client,
-                bot,
-                ctx.channel_id
-            )
-        return server_sessions[guild_id]
-
-
-async def play_spotify(
-    ctx: discord.ApplicationContext,
-    query: str,
-    session: ServerSession
-) -> None:
-    tracks_info = await ctx.bot.spotify.get_tracks(user_input=query)
-
-    if not tracks_info:
-        await ctx.edit(content='Track not found!')
-        return
-
-    await session.add_to_queue(ctx, tracks_info, source='Spotify')
-
-
-async def play_custom(
-    ctx: discord.ApplicationContext,
-    query: str,
-    session: ServerSession
-) -> None:
-    # Request and cache
-    try:
-        audio_path = await fetch_audio_stream(query)
-    except Exception as e:
-        await ctx.edit(content=f'Error fetching audio: {str(e)}')
-        return
-
-    # Extract the metadata
-    metadata = get_metadata(audio_path)
-    # Idk why title and album are lists :elaina_huh:
-    titles = metadata.get('title')
-    albums = metadata.get('album')
-    artists = metadata.get('artist', ['?'])
-
-    display_name = (
-        f'{artists[0]} - {titles[0]}' if titles
-        else get_display_name_from_query(query)
-    )
-
-    # Extract the cover art
-    cover_bytes: bytes | None = extract_cover_art(audio_path)
-    if cover_bytes:
-        cover_dict = await upload_cover(cover_bytes)
-        cover_url = cover_dict.get('url')
-        id = cover_dict.get('cover_hash')
-        dominant_rgb = cover_dict.get('dominant_rgb')
-    else:
-        cover_url, id = None, None
-        dominant_rgb = DEFAULT_EMBED_COLOR
-
-    # Prepare the track
-    def embed():
-        return generate_info_embed(
-            url=query,
-            title=titles[0] if titles else display_name,
-            album=albums[0] if albums else '?',
-            artists=artists,
-            cover_url=cover_url,
-            dominant_rgb=dominant_rgb
-        )
-
-    track_info = {
-        'display_name': display_name,
-        'source': audio_path,
-        'url': query,
-        'embed': embed,
-        'id': id
-    }
-
-    await session.add_to_queue(ctx, [track_info], source='Custom')
-
-
-def get_display_name_from_query(query: str) -> str:
-    """Extracts a display name from the query URL if no title is found."""
-    match = re.search(r'(?:.+/)([^#?]+)', query)
-    return unquote(match.group(1)) if match else 'Custom track'
-
-
-async def play_onsei(
-    ctx: discord.ApplicationContext,
-    query: str,
-    session: ServerSession
-) -> None:
-    work_id = extract_number(query)
-
-    # API requests
-    try:
-        tracks_api: dict = await onsei.get_tracks_api(work_id)
-        work_api: dict = await onsei.get_work_api(work_id)
-        cover_url = onsei.get_cover(work_id)
-        dominant_rgb = await get_accent_color_from_url(cover_url)
-    except HTTPError:
-        await ctx.edit(content='No onsei has been found!')
-        return
-
-    # Grab the data needed
-    tracks = onsei.get_tracks(tracks_api, tracks={})
-    work_title = work_api.get('title')
-    artists = [i['name'] for i in work_api['vas']]
-
-    # Prepare the tracks
-    tracks_info = []
-    for track_title, stream_url in tracks.items():
-        def embed(track_title=track_title, stream_url=stream_url):
-            return generate_info_embed(
-                url=stream_url,
-                title=track_title,
-                album=work_title,
-                artists=artists,
-                cover_url=cover_url,
-                dominant_rgb=dominant_rgb
-            )
-
-        track_info = {
-            'display_name': track_title,
-            'source': stream_url,
-            'url': stream_url,
-            'embed': embed,
-            'id': None
-        }
-
-        tracks_info.append(track_info)
-    await session.add_to_queue(ctx, tracks_info, source='Custom')
-
-async def seek_playback(guild_id: str, position: int):
-    guild_id = int(guild_id)
-    if guild_id not in server_sessions:
-        return False
-
-    session: ServerSession = server_sessions[guild_id]
-    return await session.seek(position)
-
-async def toggle_loop(guild_id: str, mode: str):
-    guild_id = int(guild_id)
-    if guild_id not in server_sessions:
-        return False
-
-    session: ServerSession = server_sessions[guild_id]
-
-    return await session.toggle_loop(mode)
-
-async def skip_track(guild_id: str):
-    guild_id = int(guild_id)
-    if guild_id not in server_sessions:
-        return False
-
-    session: ServerSession = server_sessions[guild_id]
-    return await session.skip_track(session.last_context)
-
-async def previous_track(guild_id: str):
-    guild_id = int(guild_id)
-    if guild_id not in server_sessions:
-        return False
-
-    session: ServerSession = server_sessions[guild_id]
-    return await session.previous_track(session.last_context)
-
-async def shuffle_queue(guild_id: str, is_active: bool):
-    guild_id = int(guild_id)
-    if guild_id not in server_sessions:
-        return False
-
-    session: ServerSession = server_sessions[guild_id]
-    success = await session.shuffle_queue(is_active)
-
-    # Update the queue for all connected clients
-    await update_active_servers(session.bot, server_sessions)
-
-    return success
-
-async def set_volume(guild_id: str, volume: int):
-    guild_id = int(guild_id)
-    if guild_id not in server_sessions:
-        return False
-
-    session: ServerSession = server_sessions[guild_id]
-    session.voice_client.source.volume = volume / 100
-    session.volume = volume
-    return True

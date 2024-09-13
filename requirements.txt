@@ -9,3 +9,6 @@ bs4
 imageio
 PyNaCl
 mutagen
+fastapi
+uvicorn
+sse-starlette

@@ -2,7 +2,8 @@ from discord.ext import commands
 from datetime import datetime
 import discord
 
-from bot.vocal import ServerSession, server_sessions
+from bot.session_manager import server_sessions
+from bot.server_session import ServerSession
 
 
 class Skip(commands.Cog):
