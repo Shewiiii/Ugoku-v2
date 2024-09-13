@@ -46,7 +46,9 @@ class Onsei:
             return file_type == 'audio' and extension[1:] in ONSEI_WHITELIST
 
         def has_valid_path() -> bool:
-            return any(word in path.name for word in ONSEI_WHITELIST)
+            return any(
+                word.lower() in path.name.lower() for word in ONSEI_WHITELIST
+            )
 
         def is_not_blacklisted() -> bool:
             return not any(word in title for word in ONSEI_BLACKLIST)
