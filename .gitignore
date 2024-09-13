@@ -10,4 +10,5 @@ pyrightconfig.json
 .DS_Store
 sessions.json
 config.py
-.idea.github/workflows
+.idea
+.github/workflows
