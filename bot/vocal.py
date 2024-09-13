@@ -1,27 +1,24 @@
-from config import AUTO_LEAVE_DURATION, DEFAULT_EMBED_COLOR
-from datetime import datetime, timedelta
-from typing import Callable, Optional, Dict, Any
-from urllib.parse import unquote
-from requests import HTTPError
-from datetime import datetime
-import aiohttp
-import logging
 import asyncio
+import logging
 import random
 import re
+from datetime import datetime
+from datetime import timedelta
+from typing import Callable, Optional
+from urllib.parse import unquote
 
-from discord.ui import View
 import discord
+from discord.ui import View
+from librespot.audio import AbsChunkedInputStream
+from requests import HTTPError
 
 from bot.custom import fetch_audio_stream, generate_info_embed, get_cover_data_from_hash, upload_cover
-from bot.utils import get_metadata, extract_cover_art, extract_number, get_accent_color_from_url
-from librespot.audio import AbsChunkedInputStream
-from bot.spotify import Spotify_
 from bot.onsei import Onsei
-
+from bot.spotify import SpotifySessions
+from bot.utils import get_metadata, extract_cover_art, extract_number, get_accent_color_from_url
 from bot.utils import update_active_servers
+from config import AUTO_LEAVE_DURATION, DEFAULT_EMBED_COLOR
 
-spotify = Spotify_()
 onsei = Onsei()
 
 logger = logging.getLogger(__name__)
@@ -217,7 +214,7 @@ class ServerSession:
         if not self.voice_client.is_playing() and len(self.queue) >= 1:
             await self.start_playing(ctx)
 
-    async def previous_track(self, ctx: discord.ApplicationContext) -> None:
+    async def previous_track(self, ctx: discord.ApplicationContext) -> bool:
         if self.current_index > 0:
             self.current_index -= 1
         else:
@@ -233,7 +230,7 @@ class ServerSession:
         await self.start_playing(ctx)
         return True
 
-    async def skip_track(self, ctx: discord.ApplicationContext) -> None:
+    async def skip_track(self, ctx: discord.ApplicationContext) -> bool:
         if not self.voice_client or not self.voice_client.is_playing():
             return False
 
@@ -458,7 +455,7 @@ class QueueView(View):
             # It allows the bot to bulk add songs (e.g from a playlist),
             # with way few API requests
             # TODO: cache the cover data
-            cover_data = await spotify.get_cover_data(track_info['id'])
+            cover_data = await self.bot.spotify.get_cover_data(track_info['id'])
         elif source == 'Custom':
             cover_data = await get_cover_data_from_hash(track_info['id'])
 
@@ -559,7 +556,7 @@ async def play_spotify(
     query: str,
     session: ServerSession
 ) -> None:
-    tracks_info = await spotify.get_tracks(user_input=query)
+    tracks_info = await ctx.bot.spotify.get_tracks(user_input=query)
 
     if not tracks_info:
         await ctx.edit(content='Track not found!')

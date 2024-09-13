@@ -8,7 +8,7 @@ import discord
 from dotenv import load_dotenv
 
 if SPOTIFY_ENABLED:
-    from bot.spotify import init_spotify
+    from bot.spotify import SpotifySessions, Spotify
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -29,7 +29,10 @@ api.bot = bot
 async def on_ready() -> None:
     logging.info(f"{bot.user} is running !")
     if SPOTIFY_ENABLED:
-        await init_spotify()
+        spotify_sessions = SpotifySessions()
+        await spotify_sessions.init_spotify()
+        spotify = Spotify(spotify_sessions)
+        bot.spotify = spotify
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')
