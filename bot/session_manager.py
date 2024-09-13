@@ -10,8 +10,6 @@ onsei = Onsei()
 
 logger = logging.getLogger(__name__)
 
-server_sessions = {}
-
 class SessionManager:
     def __init__(self) -> None:
         self.server_sessions = {}

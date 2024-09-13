@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from bot.session_manager import server_sessions
+from bot.session_manager import session_manager
 
 
 class Resume(commands.Cog):
@@ -12,7 +12,7 @@ class Resume(commands.Cog):
         description='Resume the current song.'
     )
     async def resume(self, ctx: discord.ApplicationContext) -> None:
-        session = server_sessions.get(ctx.guild.id)
+        session = session_manager.server_sessions.get(ctx.guild.id)
 
         if not session:
             await ctx.respond('Nothing to resume!')

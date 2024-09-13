@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from bot.session_manager import server_sessions
+from bot.session_manager import session_manager
 
 
 class Loop(commands.Cog):
@@ -20,7 +20,7 @@ class Loop(commands.Cog):
             default='Song'
         )  # type: ignore
     ) -> None:
-        session = server_sessions.get(ctx.guild.id)
+        session = session_manager.server_sessions.get(ctx.guild.id)
 
         if not session:
             await ctx.respond('Ugoku is not connected to any VC!')

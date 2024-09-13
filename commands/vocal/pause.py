@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from bot.session_manager import server_sessions
+from bot.session_manager import session_manager
 from bot.server_session import ServerSession
 from datetime import datetime
 
@@ -15,7 +15,7 @@ class Pause(commands.Cog):
     )
     async def pause(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
-        session: ServerSession | None = server_sessions.get(guild_id)
+        session: ServerSession | None = session_manager.server_sessions.get(guild_id)
 
         if not session:
             await ctx.respond("No active session!")

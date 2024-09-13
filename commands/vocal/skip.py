@@ -2,7 +2,7 @@ from discord.ext import commands
 from datetime import datetime
 import discord
 
-from bot.session_manager import server_sessions
+from bot.session_manager import session_manager
 from bot.server_session import ServerSession
 
 
@@ -17,11 +17,11 @@ class Skip(commands.Cog):
     async def skip(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
 
-        if guild_id not in server_sessions:
+        if guild_id not in session_manager.server_sessions:
             await ctx.respond('No songs in queue!')
             return
 
-        session: ServerSession = server_sessions[guild_id]
+        session: ServerSession = session_manager.server_sessions[guild_id]
 
         if session.queue:
             await ctx.respond('Skipping!')

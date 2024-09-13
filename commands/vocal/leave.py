@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from bot.session_manager import server_sessions
+from bot.session_manager import session_manager
 
 
 class Leave(commands.Cog):
@@ -13,7 +13,7 @@ class Leave(commands.Cog):
     )
     async def leave(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
-        session = server_sessions.get(guild_id)
+        session = session_manager.server_sessions.get(guild_id)
 
         if session:
             await ctx.respond('Baibai~')
