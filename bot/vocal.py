@@ -1,10 +1,9 @@
 from config import AUTO_LEAVE_DURATION, DEFAULT_EMBED_COLOR
+from aiohttp.client_exceptions import ClientResponseError
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 from urllib.parse import unquote
-from requests import HTTPError
 from datetime import datetime
-import aiohttp
 import logging
 import asyncio
 import re
@@ -34,9 +33,11 @@ class ServerSession:
         self.voice_client = voice_client
         self.queue = []
         self.to_loop = []
+        self.stack_previous = []
         self.last_played_time = datetime.now()
         self.loop_current = False
         self.loop_queue = False
+        self.previous = False
         self.skipped = False
         self.bot = bot
         self.channel_id = channel_id
@@ -100,6 +101,7 @@ class ServerSession:
             logging.info(f'Playback stopped in {self.guild_id}')
             return  # No songs to play
 
+        # Create playback:
         source = self.queue[0]['track_info']['source']
         # If source is a stream generator
         if isinstance(source, Callable):
@@ -111,17 +113,16 @@ class ServerSession:
             pipe=isinstance(source, AbsChunkedInputStream),
             bitrate=510
         )
-
         self.voice_client.play(
             ffmpeg_source,
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
+        # Embed:
         # Send "Now playing" at the end to slightly reduce audio latency
         if self.skipped or not self.loop_current:
             await self.send_now_playing(ctx)
-            # Reset skip flag
-            self.skipped = False
+            self.skipped = False  # Reset skip flag
 
     async def add_to_queue(
         self,
@@ -181,6 +182,11 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
+        # Playing previous track ? :kanna_sus:
+        if self.queue and not self.loop_current and not self.previous:
+            self.stack_previous.append(self.queue[0])
+        self.previous = False  # Reset previous flag
+
         if self.loop_queue and not self.loop_current:
             self.to_loop.append(self.queue[0])
 
@@ -190,6 +196,13 @@ class ServerSession:
         if not self.queue and self.loop_queue:
             self.queue, self.to_loop = self.to_loop, []
 
+        await self.start_playing(ctx)
+
+    async def play_previous(self, ctx: discord.ApplicationContext) -> None:
+        self.previous = True
+        self.queue.insert(0, self.stack_previous.pop())
+        if self.voice_client.is_playing():
+            self.voice_client.pause()
         await self.start_playing(ctx)
 
     async def check_auto_leave(self) -> None:
@@ -492,8 +505,11 @@ async def play_onsei(
         work_api: dict = await onsei.get_work_api(work_id)
         cover_url = onsei.get_cover(work_id)
         dominant_rgb = await get_accent_color_from_url(cover_url)
-    except HTTPError:
-        await ctx.edit(content='No onsei has been found!')
+    except ClientResponseError as e:
+        if e.status == 404:
+            await ctx.edit(content='No onsei has been found!')
+        else:
+            await ctx.edit(content=f'An error occurred: {e.message}')
         return
 
     # Grab the data needed
