@@ -42,7 +42,7 @@ async def init_spotify(bot: discord.Bot) -> None:
     # Librespot
     lp = Librespot(bot)
     await lp.check_credentials_file()
-    await lp.start_auto_refresh()
+    await lp.generate_session()
     # Spotipy
     sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
 
@@ -75,34 +75,16 @@ class Librespot:
             )
             session.close_session()
 
-    async def regenerate_session(self) -> None:
+    async def generate_session(self) -> None:
         loop = asyncio.get_running_loop()
         if self.session:
-            self.session.close()
+            return
         self.session = await loop.run_in_executor(
             None,
             lambda: Session.Builder().stored_file().create()
         )
         self.updated = datetime.now()
         logging.info('Librespot session regenerated!')
-
-    async def auto_refresh(self) -> None:
-        refresh_interval = timedelta(seconds=LIBRESPOT_REFRESH_INTERVAL)
-        sleep_interval = refresh_interval // 5
-
-        while True:
-            now = datetime.now()
-            time_since_update = (now - self.updated if self.updated
-                                 else timedelta.max)
-
-            if not self.updated or time_since_update >= refresh_interval:
-                if not self.bot.voice_clients:
-                    await self.regenerate_session()
-
-            await asyncio.sleep(sleep_interval.total_seconds())
-
-    async def start_auto_refresh(self):
-        asyncio.create_task(self.auto_refresh())
 
 
 class Spotify_:
