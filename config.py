@@ -2,7 +2,7 @@ from pathlib import Path
 import logging
 
 # If you don't have Spotify Premium, you can't disable Spotify features here
-SPOTIFY_ENABLED = False
+SPOTIFY_ENABLED = True
 
 # SETTINGS
 COMMANDS_FOLDER = Path('./commands')

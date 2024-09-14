@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from bot.vocal import server_sessions
+from bot.session_manager import session_manager as sm
 
 
 class Leave(commands.Cog):
@@ -13,14 +13,14 @@ class Leave(commands.Cog):
     )
     async def leave(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
-        session = server_sessions.get(guild_id)
+        session = sm.server_sessions.get(guild_id)
 
         if session:
             await ctx.respond('Baibai~')
             voice_client: discord.VoiceClient = session.voice_client
             await voice_client.disconnect()
             voice_client.cleanup()
-            del server_sessions[guild_id]
+            del sm.server_sessions[guild_id]
 
 
 def setup(bot):

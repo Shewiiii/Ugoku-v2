@@ -1,7 +1,8 @@
 from discord.ext import commands
 import discord
 
-from bot.vocal import connect, play_custom, play_spotify, play_onsei
+from bot.session_manager import session_manager
+from bot.audio_source_handlers import play_spotify, play_custom, play_onsei
 from config import SPOTIFY_ENABLED
 
 
@@ -27,12 +28,12 @@ class Play(commands.Cog):
     ) -> None:
         await ctx.respond('Give me a second~')
         # Connect to the voice channel
-        session = await connect(ctx, self.bot)
+        session = await session_manager.connect(ctx, self.bot)
         if not session:
             await ctx.respond('You are not in a voice channel!')
             return
         source = source.lower()
-        
+
         if source == 'spotify':
             if not SPOTIFY_ENABLED:
                 await ctx.edit(content='Spotify features are not enabled.')
@@ -44,10 +45,10 @@ class Play(commands.Cog):
 
         elif source == 'custom':
             await play_custom(ctx, query, session)
-        
+
         elif source == 'onsei':
             await play_onsei(ctx, query, session)
-        
+
         else:
             await ctx.edit(content='wut duh')
 
