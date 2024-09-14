@@ -1,29 +1,30 @@
+import discord
+import api
+from typing import Dict, Any
+import base64
+import hashlib
+import logging
+import os
+import re
+from collections import Counter
+from io import BytesIO
 from pathlib import Path
 from time import time
+
 import aiohttp
-import logging
-import hashlib
-import base64
-import re
-import os
-
-from collections import Counter
+import mutagen
 from PIL import Image
-from io import BytesIO
-
-from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
-
-from mutagen.oggvorbis import OggVorbis
-from mutagen.oggopus import OggOpus
-from mutagen.id3 import ID3, APIC
-from mutagen.flac import Picture
 from mutagen.flac import FLAC
-from mutagen.wave import WAVE
+from mutagen.flac import Picture
+from mutagen.id3 import ID3, APIC
+from mutagen.m4a import M4A
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
-from mutagen.m4a import M4A
-import mutagen
+from mutagen.oggopus import OggOpus
+from mutagen.oggvorbis import OggVorbis
+from mutagen.wave import WAVE
 
+from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -193,3 +194,40 @@ def get_metadata(file_path) -> dict:
         }
 
     return {key: value for key, value in audio_file.items()}
+
+
+async def update_active_servers(
+    bot: discord.Bot,
+    server_sessions: Dict[Any, Any]
+) -> None:
+    active_guilds = []
+    for vc in bot.voice_clients:
+        if vc.is_playing():
+            guild = vc.guild
+            session = server_sessions.get(guild.id)
+            queue = session.get_queue() if session else []
+            # Skip the first item as it's the currently playing song
+            song_info = queue.pop(0)
+            history = session.get_history() if session else []
+            current_song = {
+                "title": song_info['title'],
+                "artist": song_info.get('artist'),
+                "album": song_info.get('album'),
+                "cover": song_info.get('cover'),
+                "duration": song_info.get('duration'),
+                "playback_start_time": session.playback_start_time,
+                "url": song_info['url']
+            } if song_info else None
+            guild_info = {
+                # Convert to string to avoid overflow in JavaScript
+                "id": str(guild.id),
+                "name": guild.name,
+                "icon": guild.icon.url if guild.icon else None,
+                "currentSong": current_song,
+                "queue": queue,
+                "history": history
+            }
+            active_guilds.append(guild_info)
+
+    logging.info(f"Updating active servers.")
+    await api.update_active_servers(active_guilds)

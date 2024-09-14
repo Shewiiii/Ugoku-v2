@@ -2,7 +2,8 @@ from datetime import datetime
 
 import discord
 from discord.ext import commands
-from bot.vocal import ServerSession, server_sessions
+from bot.session_manager import session_manager as sm
+from bot.server_session import ServerSession
 
 
 class Clear(commands.Cog):
@@ -15,7 +16,7 @@ class Clear(commands.Cog):
     )
     async def clear(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
-        session: ServerSession | None = server_sessions.get(guild_id)
+        session: ServerSession | None = sm.server_sessions.get(guild_id)
 
         if session:
             voice_client = session.voice_client
