@@ -1,6 +1,6 @@
 py-cord >= 2.6.0
 spotipy>=2.11.0
-librespot >= 0.0.9
+git+https://github.com/kokarare1212/librespot-python
 requests
 python-dotenv
 yt-dlp
