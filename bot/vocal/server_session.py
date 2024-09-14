@@ -8,13 +8,13 @@ import discord
 from librespot.audio import AbsChunkedInputStream
 
 from bot.utils import update_active_servers
-from bot.queue_view import QueueView
+from bot.vocal.queue_view import QueueView
 from config import AUTO_LEAVE_DURATION
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bot.session_manager import SessionManager
+    from bot.vocal.session_manager import SessionManager
 
 
 class ServerSession:

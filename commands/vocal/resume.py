@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from bot.session_manager import session_manager
+from bot.vocal.session_manager import session_manager
 
 
 class Resume(commands.Cog):

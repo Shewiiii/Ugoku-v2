@@ -8,7 +8,7 @@ import discord
 from dotenv import load_dotenv
 
 if SPOTIFY_ENABLED:
-    from bot.spotify import SpotifySessions, Spotify
+    from bot.vocal.spotify import SpotifySessions, Spotify
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')

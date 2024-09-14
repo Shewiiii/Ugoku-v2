@@ -3,8 +3,8 @@ import logging
 import discord
 
 from typing import Dict
-from bot.onsei import Onsei
-from bot.server_session import ServerSession
+from bot.vocal.onsei import Onsei
+from bot.vocal.server_session import ServerSession
 
 onsei = Onsei()
 

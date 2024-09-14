@@ -4,10 +4,10 @@ from urllib.parse import unquote
 import discord
 from aiohttp.client_exceptions import ClientResponseError
 
-from bot.custom import fetch_audio_stream, upload_cover, generate_info_embed
-from bot.server_session import ServerSession
+from bot.vocal.custom import fetch_audio_stream, upload_cover, generate_info_embed
+from bot.vocal.server_session import ServerSession
 from bot.utils import get_metadata, extract_cover_art, extract_number, get_accent_color_from_url
-from bot.session_manager import onsei
+from bot.vocal.session_manager import onsei
 from config import DEFAULT_EMBED_COLOR
 
 

@@ -17,7 +17,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from bot.audio_controls import seek_playback, toggle_loop, skip_track, previous_track, shuffle_queue, set_volume
+from bot.vocal.audio_controls import seek_playback, toggle_loop, skip_track, previous_track, shuffle_queue, set_volume
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

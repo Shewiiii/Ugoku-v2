@@ -1,7 +1,7 @@
 import discord
 from discord.ui import View
 
-from bot.custom import get_cover_data_from_hash
+from bot.vocal.custom import get_cover_data_from_hash
 from config import DEFAULT_EMBED_COLOR
 
 

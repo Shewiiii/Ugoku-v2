@@ -1,8 +1,8 @@
 from discord.ext import commands
 import discord
 
-from bot.session_manager import session_manager
-from bot.audio_source_handlers import play_spotify, play_custom, play_onsei
+from bot.vocal.session_manager import session_manager
+from bot.vocal.audio_source_handlers import play_spotify, play_custom, play_onsei
 from config import SPOTIFY_ENABLED
 
 

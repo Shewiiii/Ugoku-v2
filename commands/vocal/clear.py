@@ -2,8 +2,8 @@ from datetime import datetime
 
 import discord
 from discord.ext import commands
-from bot.session_manager import session_manager as sm
-from bot.server_session import ServerSession
+from bot.vocal.session_manager import session_manager as sm
+from bot.vocal.server_session import ServerSession
 
 
 class Clear(commands.Cog):

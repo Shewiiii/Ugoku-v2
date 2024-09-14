@@ -1,7 +1,7 @@
 from discord.ext import commands
 import discord
 
-from bot.session_manager import session_manager
+from bot.vocal.session_manager import session_manager
 
 
 class Queue(commands.Cog):
