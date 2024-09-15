@@ -102,7 +102,7 @@ async def play_onsei(
             await ctx.edit(content=f'An error occurred: {e.message}')
 
     # Grab the data needed
-    tracks = onsei.get_tracks(tracks_api, tracks={})
+    tracks = onsei.get_all_tracks(tracks_api)
     work_title = work_api.get('title')
     artists = [i['name'] for i in work_api['vas']]
 
@@ -121,10 +121,13 @@ async def play_onsei(
 
         track_info = {
             'display_name': track_title,
+            'title': track_title,
+            'artist': artists,
             'source': stream_url,
+            # 'duration': duration
             'url': stream_url,
             'embed': embed,
-            'id': None
+            'id': work_id
         }
 
         tracks_info.append(track_info)

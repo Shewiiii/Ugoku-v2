@@ -33,4 +33,3 @@
 
 - Queue not showing when too many characters in the queue/loop section.
   ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in length.").
-- Can't play audio works without MP3 Files in it.
