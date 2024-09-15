@@ -41,7 +41,9 @@ async def play_custom(
     metadata = get_metadata(audio_path)
     # Idk why title and album are lists :elaina_huh:
     titles = metadata.get('title')
+    title=titles[0] if titles else display_name
     albums = metadata.get('album')
+    album=albums[0] if albums else '?'
     artists = metadata.get('artist', ['?'])
 
     display_name = (
@@ -64,8 +66,8 @@ async def play_custom(
     def embed():
         return generate_info_embed(
             url=query,
-            title=titles[0] if titles else display_name,
-            album=albums[0] if albums else '?',
+            title=title,
+            album=album,
             artists=artists,
             cover_url=cover_url,
             dominant_rgb=dominant_rgb
@@ -73,6 +75,11 @@ async def play_custom(
 
     track_info = {
         'display_name': display_name,
+        'title': title,
+        'artist': artists,
+        'album': album,
+        'cover': cover_url,
+        # 'duration': ???
         'source': audio_path,
         'url': query,
         'embed': embed,
@@ -124,7 +131,9 @@ async def play_onsei(
             'title': track_title,
             'artist': artists,
             'source': stream_url,
-            # 'duration': duration
+            'album': work_title,
+            'cover': cover_url,
+            # 'duration': duration (can get it using aone api)
             'url': stream_url,
             'embed': embed,
             'id': work_id
