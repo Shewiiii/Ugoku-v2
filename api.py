@@ -52,7 +52,7 @@ bot: Optional[Bot] = None
 API_ENDPOINT = "https://discord.com/api/v10"
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-REDIRECT_URI = "http://localhost:8000/auth/discord"
+REDIRECT_URI = "https://app.ugoku.moe/auth/discord"
 
 IMAGE_BASE_URL = "https://cdn.discordapp.com"
 
@@ -240,7 +240,7 @@ async def auth_discord(code: str = Query(...)):
         )
 
         return RedirectResponse(
-            url=f"http://localhost:5173/auth-callback?token={session_token}"
+            url=f"https://ugoku-frontend.vercel.app/auth-callback?token={session_token}"
         )
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=400)
