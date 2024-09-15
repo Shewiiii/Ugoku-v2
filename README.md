@@ -5,7 +5,9 @@
   <p>Art by Shironappa</p>
   <h1>Ugoku-v2 Discord Bot</h1>
 </div>
-<b>A work in progress rework of <a href='https://github.com/Shewiiii/Ugoku-bot'>Ugoku !</a>, completely refactored and lightweight~</b>
+<b>A work in progress rework of <a href='https://github.com/Shewiiii/Ugoku-bot'>Ugoku !</a>, completely refactored and lightweight~</b>   
+<p>Thank you again <a href='https://github.com/ChinHongTan'>Chinono</a> to help me on that project, much love <3</p>
+
 <h2>Features/To do</h2>
 <b>Unticked boxes are work in progress.</b>
 
