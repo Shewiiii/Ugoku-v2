@@ -23,6 +23,8 @@
   - [X] Play songs from a URL (custom source).
   - [X] Cache audio from custom sources.
   - [ ] Embed info messages with metadata (partially done).
+  - [ ] Show the lyrics of a song using
+  - [ ] Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !
 
 > [!NOTE]
 > Ugoku-v2 is only using Spotify or Youtube as streaming service sources, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs
@@ -34,4 +36,5 @@
 <h2>Known bugs to fix</h2>
 
 - Queue not showing when too many characters in the queue/loop section.
-  ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in length.").
+  ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in leng
+  th.").
