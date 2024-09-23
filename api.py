@@ -52,14 +52,17 @@ bot: Optional[Bot] = None
 API_ENDPOINT = "https://discord.com/api/v10"
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-REDIRECT_URI = "https://app.ugoku.moe/auth/discord"
+BASE_REDIRECT_URI = os.getenv("REDIRECT_URI")
+REDIRECT_URI = f"{BASE_REDIRECT_URI}/auth/discord"
+DISCORD_REDIRECT_URI = os.getenv("DISCORD_REDIRECT_URI")
+REDIRECT_RESPONSE = f"{BASE_REDIRECT_URI}/auth-callback"
 
 IMAGE_BASE_URL = "https://cdn.discordapp.com"
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ugoku-frontend-100.vercel.app"],
+    allow_origins=os.getenv("ALLOWED_ORIGINS"),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -133,7 +136,7 @@ def exchange_code(code: str) -> Dict[str, Any]:
     data = {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": DISCORD_REDIRECT_URI,
     }
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     response = requests.post(
@@ -240,7 +243,7 @@ async def auth_discord(code: str = Query(...)):
         )
 
         return RedirectResponse(
-            url=f"https://ugoku-frontend.vercel.app/auth-callback?token={session_token}"
+            url=f"{REDIRECT_RESPONSE}?token={session_token}"
         )
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=400)
