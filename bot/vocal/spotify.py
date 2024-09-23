@@ -143,20 +143,17 @@ class Spotify:
         )
         return stream.input_stream.stream()
 
-    def get_track_info(self, track_API: dict) -> dict:
+    def get_track_info(self, track_API: dict, album_info: dict = None) -> dict:
         """Returns track info (display name, stream, embed)."""
         id = track_API['id']
-        display_name = (
-            f"{track_API['artists'][0]['name']} - {track_API['name']}"
-        )
+        album = album_info or track_API.get('album', {})
 
         return {
-            'display_name': display_name,
+            'display_name': f"{track_API['artists'][0]['name']} - {track_API['name']}",
             'title': track_API['name'],
             'artist': ', '.join(artist['name'] for artist in track_API['artists']),
-            # The following can't work with an album api:
-            # 'album': track_API['album']['name'],
-            # 'cover': track_API['album']['images'][0]['url'],
+            'album': album.get('name'),
+            'cover': album.get('images', [{}])[0].get('url') if 'images' in album else album.get('cover'),
             'duration': track_API['duration_ms'],
             'url': f"https://open.spotify.com/track/{id}",
             'id': id,
@@ -204,8 +201,13 @@ class Spotify:
             track_API = await asyncio.to_thread(self.sessions.sp.track, id)
             return [self.get_track_info(track_API)]
         elif type_ == 'album':
-            album_API = await asyncio.to_thread(self.sessions.sp.album_tracks, id)
-            return [self.get_track_info(track) for track in album_API['items']]
+            album_API = await asyncio.to_thread(self.sessions.sp.album, id)
+            album_info = {
+                'name': album_API['name'],
+                'cover': album_API['images'][0]['url'] if album_API['images'] else None,
+                'url': album_API['external_urls']['spotify']
+            }
+            return [self.get_track_info(track, album_info) for track in album_API['tracks']['items']]
         elif type_ == 'playlist':
             playlist_API = await asyncio.to_thread(self.sessions.sp.playlist_tracks, id)
             return [self.get_track_info(track['track']) for track in playlist_API['items']]
