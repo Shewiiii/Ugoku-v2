@@ -134,3 +134,27 @@ async def set_volume(guild_id: str, volume: int) -> bool:
     session.voice_client.source.volume = volume / 100
     session.volume = volume
     return True
+
+async def toggle_playback(guild_id: str) -> bool:
+    """
+    Toggle the playback state for the current session.
+
+    Args:
+        guild_id (str): The ID of the guild (server) where the playback is occurring.
+
+    Returns:
+        bool: True if the playback state was successfully toggled, False if the guild is not in an active session.
+
+    Note:
+        This function converts the string guild_id to an integer before processing.
+    """
+    guild_id = int(guild_id)
+    if guild_id not in sm.server_sessions:
+        return False
+    session: ServerSession = sm.server_sessions[guild_id]
+    if session.voice_client.is_playing():
+        session.voice_client.pause()
+    else:
+        session.voice_client.resume()
+    return True
+
