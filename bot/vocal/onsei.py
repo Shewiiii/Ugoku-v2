@@ -2,23 +2,48 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Literal
 
 import aiohttp
 
-from bot.vocal.types import OnseiAPIResponse
+from bot.vocal.types import OnseiAPIResponse, TrackUrlMapping, TrackTitle, MediaStreamUrl
 from config import ONSEI_BLACKLIST, ONSEI_WHITELIST
 
 logger = logging.getLogger(__name__)
 
 
 class Onsei:
-    def get_cover(self, work_id: str) -> str:
-        """Construct the cover image URL."""
+    """
+    A class to interact with the Onsei API and process audio track information.
+    """
+    @staticmethod
+    def get_cover(work_id: str) -> str:
+        """
+        Construct the cover image URL for a given work ID.
+
+        Args:
+            work_id (str): The unique identifier of the work.
+
+        Returns:
+            str: The URL of the cover image.
+        """
         return f'https://api.asmr-200.com/api/cover/{work_id}.jpg'
 
-    async def request(self, work_id: str, api: str) -> OnseiAPIResponse:
-        """Make an asynchronous HTTP GET request."""
+    @staticmethod
+    async def request(work_id: str, api: Literal['tracks', 'workInfo']) -> OnseiAPIResponse:
+        """
+        Make an asynchronous HTTP GET request to the Onsei API.
+
+        Args:
+            work_id (str): The unique identifier of the work.
+            api (str): The API endpoint to request ('tracks' or 'workInfo').
+
+        Returns:
+            OnseiAPIResponse: The JSON response from the API.
+
+        Raises:
+            aiohttp.ClientResponseError: If the API request fails.
+        """
         url = f'https://api.asmr.one/api/{api}/{work_id}'
         logger.info(f'Requesting URL: {url}')
 
@@ -29,23 +54,49 @@ class Onsei:
                 return json.loads(content)
 
     async def get_tracks_api(self, work_id: str) -> OnseiAPIResponse:
-        """Retrieve the tracks API data."""
+        """
+        Retrieve the tracks API data for a given work ID.
+
+        Args:
+            work_id (str): The unique identifier of the work.
+
+        Returns:
+            OnseiAPIResponse: The tracks API response.
+        """
         return await self.request(work_id, 'tracks')
 
     async def get_work_api(self, work_id: str) -> OnseiAPIResponse:
-        """Retrieve the work information API data."""
+        """
+        Retrieve the work information API data for a given work ID.
+
+        Args:
+            work_id (str): The unique identifier of the work.
+
+        Returns:
+            OnseiAPIResponse: The work information API response.
+        """
         return await self.request(work_id, 'workInfo')
 
+    @staticmethod
     def process_file(
-        self,
         tracks_api: OnseiAPIResponse,
         path: Path,
         ignore_whitelist: bool = False
-    ) -> Optional[Dict[str, str]]:
-        """Process a single track file."""
+    ) -> Optional[TrackUrlMapping]:
+        """
+        Process a single track file from the API response.
+
+        Args:
+            tracks_api (OnseiAPIResponse): The API response for a single track.
+            path (Path): The file path of the track.
+            ignore_whitelist (bool, optional): Whether to ignore the whitelist. Defaults to False.
+
+        Returns:
+            Optional[Dict[str, str]]: A dictionary with the track title and media stream URL if valid, None otherwise.
+        """
         file_type = tracks_api.get('type')
-        title = os.path.splitext(tracks_api.get('title', ''))[0]
-        media_stream_url = tracks_api.get('mediaStreamUrl')
+        title = TrackTitle(os.path.splitext(tracks_api.get('title', ''))[0])
+        media_stream_url = MediaStreamUrl(tracks_api.get('mediaStreamUrl'))
         media_download_url = tracks_api.get('mediaDownloadUrl', '')
         extension = os.path.splitext(media_download_url)[1][1:].lower()
 
@@ -75,10 +126,21 @@ class Onsei:
         self,
         tracks_api: OnseiAPIResponse,
         path: Path = Path('.'),
-        tracks: Optional[Dict[str, str]] = None,
+        tracks: Optional[TrackUrlMapping] = None,
         ignore_whitelist: bool = False
-    ) -> Dict[str, str]:
-        """Recursively retrieve tracks from API data."""
+    ) -> TrackUrlMapping:
+        """
+        Recursively retrieve tracks from API data.
+
+        Args:
+            tracks_api (OnseiAPIResponse): The API response containing track information.
+            path (Path, optional): The current path in the folder structure. Defaults to Path('.').
+            tracks (Optional[Dict[str, str]], optional): Accumulator for tracked tracks. Defaults to None.
+            ignore_whitelist (bool, optional): Whether to ignore the whitelist. Defaults to False.
+
+        Returns:
+            Dict[str, str]: A dictionary of valid tracks with their titles and media stream URLs.
+        """
         if tracks is None:
             tracks = {}
 
@@ -113,7 +175,15 @@ class Onsei:
         self,
         tracks_api: OnseiAPIResponse
     ) -> Optional[str]:
-        """Extract the work title from API data."""
+        """
+        Extract the work title from API data.
+
+        Args:
+            tracks_api (OnseiAPIResponse): The API response containing work information.
+
+        Returns:
+            Optional[str]: The work title if found, None otherwise.
+        """
         if isinstance(tracks_api, list):
             for children in tracks_api:
                 result = self.get_title(children)
@@ -129,8 +199,16 @@ class Onsei:
     def get_all_tracks(
         self,
         tracks_api: OnseiAPIResponse
-    ) -> Dict[str, str]:
-        """Retrieve all tracks, retrying without whitelist if needed."""
+    ) -> TrackUrlMapping:
+        """
+        Retrieve all tracks, retrying without whitelist if needed.
+
+        Args:
+            tracks_api (OnseiAPIResponse): The API response containing track information.
+
+        Returns:
+            Dict[str, str]: A dictionary of all valid tracks with their titles and media stream URLs.
+        """
         tracks = self.get_tracks(tracks_api, tracks={})
 
         if not tracks:

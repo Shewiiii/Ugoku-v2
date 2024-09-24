@@ -16,6 +16,15 @@ class QueueView(View):
         bot: discord.Bot,
         page: int = 1
     ) -> None:
+        """
+        Initialize the QueueView.
+
+        Args:
+            queue (List[QueueItem]): The current queue of tracks.
+            to_loop (List[QueueItem]): Tracks that are set to be looped.
+            bot (discord.Bot): The Discord bot instance.
+            page (int, optional): The current page number. Defaults to 1.
+        """
         super().__init__()
         self.queue = queue
         self.to_loop = to_loop
@@ -25,6 +34,12 @@ class QueueView(View):
         self.update_buttons()
 
     def update_buttons(self) -> None:
+        """
+        Update the state of navigation buttons based on the current page and queue length.
+
+        This method disables or enables the 'Previous' and 'Next' buttons depending on
+        the current page number and the number of items in the queue.
+        """
         # Hide or show buttons based on the current page
         # and the number of queue items
         self.children[0].disabled = self.page <= 1
@@ -40,7 +55,13 @@ class QueueView(View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        """Handles the 'Previous' button click."""
+        """
+        Handle the 'Previous' button click event.
+
+        Args:
+            button (discord.ui.Button): The button that was clicked.
+            interaction (discord.Interaction): The interaction object representing the button click.
+        """
         self.page -= 1
         await self.update_view(interaction)
 
@@ -53,7 +74,13 @@ class QueueView(View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        """Handles the 'Next' button click."""
+        """
+        Handle the 'Next' button click event.
+
+        Args:
+            button (discord.ui.Button): The button that was clicked.
+            interaction (discord.Interaction): The interaction object representing the button click.
+        """
         self.page += 1
         await self.update_view(interaction)
 
@@ -61,6 +88,15 @@ class QueueView(View):
         self,
         interaction: discord.Interaction
     ) -> None:
+        """
+        Handle button click events and update the view accordingly.
+
+        This method updates the page number based on which button was clicked,
+        updates the buttons' state, and edits the message with the new embed and view.
+
+        Args:
+            interaction (discord.Interaction): The interaction object representing the button click.
+        """
         if interaction.custom_id == 'prev_page':
             self.page -= 1
         elif interaction.custom_id == 'next_page':
@@ -73,6 +109,15 @@ class QueueView(View):
         )
 
     async def create_embed(self) -> discord.Embed:
+        """
+        Create and return an embed displaying the current queue information.
+
+        This method generates an embed containing information about the currently playing track,
+        the queue, and any tracks set to loop.
+
+        Returns:
+            discord.Embed: An embed object containing the formatted queue information.
+        """
         if not self.queue:
             embed = discord.Embed(
                 title='Queue Overview',
@@ -146,6 +191,14 @@ class QueueView(View):
         self,
         ctx: discord.ApplicationContext
     ) -> None:
+        """
+        Display the queue view in response to a command.
+
+        This method creates the initial embed and sends it as a response to the command invocation.
+
+        Args:
+            ctx (discord.ApplicationContext): The context of the command invocation.
+        """
         embed = await self.create_embed()
         await ctx.respond(embed=embed, view=self)
 
@@ -153,7 +206,14 @@ class QueueView(View):
         self,
         interaction: discord.Interaction
     ) -> None:
-        """Update the view when a button is pressed."""
+        """
+        Update the queue view in response to a button interaction.
+
+        This method updates the buttons' state and edits the message with the new embed and view.
+
+        Args:
+            interaction (discord.Interaction): The interaction object representing the button click.
+        """
         self.update_buttons()
         await interaction.response.edit_message(
             embed=await self.create_embed(),

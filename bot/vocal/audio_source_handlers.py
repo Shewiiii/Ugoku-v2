@@ -16,6 +16,17 @@ async def play_spotify(
     query: str,
     session: ServerSession
 ) -> None:
+    """
+    Handles playback of Spotify tracks.
+
+    This function searches for Spotify tracks based on the given query,
+    adds them to the session's queue, and starts playback if not already playing.
+
+    Args:
+        ctx (discord.ApplicationContext): The Discord application context.
+        query (str): The Spotify track or playlist URL, or search query.
+        session (ServerSession): The current server's audio session.
+    """
     tracks_info = await ctx.bot.spotify.get_tracks(user_input=query)
 
     if not tracks_info:
@@ -30,6 +41,17 @@ async def play_custom(
     query: str,
     session: ServerSession
 ) -> None:
+    """
+    Handles playback of custom audio sources.
+
+    This function fetches audio from a custom URL, extracts metadata,
+    processes cover art, and adds the track to the session's queue.
+
+    Args:
+        ctx (discord.ApplicationContext): The Discord application context.
+        query (str): The URL of the custom audio source.
+        session (ServerSession): The current server's audio session.
+    """
     # Request and cache
     try:
         audio_path = await fetch_audio_stream(query)
@@ -41,15 +63,14 @@ async def play_custom(
     metadata = get_metadata(audio_path)
     # Idk why title and album are lists :elaina_huh:
     titles = metadata.get('title')
-    title=titles[0] if titles else display_name
-    albums = metadata.get('album')
-    album=albums[0] if albums else '?'
     artists = metadata.get('artist', ['?'])
-
     display_name = (
         f'{artists[0]} - {titles[0]}' if titles
         else get_display_name_from_query(query)
     )
+    title=titles[0] if titles else display_name
+    albums = metadata.get('album')
+    album=albums[0] if albums else '?'
 
     # Extract the cover art
     cover_bytes: bytes | None = extract_cover_art(audio_path)
@@ -94,6 +115,17 @@ async def play_onsei(
     query: str,
     session: ServerSession
 ) -> None:
+    """
+    Handles playback of Onsei audio tracks.
+
+    This function fetches track information from Onsei API, processes the data,
+    and adds the tracks to the session's queue.
+
+    Args:
+        ctx (discord.ApplicationContext): The Discord application context.
+        query (str): The Onsei work ID or URL.
+        session (ServerSession): The current server's audio session.
+    """
     work_id = extract_number(query)
 
     # API requests
@@ -144,6 +176,15 @@ async def play_onsei(
 
 
 def get_display_name_from_query(query: str) -> str:
-    """Extracts a display name from the query URL if no title is found."""
+    """
+    Extracts a display name from the query URL if no title is found.
+
+    Args:
+        query (str): The URL query string.
+
+    Returns:
+        str: The extracted display name or 'Custom track' if extraction fails.
+    """
+
     match = re.search(r'(?:.+/)([^#?]+)', query)
     return unquote(match.group(1)) if match else 'Custom track'

@@ -36,8 +36,15 @@ logger = logging.getLogger(__name__)
 
 
 def extract_number(string: str) -> Optional[str]:
-    """Extract a natural number from a string.
-    Returns a str"""
+    """
+    Extract a natural number from a string.
+
+    Args:
+        string (str): The input string to extract a number from.
+
+    Returns:
+        Optional[str]: The extracted number as a string, or None if no number is found.
+    """
     search = re.search(r'\d+', string)
     if not search:
         return
@@ -47,10 +54,16 @@ def extract_number(string: str) -> Optional[str]:
 
 def sanitize_filename(filename: str) -> str:
     """
-    Define a regular expression pattern that matches any character not allowed in filenames
+    Sanitize a filename by removing or replacing illegal characters.
 
     Args:
-    filename (str): The filename to sanitize
+        filename (str): The filename to sanitize.
+
+    Returns:
+        str: The sanitized filename.
+
+    Note:
+        This function keeps only alphanumeric characters, hyphens, underscores, and periods.
     """
     # For Windows, common illegal characters include: / / : * ? " < > |
     # The following pattern keeps only alphanumeric characters, hyphens, underscores, and periods.
@@ -59,6 +72,17 @@ def sanitize_filename(filename: str) -> str:
 
 
 def rgb_to_hsv(r: float, g: float, b: float) -> Tuple[float, float, float]:
+    """
+    Convert RGB color values to HSV color space.
+
+    Args:
+        r (float): Red component (0-255).
+        g (float): Green component (0-255).
+        b (float): Blue component (0-255).
+
+    Returns:
+        Tuple[float, float, float]: A tuple containing the HSV values.
+    """
     r, g, b = r / 255.0, g / 255.0, b / 255.0
     max_val = max(r, g, b)
     min_val = min(r, g, b)
@@ -83,6 +107,16 @@ def get_accent_color(
     image_bytes: bytes,
     threshold: int = 50
 ) -> Tuple[int, int, int]:
+    """
+    Extract an accent color from an image.
+
+    Args:
+        image_bytes (bytes): The image data as bytes.
+        threshold (int, optional): The color distance threshold. Defaults to 50.
+
+    Returns:
+        Tuple[int, int, int]: The RGB values of the extracted accent color.
+    """
     image = Image.open(BytesIO(image_bytes))
     image = image.convert('RGB')  # Ensure image RGB
 
@@ -123,6 +157,18 @@ def get_accent_color(
 async def get_accent_color_from_url(
     image_url: str
 ) -> Tuple[int, int, int]:
+    """
+    Fetch an image from a URL and extract its accent color.
+
+    Args:
+        image_url (str): The URL of the image.
+
+    Returns:
+        Tuple[int, int, int]: The RGB values of the extracted accent color.
+
+    Raises:
+        aiohttp.ClientResponseError: If the image fetch fails.
+    """
     async with aiohttp.ClientSession() as session:
         async with session.get(image_url) as response:
             response.raise_for_status()
@@ -134,12 +180,26 @@ async def get_accent_color_from_url(
 
 # Cache functions for custom sources
 def get_cache_path(string: bytes) -> Path:
+    """
+    Generate a cache file path for a given byte string.
+
+    Args:
+        string (bytes): The byte string to generate a cache path for.
+
+    Returns:
+        Path: The generated cache file path.
+    """
     # Hash the URL to create a unique filename
     hash_digest = hashlib.md5(string).hexdigest()
     return TEMP_FOLDER / f'{hash_digest}.cache'
 
 
 def cleanup_cache() -> None:
+    """
+    Clean up the cache directory by removing old and excess files.
+
+    This function removes files that exceed the cache size limit and deletes expired files.
+    """
     files = sorted(TEMP_FOLDER.glob('*.cache'), key=os.path.getmtime)
 
     # Remove files that exceed the cache size limit
@@ -155,6 +215,15 @@ def cleanup_cache() -> None:
 
 
 def extract_cover_art(file_path) -> Optional[bytes]:
+    """
+    Extract cover art from an audio file.
+
+    Args:
+        file_path: The path to the audio file.
+
+    Returns:
+        Optional[bytes]: The cover art image data, or None if no cover art is found.
+    """
     audio_file = mutagen.File(file_path)
 
     # For files using ID3 tags (mp3, sometimes WAV)
@@ -191,6 +260,15 @@ def extract_cover_art(file_path) -> Optional[bytes]:
 
 
 def get_metadata(file_path) -> Dict[str, List[str]]:
+    """
+    Extract metadata from an audio file.
+
+    Args:
+        file_path: The path to the audio file.
+
+    Returns:
+        Dict[str, List[str]]: A dictionary containing the extracted metadata.
+    """
     audio_file = mutagen.File(file_path)
 
     if not audio_file:
@@ -211,6 +289,16 @@ async def update_active_servers(
     bot: discord.Bot,
     server_sessions: Dict[int, 'ServerSession']
 ) -> None:
+    """
+    Update the list of active servers and their current playback information.
+
+    Args:
+        bot (discord.Bot): The Discord bot instance.
+        server_sessions (Dict[int, 'ServerSession']): A dictionary of active server sessions.
+
+    This function collects information about currently playing songs, queues, and playback history
+    for each active voice client, and sends this information to an external API.
+    """
     active_guilds: List[ActiveGuildInfo] = []
     for vc in bot.voice_clients:
         if not isinstance(vc, discord.VoiceClient):

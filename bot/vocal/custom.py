@@ -22,8 +22,20 @@ IMGUR_CLIENT_ID = os.getenv('IMGUR_CLIENT_ID')
 
 
 async def upload_cover(cover_bytes: bytes) -> Optional[CoverData]:
-    """Upload a song art cover to imgur and return the URL and cover hash. 
-    Uses cache to avoid re-uploading. Keys: 'url', 'cover_hash'"""
+    """
+    Upload a song art cover to imgur and return the URL and cover hash.
+
+    This function uses cache to avoid re-uploading the same cover.
+
+    Keys: 'url', 'cover_hash'
+
+    Args:
+        cover_bytes (bytes): The cover art image data.
+
+    Returns:
+        Optional[CoverData]: A dictionary containing the cover URL, hash, and dominant RGB color.
+                             Returns None if upload fails or IMGUR_CLIENT_ID is not set.
+    """
     # Step 0: Cleanup expired files in the cache
     cleanup_cache()
 
@@ -88,9 +100,20 @@ async def upload_cover(cover_bytes: bytes) -> Optional[CoverData]:
 
 
 async def get_cover_data_from_hash(cover_hash: str) -> CoverData:
-    """Return a dict with the cover URL and its dominant color.
-    The cover_hash in the track_info of songs from a custom source, is
-    stored as a value of 'id'."""
+    """
+    Retrieve cover art data for a given cover hash.
+
+    Args:
+        cover_hash (str): The hash of the cover art.
+
+    Returns:
+        CoverData: A dictionary containing the cover URL and its dominant RGB color.
+                   If no data is found, returns a dict with None for URL and DEFAULT_EMBED_COLOR for RGB.
+
+    Note:
+        The cover_hash in the track_info of songs from a custom source, is
+        stored as a value of 'id'.
+    """
     cache_file_path = os.path.join(TEMP_FOLDER, f"{cover_hash}.json")
 
     # Returns the default embed color
@@ -113,7 +136,20 @@ async def generate_info_embed(
     cover_url: bytes | None,
     dominant_rgb: tuple[int, int, int],
 ) -> discord.Embed:
-    """Generates a Discord Embed with track information."""
+    """
+    Generate a Discord Embed with track information.
+
+    Args:
+        url (str): The URL of the track.
+        title (str): The title of the track.
+        album (str): The album name.
+        artists (list): List of artist names.
+        cover_url (bytes | None): The URL of the cover image, or None if not available.
+        dominant_rgb (tuple[int, int, int]): The dominant RGB color of the cover.
+
+    Returns:
+        discord.Embed: A Discord Embed object containing formatted track information.
+    """
     artist_string = ', '.join(artists)
 
     embed = discord.Embed(
@@ -135,6 +171,22 @@ async def generate_info_embed(
 
 
 async def fetch_audio_stream(url: str) -> Path:
+    """
+    Fetch an audio file from a URL and cache it locally.
+
+    This function checks for a cached version of the file before fetching.
+    If the cached file exists and is not expired, it returns the cached file path.
+    Otherwise, it downloads the file, caches it, and returns the path.
+
+    Args:
+        url (str): The URL of the audio file to fetch.
+
+    Returns:
+        Path: The path to the cached audio file.
+
+    Raises:
+        Exception: If the audio fetch fails.
+    """
     cache_path = get_cache_path(url.encode('utf-8'))
 
     # If the file exists and is not expired, return it

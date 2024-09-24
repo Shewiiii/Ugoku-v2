@@ -1,4 +1,4 @@
-from typing import List, Optional, Callable, Awaitable, Any, TypedDict, Literal, Tuple
+from typing import List, Optional, Callable, Awaitable, Any, TypedDict, Literal, Tuple, NewType, Dict
 import discord
 
 
@@ -113,6 +113,11 @@ class ActiveGuildInfo(TypedDict):
 LoopMode = Literal['noLoop', 'loopAll', 'loopOne']
 
 # =================== Onsei types ===================
+
+TrackTitle = NewType('TrackTitle', str)
+MediaStreamUrl = NewType('MediaStreamUrl', str)
+
+TrackUrlMapping = Dict[TrackTitle, MediaStreamUrl]
 
 class WorkInfo(TypedDict):
     id: int
