@@ -2,7 +2,7 @@ import logging
 
 import discord
 
-from typing import Dict
+from typing import Optional
 from bot.vocal.onsei import Onsei
 from bot.vocal.server_session import ServerSession
 
@@ -18,7 +18,7 @@ class SessionManager:
         self,
         ctx: discord.ApplicationContext,
         bot: discord.Bot
-    ) -> ServerSession | None:
+    ) -> Optional[ServerSession]:
         user_voice = ctx.user.voice
         guild_id = ctx.guild.id
         if not user_voice:

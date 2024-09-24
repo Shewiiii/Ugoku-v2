@@ -1,17 +1,20 @@
+from typing import List
+
 import discord
 from discord.ui import View
 
 from bot.vocal.custom import get_cover_data_from_hash
+from bot.vocal.types import QueueItem
 from config import DEFAULT_EMBED_COLOR
 
 
 class QueueView(View):
     def __init__(
         self,
-        queue,
-        to_loop,
-        bot,
-        page=1
+        queue: List[QueueItem],
+        to_loop: List[QueueItem],
+        bot: discord.Bot,
+        page: int = 1
     ) -> None:
         super().__init__()
         self.queue = queue

@@ -2,13 +2,14 @@ import asyncio
 import logging
 import random
 from datetime import datetime, timedelta
-from typing import Optional, Callable
+from typing import Optional, Callable, List, Literal
 
 import discord
 from librespot.audio import AbsChunkedInputStream
 
 from bot.utils import update_active_servers
 from bot.vocal.queue_view import QueueView
+from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
 from config import AUTO_LEAVE_DURATION
 
 from typing import TYPE_CHECKING
@@ -18,6 +19,34 @@ if TYPE_CHECKING:
 
 
 class ServerSession:
+    """Represents an audio session for a Discord server.
+
+    This class manages the audio playback, queue, and various controls for a specific server.
+
+    Attributes:
+        bot: The Discord bot instance.
+        guild_id: The unique identifier of the Discord guild (server).
+        voice_client: The voice client connected to the server's voice channel.
+        queue: The current queue of tracks to be played.
+        to_loop: Tracks that are set to be looped.
+        last_played_time: Timestamp of when the last track was played.
+        loop_current: Flag indicating if the current track should be looped.
+        loop_queue: Flag indicating if the entire queue should be looped.
+        skipped: Flag indicating if the current track was skipped.
+        shuffle: Flag indicating if the queue is shuffled.
+        original_queue: The original order of the queue before shuffling.
+        shuffled_queue: The shuffled order of the queue.
+        previous: Flag indicating if the previous track command was used.
+        stack_previous: Stack of previously played tracks.
+        is_seeking: Flag indicating if a seek operation is in progress.
+        channel_id: The ID of the text channel associated with this session.
+        session_manager: The session manager handling this server session.
+        auto_leave_task: Task for automatically leaving the voice channel after inactivity.
+        playback_start_time: Timestamp of when the current track started playing.
+        last_context: The last context used for interaction.
+        volume: The current volume level of the audio playback.
+    """
+
     def __init__(
         self,
         guild_id: int,
@@ -29,17 +58,17 @@ class ServerSession:
         self.bot = bot
         self.guild_id = guild_id
         self.voice_client = voice_client
-        self.queue = []
-        self.to_loop = []
+        self.queue: List[QueueItem] = []
+        self.to_loop: List[QueueItem] = []
         self.last_played_time = datetime.now()
         self.loop_current = False
         self.loop_queue = False
         self.skipped = False
         self.shuffle = False
-        self.original_queue = []
-        self.shuffled_queue = []
+        self.original_queue: List[QueueItem] = []
+        self.shuffled_queue: List[QueueItem] = []
         self.previous = False
-        self.stack_previous = []
+        self.stack_previous = [] # Im not sure what type is this :kanna_sus:
         self.is_seeking = False
         self.channel_id = channel_id
         self.session_manager = session_manager
@@ -54,6 +83,11 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
+        """Displays the current queue using a QueueView.
+
+        Args:
+            ctx: The Discord application context.
+        """
         view = QueueView(self.queue, self.to_loop, self.bot)
         await view.display(ctx)
 
@@ -61,6 +95,11 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
+        """Sends an embed with information about the currently playing track.
+
+        Args:
+            ctx: The Discord application context.
+        """
         # Retrieve the current track_info from the queue
         track_info: dict = self.queue[0]['track_info']
         embed: Optional[discord.Embed] = track_info['embed']
@@ -97,7 +136,15 @@ class ServerSession:
         # Send the message or edit the previous message based on the context
         await ctx.send(content=message, embed=embed)
 
-    async def seek(self, position: int):
+    async def seek(self, position: int) -> bool:
+        """Seeks to a specific position in the current track.
+
+        Args:
+            position: The position to seek to in seconds.
+
+        Returns:
+            bool: True if seeking was successful, False otherwise.
+        """
         if not self.voice_client or not self.voice_client.is_playing():
             return False
 
@@ -119,7 +166,12 @@ class ServerSession:
         return True
 
     async def start_playing(self, ctx: discord.ApplicationContext, start_position: int = 0) -> None:
-        """Handles the playback of the next track in the queue."""
+        """Handles the playback of the next track in the queue.
+
+        Args:
+            ctx: The Discord application context.
+            start_position: The position to start playing from in seconds.
+        """
         self.last_context = ctx
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
@@ -177,11 +229,18 @@ class ServerSession:
     async def add_to_queue(
         self,
         ctx: discord.ApplicationContext,
-        tracks_info: list,
-        source: str
+        tracks_info: List[TrackInfo],
+        source: Literal['Spotify', 'Custom', 'Onsei']
     ) -> None:
+        """Adds tracks to the queue and starts playback if not already playing.
+
+        Args:
+            ctx: The Discord application context.
+            tracks_info: A list of track information dictionaries.
+            source: The source of the tracks ('Spotify', 'Custom', or 'Onsei').
+        """
         for track_info in tracks_info:
-            queue_item = {'track_info': track_info, 'source': source}
+            queue_item: QueueItem = {'track_info': track_info, 'source': source}
             self.queue.append(queue_item)
             # Add to original queue for shuffle
             self.original_queue.append(queue_item)
@@ -224,6 +283,11 @@ class ServerSession:
             await self.start_playing(ctx)
 
     async def play_previous(self, ctx: discord.ApplicationContext) -> None:
+        """Plays the previous track in the queue.
+
+        Args:
+            ctx: The Discord application context.
+        """
         self.previous = True
         self.queue.insert(0, self.stack_previous.pop())
         if self.voice_client.is_playing():
@@ -231,6 +295,14 @@ class ServerSession:
         await self.start_playing(ctx)
 
     async def skip_track(self, ctx: discord.ApplicationContext) -> bool:
+        """Skips the current track and plays the next one in the queue.
+
+        Args:
+            ctx: The Discord application context.
+
+        Returns:
+            bool: True if a track was skipped, False otherwise.
+        """
         if not self.voice_client or not self.voice_client.is_playing():
             return False
 
@@ -238,7 +310,12 @@ class ServerSession:
         await self.play_next(ctx)
         return True
 
-    def get_queue(self):
+    def get_queue(self) -> List[SimplifiedTrackInfo]:
+        """Returns a simplified version of the current queue.
+
+        Returns:
+            List[SimplifiedTrackInfo]: A list of simplified track information dictionaries.
+        """
         return [
             {
                 "title": track['track_info']['title'],
@@ -252,6 +329,14 @@ class ServerSession:
         ]
 
     async def shuffle_queue(self, is_active: bool) -> bool:
+        """Toggles shuffling of the queue.
+
+        Args:
+            is_active: Boolean indicating whether to activate or deactivate shuffling.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
         if len(self.queue) <= 1:
             return  True # No need to shuffle if queue has 0 or 1 song
 
@@ -275,8 +360,14 @@ class ServerSession:
     def after_playing(
         self,
         ctx: discord.ApplicationContext,
-        error: Exception
+        error: Optional[Exception]
     ) -> None:
+        """Callback function executed after a track finishes playing.
+
+        Args:
+            ctx: The Discord application context.
+            error: Any error that occurred during playback, or None.
+        """
         self.last_played_time = datetime.now()
         if error:
             raise error
@@ -294,6 +385,11 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
+        """Plays the next track in the queue, handling looping and previous track logic.
+
+        Args:
+            ctx: The Discord application context.
+        """
         # Playing previous track ? :kanna_sus:
         if self.queue and not self.loop_current and not self.previous:
             self.stack_previous.append(self.queue[0])
@@ -308,7 +404,12 @@ class ServerSession:
 
         await self.start_playing(ctx)
 
-    def get_history(self):
+    def get_history(self) -> List[SimplifiedTrackInfo]:
+        """Returns a simplified version of the play history.
+
+        Returns:
+            List[SimplifiedTrackInfo]: A list of simplified track information dictionaries.
+        """
         return [
             {
                 "title": track['track_info']['title'],
@@ -321,7 +422,15 @@ class ServerSession:
             for track in self.stack_previous
         ]
 
-    async def toggle_loop(self, mode):
+    async def toggle_loop(self, mode: LoopMode) -> bool:
+        """Toggles the loop mode for the current track or entire queue.
+
+        Args:
+            mode: The loop mode to set ('noLoop', 'loopAll', or 'loopOne').
+
+        Returns:
+            bool: True if the loop mode was successfully changed, False otherwise.
+        """
         if mode == 'noLoop':
             self.loop_current = False
             self.loop_queue = False
@@ -344,6 +453,7 @@ class ServerSession:
         return True
 
     async def check_auto_leave(self) -> None:
+        """Checks for inactivity and automatically disconnects from the voice channel if inactive for too long."""
         while self.voice_client.is_connected():
             if not self.voice_client.is_playing():
                 await asyncio.sleep(1)

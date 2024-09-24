@@ -1,6 +1,6 @@
 import discord
 import api
-from typing import Dict, Any
+from typing import Dict, Optional, Tuple, List
 import base64
 import hashlib
 import logging
@@ -24,12 +24,18 @@ from mutagen.oggopus import OggOpus
 from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
 
+from bot.vocal.types import TrackInfo, ActiveGuildInfo, CurrentSongInfo
 from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bot.vocal.server_session import ServerSession
 
 logger = logging.getLogger(__name__)
 
 
-def extract_number(string: str) -> str | None:
+def extract_number(string: str) -> Optional[str]:
     """Extract a natural number from a string.
     Returns a str"""
     search = re.search(r'\d+', string)
@@ -40,14 +46,19 @@ def extract_number(string: str) -> str | None:
 
 
 def sanitize_filename(filename: str) -> str:
-    # Define a regular expression pattern that matches any character not allowed in filenames
+    """
+    Define a regular expression pattern that matches any character not allowed in filenames
+
+    Args:
+    filename (str): The filename to sanitize
+    """
     # For Windows, common illegal characters include: / / : * ? " < > |
     # The following pattern keeps only alphanumeric characters, hyphens, underscores, and periods.
     sanitized_filename = re.sub(r'[^A-Za-z0-9._-]', '_', filename)
     return sanitized_filename
 
 
-def rgb_to_hsv(r, g, b):
+def rgb_to_hsv(r: float, g: float, b: float) -> Tuple[float, float, float]:
     r, g, b = r / 255.0, g / 255.0, b / 255.0
     max_val = max(r, g, b)
     min_val = min(r, g, b)
@@ -71,7 +82,7 @@ def rgb_to_hsv(r, g, b):
 def get_accent_color(
     image_bytes: bytes,
     threshold: int = 50
-) -> tuple[int, int, int]:
+) -> Tuple[int, int, int]:
     image = Image.open(BytesIO(image_bytes))
     image = image.convert('RGB')  # Ensure image RGB
 
@@ -111,7 +122,7 @@ def get_accent_color(
 
 async def get_accent_color_from_url(
     image_url: str
-) -> tuple[int, int, int]:
+) -> Tuple[int, int, int]:
     async with aiohttp.ClientSession() as session:
         async with session.get(image_url) as response:
             response.raise_for_status()
@@ -122,7 +133,7 @@ async def get_accent_color_from_url(
 
 
 # Cache functions for custom sources
-def get_cache_path(string: str) -> Path:
+def get_cache_path(string: bytes) -> Path:
     # Hash the URL to create a unique filename
     hash_digest = hashlib.md5(string).hexdigest()
     return TEMP_FOLDER / f'{hash_digest}.cache'
@@ -143,7 +154,7 @@ def cleanup_cache() -> None:
             file.unlink()
 
 
-def extract_cover_art(file_path) -> bytes | None:
+def extract_cover_art(file_path) -> Optional[bytes]:
     audio_file = mutagen.File(file_path)
 
     # For files using ID3 tags (mp3, sometimes WAV)
@@ -179,7 +190,7 @@ def extract_cover_art(file_path) -> bytes | None:
                 return img
 
 
-def get_metadata(file_path) -> dict:
+def get_metadata(file_path) -> Dict[str, List[str]]:
     audio_file = mutagen.File(file_path)
 
     if not audio_file:
@@ -198,18 +209,21 @@ def get_metadata(file_path) -> dict:
 
 async def update_active_servers(
     bot: discord.Bot,
-    server_sessions: Dict[Any, Any]
+    server_sessions: Dict[int, 'ServerSession']
 ) -> None:
-    active_guilds = []
+    active_guilds: List[ActiveGuildInfo] = []
     for vc in bot.voice_clients:
+        if not isinstance(vc, discord.VoiceClient):
+            continue # Skip if not a VoiceClient
         if vc.is_playing():
             guild = vc.guild
             session = server_sessions.get(guild.id)
             queue = session.get_queue() if session else []
             # Skip the first item as it's the currently playing song
             song_info = queue.pop(0)
-            history = session.get_history() if session else []
-            current_song = {
+            history: List[TrackInfo] = session.get_history() if session else []
+
+            current_song: Optional[CurrentSongInfo] = {
                 "title": song_info['title'],
                 "artist": song_info.get('artist'),
                 "album": song_info.get('album'),
@@ -218,7 +232,8 @@ async def update_active_servers(
                 "playback_start_time": session.playback_start_time,
                 "url": song_info['url']
             } if song_info else None
-            guild_info = {
+
+            guild_info: ActiveGuildInfo = {
                 # Convert to string to avoid overflow in JavaScript
                 "id": str(guild.id),
                 "name": guild.name,
@@ -229,5 +244,6 @@ async def update_active_servers(
             }
             active_guilds.append(guild_info)
 
-    logging.info(f"Updating active servers.")
+    logging.info("Updating active servers.")
     await api.update_active_servers(active_guilds)
+

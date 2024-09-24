@@ -1,9 +1,10 @@
 from bot.vocal.server_session import ServerSession
 from bot.utils import update_active_servers
 from bot.vocal.session_manager import session_manager as sm
+from bot.vocal.types import LoopMode
 
 
-async def seek_playback(guild_id: str, position: int):
+async def seek_playback(guild_id: str, position: int) -> bool:
     guild_id = int(guild_id)
     if guild_id not in sm.server_sessions:
         return False
@@ -11,7 +12,7 @@ async def seek_playback(guild_id: str, position: int):
     return await session.seek(position)
 
 
-async def toggle_loop(guild_id: str, mode: str):
+async def toggle_loop(guild_id: str, mode: LoopMode) -> bool:
     guild_id = int(guild_id)
     if guild_id not in sm.server_sessions:
         return False
@@ -19,7 +20,7 @@ async def toggle_loop(guild_id: str, mode: str):
     return await session.toggle_loop(mode)
 
 
-async def skip_track(guild_id: str):
+async def skip_track(guild_id: str) -> bool:
     guild_id = int(guild_id)
     if guild_id not in sm.server_sessions:
         return False
@@ -27,15 +28,16 @@ async def skip_track(guild_id: str):
     return await session.skip_track(session.last_context)
 
 
-async def previous_track(guild_id: str):
+async def previous_track(guild_id: str) -> bool:
     guild_id = int(guild_id)
     if guild_id not in sm.server_sessions:
         return False
     session: ServerSession = sm.server_sessions[guild_id]
-    return await session.previous_track(session.last_context)
+    await session.play_previous(session.last_context)
+    return True
 
 
-async def shuffle_queue(guild_id: str, is_active: bool):
+async def shuffle_queue(guild_id: str, is_active: bool) -> bool:
     guild_id = int(guild_id)
     if guild_id not in sm.server_sessions:
         return False
@@ -46,7 +48,7 @@ async def shuffle_queue(guild_id: str, is_active: bool):
     return success
 
 
-async def set_volume(guild_id: str, volume: int):
+async def set_volume(guild_id: str, volume: int) -> bool:
     guild_id = int(guild_id)
     if guild_id not in sm.server_sessions:
         return False

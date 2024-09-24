@@ -31,6 +31,57 @@ from bot.vocal.audio_controls import (
     skip_track,
     toggle_loop
 )
+from bot.vocal.types import ActiveGuildInfo
+
+"""FastAPI-based API for managing Discord bot audio playback and authentication.
+
+This module provides a FastAPI application that interfaces with a Discord bot,
+allowing for control of audio playback across multiple Discord servers (guilds).
+It also handles user authentication via Discord OAuth2.
+
+The API includes endpoints for:
+- User authentication and session management
+- Audio playback control (play, pause, seek, skip, etc.)
+- Real-time updates on active voice connections
+
+Attributes:
+    app (FastAPI): The main FastAPI application instance.
+    bot (Optional[Bot]): The Discord bot instance (set externally).
+    active_servers (List[Dict[str, Any]]): List of currently active voice connections.
+    connected_clients (Set[asyncio.Queue]): Set of connected SSE clients.
+    user_sessions (Dict[str, Dict[str, Any]]): Dictionary of active user sessions.
+
+Functions:
+    startup_event(): Loads saved sessions on application startup.
+    load_sessions(): Loads user sessions from a JSON file.
+    save_sessions(): Saves current user sessions to a JSON file.
+    exchange_code(code: str): Exchanges an OAuth2 code for access tokens.
+    get_user_details(access_token: str, token_type: str): Fetches user details from Discord API.
+    create_session(user_details: Dict[str, Any]): Creates a new user session.
+    notify_clients(): Notifies all connected SSE clients of server updates.
+    update_active_servers(guild_infos: List[ActiveGuildInfo]): Updates the list of active servers.
+
+API Endpoints:
+    GET /: Simple ping endpoint.
+    GET /play/stream: SSE endpoint for real-time server updates.
+    GET /auth/discord: Handles Discord OAuth2 callback.
+    POST /auth/logout: Logs out a user.
+    GET /api/user: Retrieves authenticated user details.
+    POST /auth/refresh: Refreshes an authentication token.
+    POST /api/playback/toggle: Toggles playback for a specific guild.
+    POST /api/playback/seek: Seeks to a specific position in the current track.
+    POST /api/playback/loop: Toggles loop mode for a guild.
+    POST /api/playback/skip: Skips the current track for a guild.
+    POST /api/playback/shuffle: Toggles shuffle mode for a guild.
+    POST /api/playback/previous: Plays the previous track for a guild.
+    POST /api/playback/volume: Sets the volume for a guild.
+
+Note:
+    This API requires environment variables for Discord OAuth2 credentials
+    and allowed CORS origins. It also depends on an external Discord bot
+    instance to be set.
+"""
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -73,29 +124,35 @@ security = HTTPBearer()
 
 
 class SeekRequest(BaseModel):
+    """Request model for seeking to a position in a track."""
     guildId: str
     position: int
 
 
 class LoopRequest(BaseModel):
+    """Request model for toggling loop mode."""
     guildId: str
     mode: str
 
 
 class SkipRequest(BaseModel):
+    """Request model for skipping the current track."""
     guildId: str
 
 
 class ShuffleRequest(BaseModel):
+    """Request model for toggling shuffle mode."""
     guildId: str
     isActive: bool
 
 
 class PreviousRequest(BaseModel):
+    """Request model for playing the previous track."""
     guildId: str
 
 
 class VolumeRequest(BaseModel):
+    """Request model for setting the volume."""
     guildId: str
     volume: int
 
@@ -108,6 +165,11 @@ async def startup_event():
 
 
 def load_sessions():
+    """Load user sessions from a JSON file.
+
+    Returns:
+        dict: A dictionary of user sessions, with session tokens as keys.
+    """
     try:
         with open("sessions.json", "r") as f:
             sessions = json.load(f)
@@ -121,6 +183,7 @@ def load_sessions():
 
 
 def save_sessions():
+    """Save current user sessions to a JSON file."""
     sessions_to_save = {
         token: {
             **session,
@@ -133,6 +196,17 @@ def save_sessions():
 
 
 def exchange_code(code: str) -> Dict[str, Any]:
+    """Exchange OAuth2 code for access token.
+
+    Args:
+        code (str): The OAuth2 code received from Discord.
+
+    Returns:
+        Dict[str, Any]: The response from Discord containing access token and other details.
+
+    Raises:
+        requests.HTTPError: If the request to Discord API fails.
+    """
     data = {
         "grant_type": "authorization_code",
         "code": code,
@@ -150,11 +224,28 @@ def exchange_code(code: str) -> Dict[str, Any]:
 
 
 def get_user_details(access_token: str, token_type: str) -> Dict[str, Any]:
+    """Fetch user details from Discord API.
+
+    Args:
+        access_token (str): The OAuth2 access token.
+        token_type (str): The type of token (usually "Bearer").
+
+    Returns:
+        Dict[str, Any]: User details from Discord.
+    """
     headers = {"Authorization": f"{token_type} {access_token}"}
     return requests.get(f"{API_ENDPOINT}/users/@me", headers=headers).json()
 
 
 def create_session(user_details: Dict[str, Any]) -> tuple[str, str, datetime]:
+    """Create a new user session.
+
+    Args:
+        user_details (Dict[str, Any]): User information from Discord.
+
+    Returns:
+        tuple[str, str, datetime]: A tuple containing session token, refresh token, and expiration time.
+    """
     session_token = secrets.token_urlsafe(32)
     refresh_token = secrets.token_urlsafe(32)
     expiration = datetime.now() + timedelta(days=7)
@@ -172,6 +263,7 @@ def create_session(user_details: Dict[str, Any]) -> tuple[str, str, datetime]:
 
 
 async def notify_clients():
+    """Notify all connected SSE clients of server updates."""
     logger.info(f"Notifying {len(connected_clients)} clients of server update")
     for queue in connected_clients:
         await queue.put(json.dumps({
@@ -182,7 +274,12 @@ async def notify_clients():
     logger.info("All clients notified")
 
 
-async def update_active_servers(guild_infos: List[Dict[str, Any]]):
+async def update_active_servers(guild_infos: List[ActiveGuildInfo]):
+    """Update the list of active servers and notify clients.
+
+    Args:
+        guild_infos (List[ActiveGuildInfo]): List of active guild information.
+    """
     global active_servers
     active_servers = guild_infos
     logger.info("Active servers updated.")
@@ -191,11 +288,24 @@ async def update_active_servers(guild_infos: List[Dict[str, Any]]):
 
 @app.get("/")
 async def ping():
+    """Simple ping endpoint. :Elaina_Magic:
+
+    Returns:
+        dict: A dictionary with a "pong" message.
+    """
     return {"message": "pong"}
 
 
 @app.get("/play/stream")
 async def stream_active_servers(request: Request):
+    """SSE endpoint for real-time server updates.
+
+    Args:
+        request (Request): The incoming request object.
+
+    Returns:
+        EventSourceResponse: An SSE response for real-time updates.
+    """
     if bot is None:
         return {"message": "Bot is not online"}
 
@@ -228,6 +338,17 @@ async def stream_active_servers(request: Request):
 
 @app.get("/auth/discord")
 async def auth_discord(code: str = Query(...)):
+    """Handle Discord OAuth2 callback.
+
+    Args:
+        code (str): The OAuth2 code received from Discord.
+
+    Returns:
+        RedirectResponse: A redirect to the frontend with the session token.
+
+    Raises:
+        HTTPException: If there's an error in the OAuth2 process.
+    """
     try:
         response = exchange_code(code)
         access_token = response["access_token"]
@@ -251,6 +372,17 @@ async def auth_discord(code: str = Query(...)):
 
 @app.post("/auth/logout")
 async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Log out a user by invalidating their session.
+
+    Args:
+        credentials (HTTPAuthorizationCredentials): The user's credentials.
+
+    Returns:
+        dict: A message confirming successful logout.
+
+    Raises:
+        HTTPException: If the token is invalid.
+    """
     token = credentials.credentials
     if token in user_sessions:
         del user_sessions[token]
@@ -261,6 +393,17 @@ async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
 @app.get("/api/user")
 async def get_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get authenticated user details.
+
+    Args:
+        credentials (HTTPAuthorizationCredentials): The user's credentials.
+
+    Returns:
+        dict: User details.
+
+    Raises:
+        HTTPException: If the token is invalid or expired.
+    """
     token = credentials.credentials
     session = user_sessions.get(token)
 
@@ -276,6 +419,17 @@ async def get_user(credentials: HTTPAuthorizationCredentials = Depends(security)
 
 @app.post("/auth/refresh")
 async def refresh(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Refresh an authentication token.
+
+    Args:
+        credentials (HTTPAuthorizationCredentials): The user's refresh token.
+
+    Returns:
+        JSONResponse: New access token, refresh token, and expiration time.
+
+    Raises:
+        HTTPException: If the refresh token is invalid.
+    """
     refresh_token = credentials.credentials
     for token, session in user_sessions.items():
         if session["refresh_token"] == refresh_token:
@@ -297,6 +451,18 @@ async def toggle_playback(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """Toggle playback for a specific guild.
+
+    Args:
+        request (Request): The incoming request object.
+        credentials (HTTPAuthorizationCredentials): The user's credentials.
+
+    Returns:
+        dict: A success message.
+
+    Raises:
+        HTTPException: If the token is invalid, expired, or if the bot is not connected.
+    """
     data = await request.json()
     guild_id = data.get("guildId")
     logger.info(f"Received playback toggle request for guild {guild_id}")
@@ -334,6 +500,17 @@ async def toggle_playback(
 
 @app.post("/api/playback/seek")
 async def seek_playback_route(request: SeekRequest):
+    """Seek to a specific position in the current track.
+
+    Args:
+        request (SeekRequest): The seek request containing guild ID and position.
+
+    Returns:
+        dict: A success status.
+
+    Raises:
+        HTTPException: If seeking fails.
+    """
     success = await seek_playback(request.guildId, request.position)
     if success:
         return {"status": "success"}
@@ -349,6 +526,18 @@ async def toggle_loop_route(
     request: LoopRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """Toggle loop mode for a guild.
+
+    Args:
+        request (LoopRequest): The loop request containing guild ID and mode.
+        credentials (HTTPAuthorizationCredentials): The user's credentials.
+
+    Returns:
+        dict: A success status.
+
+    Raises:
+        HTTPException: If toggling loop fails or if the token is invalid.
+    """
     token = credentials.credentials
     session = user_sessions.get(token)
 
@@ -374,6 +563,18 @@ async def skip_track_route(
     request: SkipRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """Skip the current track for a guild.
+
+    Args:
+        request (SkipRequest): The skip request containing guild ID.
+        credentials (HTTPAuthorizationCredentials): The user's credentials.
+
+    Returns:
+        dict: A success status and message.
+
+    Raises:
+        HTTPException: If skipping fails or if the token is invalid.
+    """
     token = credentials.credentials
     session = user_sessions.get(token)
 
@@ -399,6 +600,18 @@ async def shuffle_playback(
     request: ShuffleRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """Toggle shuffle mode for a guild.
+
+    Args:
+        request (ShuffleRequest): The shuffle request containing guild ID and active status.
+        credentials (HTTPAuthorizationCredentials): The user's credentials.
+
+    Returns:
+        dict: A success status.
+
+    Raises:
+        HTTPException: If shuffling fails or if the token is invalid.
+    """
     token = credentials.credentials
     session = user_sessions.get(token)
 
@@ -424,6 +637,18 @@ async def play_previous_track_route(
     request: PreviousRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """Play the previous track for a guild.
+
+    Args:
+        request (PreviousRequest): The previous track request containing guild ID.
+        credentials (HTTPAuthorizationCredentials): The user's credentials.
+
+    Returns:
+        dict: A success status.
+
+    Raises:
+        HTTPException: If playing the previous track fails or if the token is invalid.
+    """
     token = credentials.credentials
     session = user_sessions.get(token)
 
@@ -449,6 +674,18 @@ async def set_volume_route(
     request: VolumeRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """Set the volume for a guild.
+
+    Args:
+        request (VolumeRequest): The volume request containing guild ID and volume level.
+        credentials (HTTPAuthorizationCredentials): The user's credentials.
+
+    Returns:
+        dict: A success status.
+
+    Raises:
+        HTTPException: If setting the volume fails or if the token is invalid.
+    """
     token = credentials.credentials
     session = user_sessions.get(token)
 

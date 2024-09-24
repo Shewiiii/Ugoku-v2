@@ -1,3 +1,6 @@
+from typing import Optional
+
+from bot.vocal.types import CoverData
 from config import CACHE_EXPIRY, TEMP_FOLDER, DEFAULT_EMBED_COLOR
 import discord
 
@@ -18,7 +21,7 @@ load_dotenv()
 IMGUR_CLIENT_ID = os.getenv('IMGUR_CLIENT_ID')
 
 
-async def upload_cover(cover_bytes: bytes) -> dict | None:
+async def upload_cover(cover_bytes: bytes) -> Optional[CoverData]:
     """Upload a song art cover to imgur and return the URL and cover hash. 
     Uses cache to avoid re-uploading. Keys: 'url', 'cover_hash'"""
     # Step 0: Cleanup expired files in the cache
@@ -84,7 +87,7 @@ async def upload_cover(cover_bytes: bytes) -> dict | None:
             }
 
 
-async def get_cover_data_from_hash(cover_hash: str) -> dict:
+async def get_cover_data_from_hash(cover_hash: str) -> CoverData:
     """Return a dict with the cover URL and its dominant color.
     The cover_hash in the track_info of songs from a custom source, is
     stored as a value of 'id'."""

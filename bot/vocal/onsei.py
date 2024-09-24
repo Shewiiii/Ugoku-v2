@@ -2,10 +2,11 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, Optional
 
 import aiohttp
 
+from bot.vocal.types import OnseiAPIResponse
 from config import ONSEI_BLACKLIST, ONSEI_WHITELIST
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ class Onsei:
         """Construct the cover image URL."""
         return f'https://api.asmr-200.com/api/cover/{work_id}.jpg'
 
-    async def request(self, work_id: str, api: str) -> Union[List[Any], Dict[str, Any]]:
+    async def request(self, work_id: str, api: str) -> OnseiAPIResponse:
         """Make an asynchronous HTTP GET request."""
         url = f'https://api.asmr.one/api/{api}/{work_id}'
         logger.info(f'Requesting URL: {url}')
@@ -27,17 +28,17 @@ class Onsei:
                 content = await response.text()
                 return json.loads(content)
 
-    async def get_tracks_api(self, work_id: str) -> Union[List[Any], Dict[str, Any]]:
+    async def get_tracks_api(self, work_id: str) -> OnseiAPIResponse:
         """Retrieve the tracks API data."""
         return await self.request(work_id, 'tracks')
 
-    async def get_work_api(self, work_id: str) -> Union[List[Any], Dict[str, Any]]:
+    async def get_work_api(self, work_id: str) -> OnseiAPIResponse:
         """Retrieve the work information API data."""
         return await self.request(work_id, 'workInfo')
 
     def process_file(
         self,
-        tracks_api: Dict[str, Any],
+        tracks_api: OnseiAPIResponse,
         path: Path,
         ignore_whitelist: bool = False
     ) -> Optional[Dict[str, str]]:
@@ -72,7 +73,7 @@ class Onsei:
 
     def get_tracks(
         self,
-        tracks_api: Union[List[Any], Dict[str, Any]],
+        tracks_api: OnseiAPIResponse,
         path: Path = Path('.'),
         tracks: Optional[Dict[str, str]] = None,
         ignore_whitelist: bool = False
@@ -110,7 +111,7 @@ class Onsei:
 
     def get_title(
         self,
-        tracks_api: Union[List[Any], Dict[str, Any]]
+        tracks_api: OnseiAPIResponse
     ) -> Optional[str]:
         """Extract the work title from API data."""
         if isinstance(tracks_api, list):
@@ -127,7 +128,7 @@ class Onsei:
 
     def get_all_tracks(
         self,
-        tracks_api: Union[List[Any], Dict[str, Any]]
+        tracks_api: OnseiAPIResponse
     ) -> Dict[str, str]:
         """Retrieve all tracks, retrying without whitelist if needed."""
         tracks = self.get_tracks(tracks_api, tracks={})
