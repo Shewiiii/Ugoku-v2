@@ -135,7 +135,10 @@ class Spotify:
 
     async def generate_stream(self, id: str):
         """Generates a stream for a given track ID."""
-        track_id = await asyncio.to_thread(TrackId.from_uri, f"spotify:track:{id}")
+        track_id = await asyncio.to_thread(
+            TrackId.from_uri,
+            f"spotify:track:{id}"
+        )
         stream = await asyncio.to_thread(
             self.sessions.lp.session.content_feeder().load,
             track_id, VorbisOnlyAudioQuality(AudioQuality.VERY_HIGH),
@@ -168,8 +171,9 @@ class Spotify:
         """Fetch the Spotify ID and type either from a URL or search query."""
         if is_url(user_input, ['open.spotify.com']):
             match = re.match(
-                r"https?://open\.spotify\.com/(track|album|playlist|artist)/(?P<ID>[0-9a-zA-Z]{22})",
-                user_input
+                r"https?://open\.spotify\.com/(?:(?:intl-[a-z]{2})/)?(track|album|playlist|artist)/(?P<ID>[0-9a-zA-Z]{22})",
+                user_input,
+                re.IGNORECASE
             )
             return {'id': match.group('ID'), 'type': match.group(1)} if match else None
 
@@ -219,7 +223,7 @@ class Spotify:
         track = await asyncio.to_thread(self.sessions.sp.track, track_id)
         cover_url = track['album']['images'][0]['url']
         dominant_rgb = await get_accent_color_from_url(cover_url)
-        
+
         return {'url': cover_url, 'dominant_rgb': dominant_rgb}
 
 
