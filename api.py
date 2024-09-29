@@ -4,7 +4,8 @@ import logging
 import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, TypedDict, Union
+from typing import Dict, List, Optional, Set, Union
+from typing_extensions import TypedDict
 
 import requests
 import uvicorn
@@ -99,7 +100,7 @@ IMAGE_BASE_URL = "https://cdn.discordapp.com"
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("ALLOWED_ORIGINS"),
+    allow_origins=os.getenv("ALLOWED_ORIGINS", "").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -438,7 +439,7 @@ async def stream_active_servers(request: Request) -> EventSourceResponse:
 
     return EventSourceResponse(event_generator())
 
-@app.get("/auth/discord")
+@app.get("/auth/discord", response_model=None)
 async def auth_discord(code: str = Query(...)) -> Union[RedirectResponse, JSONResponse]:
     """Handle Discord OAuth2 callback.
 
@@ -586,4 +587,3 @@ async def set_volume_route(
 ) -> Dict[str, str]:
     """Set the volume for a guild."""
     return await execute_playback_operation(set_volume, request.guildId, request.volume)
-

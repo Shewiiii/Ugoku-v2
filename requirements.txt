@@ -12,3 +12,4 @@ mutagen
 fastapi
 uvicorn
 sse-starlette
+typing-extensions
