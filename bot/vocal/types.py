@@ -1,4 +1,5 @@
-from typing import List, Optional, Callable, Awaitable, Any, TypedDict, Literal, Tuple, NewType, Dict
+from typing import List, Optional, Callable, Awaitable, Any, Literal, Tuple, NewType, Dict
+from typing_extensions import TypedDict
 import discord
 
 
