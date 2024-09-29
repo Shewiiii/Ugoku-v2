@@ -35,7 +35,5 @@
 
 <h2>Known bugs to fix</h2>
 
-- Queue not showing when too many characters in the queue/loop section.
+- Queue not showing when too many characters in the queue/loop section. (mostly the case with onsei)
   ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in length.").
-
-- **Librespot sessions have a limited lifetime, which means Spotify features won't work anymore after a while.**

@@ -19,7 +19,9 @@ from bot.search import is_url, token_sort_ratio
 from bot.utils import get_accent_color_from_url
 from bot.vocal.types import TrackInfo, SpotifyID, CoverData, SpotifyAlbum, SpotifyTrackAPI, SpotifyAlbumAPI, \
     SpotifyPlaylistAPI, SpotifyArtistAPI
-from config import SPOTIFY_TOP_COUNTRY
+from config import SPOTIFY_TOP_COUNTRY, LIBRESPOT_REFRESH_INTERVAL
+from bot.vocal.session_manager import session_manager
+
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,7 @@ class SpotifySessions:
         self.lp: Optional[Librespot] = None
         self.sp: Optional[spotipy.Spotify] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
+        asyncio.create_task(self.librespot_refresh_loop())
 
     async def init_spotify(self) -> None:
         try:
@@ -56,6 +59,25 @@ class SpotifySessions:
         except Exception as e:
             logger.error(f"Error initializing Spotify sessions: {str(e)}")
             raise
+
+    async def librespot_refresh_loop(self) -> None:
+        while True:
+            await asyncio.sleep(LIBRESPOT_REFRESH_INTERVAL)
+            # Check if ugoku is disconnected from every vc
+            if not session_manager.server_sessions:
+                await self.refresh_librespot()
+
+    async def refresh_librespot(self) -> None:
+        if self.lp:
+            try:
+                await self.lp.close_session()
+            except:
+                # To precise, except ConnectionAbortedError is
+                # interrupting the function
+                pass
+        self.lp = Librespot()
+        await self.lp.generate_session()
+        logging.info("Librespot session regenerated successfully.")
 
 
 class Librespot:
@@ -95,6 +117,13 @@ class Librespot:
         self.updated = datetime.now()
         logging.info('Librespot session created!')
 
+    async def close_session(self):
+        """Close the Librespot session gracefully."""
+        if self.session:
+            await asyncio.to_thread(self.session.close())
+            self.session = None
+            logging.info("Librespot session closed.")
+
 
 class Spotify:
     """A class to interact with Spotify's API and handle Spotify-related operations.
@@ -106,12 +135,9 @@ class Spotify:
         sessions: A SpotifySessions object containing Spotify API sessions.
 
     """
-    def __init__(self, sessions: SpotifySessions) -> None:
-        """Initializes the Spotify class with SpotifySessions.
 
-        Args:
-            sessions: A SpotifySessions object containing Spotify API sessions.
-        """
+    def __init__(self, sessions: SpotifySessions) -> None:
+        """Initializes the Spotify class with SpotifySessions."""
         self.sessions = sessions
 
     async def generate_info_embed(self, track_id: str) -> discord.Embed:
@@ -174,7 +200,11 @@ class Spotify:
         )
         return stream.input_stream.stream()
 
-    def get_track_info(self, track_API: SpotifyTrackAPI, album_info: Optional[SpotifyAlbum] = None) -> TrackInfo:
+    def get_track_info(
+        self,
+        track_API: SpotifyTrackAPI,
+        album_info: Optional[SpotifyAlbum] = None
+    ) -> TrackInfo:
         """Extracts and returns track information from Spotify API response.
 
         Args:
@@ -198,7 +228,8 @@ class Spotify:
             - For any other case, it returns None.
 
             Returns:
-                Optional[str]: The album name if found, or None if not available or not in a recognized format.
+                Optional[str]: The album name if found, 
+                or None if not available or not in a recognized format.
             """
             name = album.get('name')
             if isinstance(name, str):
@@ -218,7 +249,8 @@ class Spotify:
             If not found, it falls back to checking for a 'cover' field in the album data.
 
             Returns:
-                Optional[str]: The URL of the album cover if found, or None if not available.
+                Optional[str]: The URL of the album cover if found, 
+                or None if not available.
             """
             images = album.get('images', [])
             if images and isinstance(images[0], dict):
@@ -245,11 +277,13 @@ class Spotify:
             user_input: A Spotify URL or search query.
 
         Returns:
-            dict (SpotifyID): A dictionary containing the Spotify ID and type, or None if not found.
+            dict (SpotifyID): A dictionary containing the Spotify ID and type,
+            or None if not found.
         """
         if is_url(user_input, ['open.spotify.com']):
             match = re.match(
-                r"https?://open\.spotify\.com/(?:(?:intl-[a-z]{2})/)?(track|album|playlist|artist)/(?P<ID>[0-9a-zA-Z]{22})",
+                r"https?://open\.spotify\.com/(?:(?:intl-[a-z]{2})/)?"
+                r"(track|album|playlist|artist)/(?P<ID>[0-9a-zA-Z]{22})",
                 user_input,
                 re.IGNORECASE
             )
@@ -290,24 +324,47 @@ class Spotify:
             return []
 
         id, type_ = result['id'], result['type']
-
+        
+        # TRACK
         if type_ == 'track':
-            track_API: SpotifyTrackAPI = await asyncio.to_thread(self.sessions.sp.track, id)
+            track_API: SpotifyTrackAPI = await asyncio.to_thread(
+                self.sessions.sp.track,
+                track_id=id
+            )
             return [self.get_track_info(track_API)]
+
+        #ALBUM
         elif type_ == 'album':
-            album_API: SpotifyAlbumAPI = await asyncio.to_thread(self.sessions.sp.album, id)
+            album_API: SpotifyAlbumAPI = await asyncio.to_thread(
+                self.sessions.sp.album,
+                album_id=id
+            )
             album_info = {
                 'name': album_API['name'],
                 'cover': album_API['images'][0]['url'] if album_API['images'] else None,
                 'url': album_API['external_urls']['spotify']
             }
-            return [self.get_track_info(track, album_info) for track in album_API['tracks']['items']]
+            return [self.get_track_info(track, album_info)
+                    for track in album_API['tracks']['items']]
+
+        # PLAYLIST
         elif type_ == 'playlist':
-            playlist_API: SpotifyPlaylistAPI = await asyncio.to_thread(self.sessions.sp.playlist_tracks, id)
-            return [self.get_track_info(track['track']) for track in playlist_API['items']]
+            playlist_API: SpotifyPlaylistAPI = await asyncio.to_thread(
+                self.sessions.sp.playlist_tracks,
+                playlist_id=id
+            )
+            return [self.get_track_info(track['track'])
+                    for track in playlist_API['items']]
+
+        # ARTIST
         elif type_ == 'artist':
-            artist_API: SpotifyArtistAPI = await asyncio.to_thread(self.sessions.sp.artist_top_tracks, id, country=SPOTIFY_TOP_COUNTRY)
-            return [self.get_track_info(track) for track in artist_API['tracks']]
+            artist_API: SpotifyArtistAPI = await asyncio.to_thread(
+                self.sessions.sp.artist_top_tracks,
+                artist_id=id,
+                country=SPOTIFY_TOP_COUNTRY
+            )
+            return [self.get_track_info(track)
+                    for track in artist_API['tracks']]
 
         return []
 
