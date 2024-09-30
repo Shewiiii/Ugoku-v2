@@ -213,7 +213,10 @@ class ServerSession:
         )
 
         self.playback_start_time = datetime.now().isoformat()
-        await update_active_servers(self.bot, self.session_manager.server_sessions)
+        await update_active_servers(
+            self.bot,
+            self.session_manager.server_sessions
+        )
 
         # Send "Now playing" at the end to slightly reduce audio latency
         if not self.is_seeking and (self.skipped or not self.loop_current):

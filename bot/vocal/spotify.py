@@ -20,7 +20,7 @@ from bot.utils import get_accent_color_from_url
 from bot.vocal.types import TrackInfo, SpotifyID, CoverData, SpotifyAlbum, SpotifyTrackAPI, SpotifyAlbumAPI, \
     SpotifyPlaylistAPI, SpotifyArtistAPI
 from config import SPOTIFY_TOP_COUNTRY, LIBRESPOT_REFRESH_INTERVAL
-from bot.vocal.session_manager import session_manager
+from bot.vocal.session_manager import session_manager as sm
 
 
 
@@ -64,7 +64,7 @@ class SpotifySessions:
         while True:
             await asyncio.sleep(LIBRESPOT_REFRESH_INTERVAL)
             # Check if ugoku is disconnected from every vc
-            if not session_manager.server_sessions:
+            if not sm.server_sessions:
                 await self.refresh_librespot()
 
     async def refresh_librespot(self) -> None:
@@ -76,7 +76,15 @@ class SpotifySessions:
                 # interrupting the function
                 pass
         self.lp = Librespot()
-        await self.lp.generate_session()
+        try:
+            await self.lp.generate_session()
+        except Exception as e:
+            logging.error(
+                f"An error occurred when refreshing Librespot: {e},"
+                "retying in 5 seconds..."
+            )
+            await asyncio.sleep(5)
+            self.refresh_librespot()
         logging.info("Librespot session regenerated successfully.")
 
 

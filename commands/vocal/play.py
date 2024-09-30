@@ -6,8 +6,6 @@ from bot.vocal.audio_source_handlers import play_spotify, play_custom, play_onse
 from config import SPOTIFY_ENABLED
 
 
-# Reminder/TODO: delete downloaded tracks at the end of the session (?)
-
 class Play(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
