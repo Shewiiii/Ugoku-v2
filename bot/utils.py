@@ -200,7 +200,7 @@ def cleanup_cache() -> None:
 
     This function removes files that exceed the cache size limit and deletes expired files.
     """
-    files = sorted(TEMP_FOLDER.glob('*.cache'), key=os.path.getmtime)
+    files = sorted(TEMP_FOLDER.glob('*'), key=os.path.getmtime)
 
     # Remove files that exceed the cache size limit
     while len(files) > CACHE_SIZE:
