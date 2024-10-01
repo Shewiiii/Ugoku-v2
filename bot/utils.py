@@ -52,6 +52,27 @@ def extract_number(string: str) -> Optional[str]:
     return search.group()
 
 
+def is_onsei(string: str) -> bool:
+    """
+    Determines if a string refers to an audio work/onsei.
+    Checks if it is starting by'RJ' or 'VJ', 
+    or contains exactly 6 or 8 digits.
+
+    Args:
+        string (str): The string to evaluate.
+
+    Returns:
+        bool: True if the string meets any of the conditions, False otherwise.
+    """
+    if string.startswith(('RJ', 'VJ')):
+        return True
+
+    if re.fullmatch(r'\d{6}|\d{8}', string):
+        return True
+
+    return False
+
+
 def sanitize_filename(filename: str) -> str:
     """
     Sanitize a filename by removing or replacing illegal characters.
@@ -302,7 +323,7 @@ async def update_active_servers(
     active_guilds: List[ActiveGuildInfo] = []
     for vc in bot.voice_clients:
         if not isinstance(vc, discord.VoiceClient):
-            continue # Skip if not a VoiceClient
+            continue  # Skip if not a VoiceClient
         if vc.is_playing():
             guild = vc.guild
             session = server_sessions.get(guild.id)
@@ -334,4 +355,3 @@ async def update_active_servers(
 
     logging.info("Updating active servers.")
     await api.update_active_servers(active_guilds)
-
