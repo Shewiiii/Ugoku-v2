@@ -24,8 +24,12 @@ class SpotifyDownload(commands.Cog):
         query: str,
         quality: discord.Option(
             str,
-            choices=['Very High (OGG 320kbps)', 'High', 'Normal'],
-            default='Very High (OGG 320kbps)'
+            choices=[
+                'High (OGG 320kbps)',
+                'Normal (OGG 160kbps)',
+                'Low (OGG 96kbps)'
+            ],
+            default='High (OGG 320kbps)'
         )  # type: ignore
     ) -> None:
         # The following is a proof of concept code~
@@ -46,7 +50,7 @@ class SpotifyDownload(commands.Cog):
             'Normal (OGG 160kbps)': AudioQuality.HIGH,
             'Low (OGG 96kbps)': AudioQuality.NORMAL
         }
-        
+
         # Get the tracks
         tracks = await ctx.bot.spotify.get_tracks(
             user_input=query,
@@ -85,7 +89,7 @@ class SpotifyDownload(commands.Cog):
             await ctx.send(
                 file=discord.File(
                     file_path,
-                    f"{track['display_name']}.ogg", 
+                    f"{track['display_name']}.ogg",
                 )
             )
         else:
