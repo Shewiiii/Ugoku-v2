@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Any, Callable, Awaitable
+from typing import Optional, List, Any, Callable, Awaitable, Literal
 
 import discord
 import spotipy
@@ -21,7 +21,6 @@ from bot.vocal.types import TrackInfo, SpotifyID, CoverData, SpotifyAlbum, Spoti
     SpotifyPlaylistAPI, SpotifyArtistAPI
 from config import SPOTIFY_TOP_COUNTRY, LIBRESPOT_REFRESH_INTERVAL
 from bot.vocal.session_manager import session_manager as sm
-
 
 
 logger = logging.getLogger(__name__)
@@ -191,7 +190,15 @@ class Spotify:
 
         return embed
 
-    async def generate_stream(self, id: str) -> Callable[[], Awaitable[Any]]:
+    async def generate_stream(
+        self,
+        id: str,
+        aq: Literal[
+            AudioQuality.VERY_HIGH,
+            AudioQuality.HIGH,
+            AudioQuality.NORMAL
+        ] = AudioQuality.VERY_HIGH
+    ) -> Callable[[], Awaitable[Any]]:
         """Generates a stream for a given Spotify track ID.
 
         Args:
@@ -203,7 +210,7 @@ class Spotify:
         track_id = await asyncio.to_thread(TrackId.from_uri, f"spotify:track:{id}")
         stream = await asyncio.to_thread(
             self.sessions.lp.session.content_feeder().load,
-            track_id, VorbisOnlyAudioQuality(AudioQuality.VERY_HIGH),
+            track_id, VorbisOnlyAudioQuality(aq),
             False, None
         )
         return stream.input_stream.stream()
@@ -211,7 +218,12 @@ class Spotify:
     def get_track_info(
         self,
         track_API: SpotifyTrackAPI,
-        album_info: Optional[SpotifyAlbum] = None
+        album_info: Optional[SpotifyAlbum] = None,
+        aq: Literal[
+            AudioQuality.VERY_HIGH,
+            AudioQuality.HIGH,
+            AudioQuality.NORMAL
+        ] = AudioQuality.VERY_HIGH
     ) -> TrackInfo:
         """Extracts and returns track information from Spotify API response.
 
@@ -274,7 +286,10 @@ class Spotify:
             'duration': track_API['duration_ms'],
             'url': f"https://open.spotify.com/track/{id}",
             'id': id,
-            'source': lambda: self.generate_stream(id),
+            'source': lambda: self.generate_stream(
+                id,
+                aq=aq
+            ),
             'embed': lambda: self.generate_info_embed(id)
         }
 
@@ -316,13 +331,22 @@ class Spotify:
             'type': 'track' if track_ratio > album_ratio else 'album'
         }
 
-    async def get_tracks(self, user_input: str) -> List[TrackInfo]:
+    async def get_tracks(
+        self,
+        user_input: str,
+        aq: Literal[
+            AudioQuality.VERY_HIGH,
+            AudioQuality.HIGH,
+            AudioQuality.NORMAL
+        ] = AudioQuality.VERY_HIGH
+    ) -> List[TrackInfo]:
         """Fetch tracks from a URL or search query.
 
         This method can handle tracks, albums, playlists, and artists.
 
         Args:
             user_input: A Spotify URL or search query.
+            aq: The audio quality chosen.
 
         Returns:
             List[dict]: A list of dictionaries containing track information.
@@ -332,16 +356,16 @@ class Spotify:
             return []
 
         id, type_ = result['id'], result['type']
-        
+
         # TRACK
         if type_ == 'track':
             track_API: SpotifyTrackAPI = await asyncio.to_thread(
                 self.sessions.sp.track,
                 track_id=id
             )
-            return [self.get_track_info(track_API)]
+            return [self.get_track_info(track_API, aq=aq)]
 
-        #ALBUM
+        # ALBUM
         elif type_ == 'album':
             album_API: SpotifyAlbumAPI = await asyncio.to_thread(
                 self.sessions.sp.album,
@@ -352,7 +376,7 @@ class Spotify:
                 'cover': album_API['images'][0]['url'] if album_API['images'] else None,
                 'url': album_API['external_urls']['spotify']
             }
-            return [self.get_track_info(track, album_info)
+            return [self.get_track_info(track, album_info, aq=aq)
                     for track in album_API['tracks']['items']]
 
         # PLAYLIST
@@ -361,7 +385,7 @@ class Spotify:
                 self.sessions.sp.playlist_tracks,
                 playlist_id=id
             )
-            return [self.get_track_info(track['track'])
+            return [self.get_track_info(track['track'], aq=aq)
                     for track in playlist_API['items']]
 
         # ARTIST
@@ -371,7 +395,7 @@ class Spotify:
                 artist_id=id,
                 country=SPOTIFY_TOP_COUNTRY
             )
-            return [self.get_track_info(track)
+            return [self.get_track_info(track, aq=aq)
                     for track in artist_API['tracks']]
 
         return []

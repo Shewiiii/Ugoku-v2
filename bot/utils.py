@@ -1,6 +1,8 @@
 import discord
+import mutagen.ogg
+import mutagen.oggvorbis
 import api
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, Tuple, List, Union
 import base64
 import hashlib
 import logging
@@ -222,7 +224,7 @@ def cleanup_cache() -> None:
     This function removes files that exceed the cache size limit and deletes expired files.
     """
     files = sorted(
-        [f for f in TEMP_FOLDER.rglob('*') if f.is_file()], 
+        [f for f in TEMP_FOLDER.rglob('*') if f.is_file()],
         key=os.path.getmtime
     )
 
@@ -358,3 +360,52 @@ async def update_active_servers(
 
     logging.info("Updating active servers.")
     await api.update_active_servers(active_guilds)
+
+
+async def tag_ogg_file(
+    file_path: Union[Path, str],
+    title: Optional[str],
+    artist: Optional[str],
+    album_cover_url: Optional[str],
+    album: Optional[str],
+):
+    """
+    Tags an OGG Vorbis file with title, artist, and an album cover from a URL.
+
+    Args:
+        file_path: Path to the input OGG file.
+        title: Title of the track.
+        artist: Artist name.
+        album_cover_url: URL of the album cover image (JPEG or PNG).
+    """
+    audio = OggVorbis(file_path)
+
+    # Set title and artist tags
+    audio["title"] = title
+    audio["artist"] = artist
+    audio["album"] = album
+
+    # Fetch the album cover
+    async with aiohttp.ClientSession() as session:
+        async with session.get(album_cover_url) as response:
+            response.raise_for_status()
+            cover_bytes = await response.read()
+
+    # Create a Picture object
+    picture = Picture()
+    picture.type = 3  # Front Cover
+    picture.width = 640
+    picture.height = 640
+    picture.mime = "image/jpeg"
+    picture.desc = "Cover"
+    picture.data = cover_bytes
+
+    # Encode the picture data in base64
+    picture_encoded = base64.b64encode(picture.write()).decode("ascii")
+
+    # Add the picture to the metadata
+    audio["metadata_block_picture"] = [picture_encoded]
+
+    # Save the tags
+    audio.save(file_path)
+    logging.info(f"Tagged '{file_path}' successfully.")
