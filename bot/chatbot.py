@@ -51,7 +51,7 @@ class Prompts:
     )
     calling = (
         'In the last discord message, reply "True" '
-        'if the user is calling/talking to Ugoku/うごく directly, '
+        'if the user is calling/talking Ugoku or うごく directly, '
         'or asking a question to her, '
         '"False" otherwise:'
     )
@@ -169,11 +169,12 @@ class Chat:
 
     async def memorize(self) -> None:
         """Summarize old messages to keep context."""
-        memo = await self.simple_prompt(
-            messages=self.old_messages + self.messages +
-            [{"role": "user", "content": Prompts.memory}]
-        )
-        self.memory = f"\n[Memory]: {memo}"
+        if self.old_messages:
+            memo = await self.simple_prompt(
+                messages=self.old_messages + self.messages +
+                [{"role": "user", "content": Prompts.memory}]
+            )
+            self.memory = f"\n[Memory]: {memo}"
 
         # Clear old messages after summarization
         self.old_messages.clear()
@@ -201,10 +202,9 @@ class Chat:
                 and not message.content.startswith(CHATBOT_PREFIX)):
 
             reply = await self.simple_prompt(
-                messages=self.old_messages[:-4] +
-                [{"role": "user", "content": Prompts.calling + f'"{message.content[1:]}"'}]
+                messages=self.messages[:-4] +
+                [{"role": "user", "content": Prompts.calling + f'"{message.content}"'}]
             )
-            print(reply)
             if reply == 'True':
                 # Notify a new chat only if it's the first interaction
                 self.status = 2 if self.interacting else 1
@@ -233,7 +233,6 @@ class Chat:
             self.current_channel_id = channel_id
             return True
 
-        self.interacting = False
         return False
 
     def format_reply(self, reply: str) -> str:
