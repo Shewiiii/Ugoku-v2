@@ -9,12 +9,11 @@
 <p>Thank you again <a href='https://github.com/ChinHongTan'>Chinono</a> to help me on that project, much love <3</p>
 
 <h2>Features/To do</h2>
-<b>Unticked boxes are work in progress.</b>
 
 - [X] Ping.
 - [X] Echo messages (make the bot say any message).
 - [X] Download stickers from LINE.
-- [ ] Download songs, albums or playlists from Spotify.
+- [X] Download songs, albums or playlists from Spotify. (WIP)
 - [X] Play songs in a voice channel.
   - [X] Skip, Show queue, Autodetect and add songs/albums, or playlists.
   - [X] Loop song, Loop queue, pause, resume...
@@ -22,15 +21,15 @@
   - [X] Stream songs from Spotify.
   - [X] Play songs from a URL (custom source).
   - [X] Cache audio from custom sources.
-  - [ ] Embed info messages with metadata (partially done).
+  - [X] Embed info messages with metadata.
   - [ ] Show the lyrics of a song using.
-  - [ ] Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !
+  - [X] Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !
 
 > [!NOTE]
 > Ugoku-v2 is only using Spotify or Youtube as streaming service sources, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs.
 
 - [X] Stream audio works (音声作品) in a voice channel (because why not).
-- [ ] Chat using GPT-4o Mini.
+- [X] Chat using GPT-4o Mini. (WIP)
 - [ ] And maybe more in the future~
 
 <h2>Known bugs to fix</h2>
