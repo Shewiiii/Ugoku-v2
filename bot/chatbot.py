@@ -51,7 +51,8 @@ class Prompts:
     )
     calling = (
         'In the last discord message, reply "True" '
-        'if calling ugoku (you) DIRECTLY, '
+        'if the user is calling/talking to Ugoku/うごく directly, '
+        'or asking a question to her, '
         '"False" otherwise:'
     )
     end = (
@@ -198,13 +199,12 @@ class Chat:
         # Check if an user is directly calling/talking to ugoku
         if (any(name in message.content.lower() for name in ['ugoku', 'うごく'])
                 and not message.content.startswith(CHATBOT_PREFIX)):
+
             reply = await self.simple_prompt(
                 messages=self.old_messages[:-4] +
-                [{"role": "user", "content":
-                  Prompts.calling +
-                  f'"{message.content[1:]}"'}]
-
+                [{"role": "user", "content": Prompts.calling + f'"{message.content[1:]}"'}]
             )
+            print(reply)
             if reply == 'True':
                 # Notify a new chat only if it's the first interaction
                 self.status = 2 if self.interacting else 1
