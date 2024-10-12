@@ -30,6 +30,8 @@
 
 - [X] Stream audio works (音声作品) in a voice channel (because why not).
 - [X] Chat using GPT-4o Mini. (WIP)
+  - [ ] Use a fine-tuned GPT-4o Mini model.
+  - [ ] Optimize token usage.
 - [ ] And maybe more in the future~
 
 <h2>Known bugs to fix</h2>
