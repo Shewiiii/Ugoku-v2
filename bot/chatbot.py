@@ -239,7 +239,7 @@ class Chat:
         """Format the reply based on the current status."""
         status = self.status
         if status == 1:
-            return ('-# New chat ! End it by putting "="'
+            return (f'-# New chat ! End it by putting "{CHATBOT_PREFIX}"'
                     f' at the end of your message. \n{reply}')
         elif status == 3:
             return f'{reply}\n-# End of chat.'
