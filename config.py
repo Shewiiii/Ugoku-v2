@@ -20,6 +20,7 @@ DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a c
 ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a foldername containing one of these words, will be choose
 ONSEI_BLACKLIST = ['なし'] # Chosen tracks containing one of these words will be blacklisted
 # Chatbot settings
+CHATBOT_ENABLED = True
 CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot
 CHATBOT_PREFIX = '=' # Prefix to trigger the chatbot
 

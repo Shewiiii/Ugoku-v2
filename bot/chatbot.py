@@ -19,8 +19,6 @@ openai.api_key = API_KEY
 active_chats = {}
 client = openai.OpenAI()
 
-# ~200 Tokens
-
 
 class Prompts:
     system = (
@@ -111,7 +109,7 @@ class Chat:
                 {
                     "type": "text",
                     "text": (
-                        f"[{self.last_prompt.strftime("%m/%d/%Y, %H:%M")}"
+                        f"[{self.last_prompt.strftime('%m/%d/%Y, %H:%M')}"
                         f"UTC+2 - {username}]: {user_msg}"
                     )
                 }
@@ -251,14 +249,13 @@ class Chat:
     async def generate_response(self, message: discord.Message) -> str:
         """Generate a response to the user's message."""
         image_urls = []
-        
+
         # Remove prefix
         msg_text = message.content
         if message.content.startswith(CHATBOT_PREFIX):
             msg_text = msg_text[1:]
         elif message.content.endswith(CHATBOT_PREFIX):
             msg_text = msg_text[:-1]
-        
 
         # Process attachments
         for attachment in message.attachments:
