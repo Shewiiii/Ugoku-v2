@@ -17,7 +17,7 @@ class Loop(commands.Cog):
         mode: discord.Option(
             str,
             choices=['Song', 'Queue'],
-            default='Song'
+            default='Queue'
         )  # type: ignore
     ) -> None:
         session = sm.server_sessions.get(ctx.guild.id)
