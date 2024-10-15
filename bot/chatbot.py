@@ -6,7 +6,7 @@ from typing import Optional, List
 import asyncio
 import re
 
-from config import CHATBOT_PREFIX
+from config import CHATBOT_PREFIX, CHATBOT_TIMEOUT
 
 import openai
 import discord
@@ -182,14 +182,18 @@ class Chat:
 
     async def is_interacting(self, message: discord.Message) -> bool:
         """Determine if the bot should interact based on the message content.
-        Status hint: 0 = No chat; 1 = New chat; 2 = Chatting; 3 = End of chat. 
+        Status hint:
+            0 = No chat; 
+            1 = Continuous chat enabled;
+            2 = Chatting;
+            3 = End of chat.
         """
         channel_id = message.channel.id
         author = message.author.name
 
         # Remove interaction flag if inactive for a while
         time_elapsed: timedelta = datetime.now() - self.last_prompt
-        if time_elapsed.seconds >= 300:
+        if time_elapsed.seconds >= CHATBOT_TIMEOUT:
             self.interacting = False
             self.chatters = []
 
@@ -197,22 +201,14 @@ class Chat:
         if message.reference:
             return False
 
-        # Check if an user is directly calling/talking to ugoku
-        if (any(name in message.content.lower() for name in ['ugoku', 'うごく'])
-                and not message.content.startswith(CHATBOT_PREFIX)):
-
-            reply = await self.simple_prompt(
-                messages=self.messages[:-4] +
-                [{"role": "user", "content": Prompts.calling + f'"{message.content}"'}]
-            )
-            if reply == 'True':
-                # Notify a new chat only if it's the first interaction
-                self.status = 2 if self.interacting else 1
-                self.interacting = True
-                self.current_channel_id = channel_id
-                if not author in self.chatters:
-                    self.chatters.append(author)
-                return True
+        # Check enable continuous chat with ugoku
+        if message.content.startswith(CHATBOT_PREFIX*2):
+            self.status = 2 if self.interacting else 1
+            self.interacting = True
+            self.current_channel_id = channel_id
+            if not author in self.chatters:
+                self.chatters.append(author)
+            return True
 
         # Check if an user is still interacting in the same channel
         elif (self.interacting
@@ -239,8 +235,11 @@ class Chat:
         """Format the reply based on the current status."""
         status = self.status
         if status == 1:
-            return (f'-# New chat ! End it by putting "{CHATBOT_PREFIX}"'
-                    f' at the end of your message. \n{reply}')
+            return (
+                '-# Continuous chat mode enabled ! '
+                f'End it by putting "{CHATBOT_PREFIX}"'
+                f' at the end of your message. \n{reply}'
+            )
         elif status == 3:
             return f'{reply}\n-# End of chat.'
         return reply
@@ -252,7 +251,11 @@ class Chat:
         # Remove prefix
         msg_text = message.content
         if message.content.startswith(CHATBOT_PREFIX):
-            msg_text = msg_text[1:]
+            if self.status == 1:
+                msg_text = msg_text[2:]
+            else:
+                msg_text = msg_text[1:]
+
         elif message.content.endswith(CHATBOT_PREFIX):
             msg_text = msg_text[:-1]
 

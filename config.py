@@ -22,7 +22,8 @@ ONSEI_BLACKLIST = ['なし'] # Chosen tracks containing one of these words will 
 # Chatbot settings
 CHATBOT_ENABLED = True
 CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot
-CHATBOT_PREFIX = '=' # Prefix to trigger the chatbot
+CHATBOT_PREFIX = '-' # Prefix to trigger the chatbot
+CHATBOT_TIMEOUT = 90 # Time before disabling continuous chat (in seconds, enabled with double prefix)
 
 # Logs
 logging.basicConfig(
