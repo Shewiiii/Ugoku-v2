@@ -177,7 +177,7 @@ def get_accent_color(
     return accent_color
 
 
-async def get_accent_color_from_url(
+async def get_dominant_rgb_from_url(
     image_url: str
 ) -> Tuple[int, int, int]:
     """
@@ -250,7 +250,7 @@ def extract_cover_art(file_path) -> Optional[bytes]:
     audio_file = mutagen.File(file_path)
 
     # For files using ID3 tags (mp3, sometimes WAV)
-    if isinstance(audio_file, (MP3, ID3, WAVE)):
+    if isinstance(audio_file, (MP3, ID3, WAVE)) and audio_file.tags:
         for tag in audio_file.tags.values():
             if isinstance(tag, APIC):
                 cover_data = tag.data

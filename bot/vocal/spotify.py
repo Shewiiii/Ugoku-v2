@@ -16,7 +16,7 @@ from librespot.zeroconf import ZeroconfServer
 from spotipy.oauth2 import SpotifyClientCredentials
 
 from bot.search import is_url, token_sort_ratio
-from bot.utils import get_accent_color_from_url
+from bot.utils import get_dominant_rgb_from_url
 from bot.vocal.types import TrackInfo, SpotifyID, CoverData, SpotifyAlbum, SpotifyTrackAPI, SpotifyAlbumAPI, \
     SpotifyPlaylistAPI, SpotifyArtistAPI
 from config import SPOTIFY_TOP_COUNTRY, LIBRESPOT_REFRESH_INTERVAL
@@ -164,7 +164,7 @@ class Spotify:
         cover_url = album['images'][0]['url']
         track_url = f"https://open.spotify.com/track/{track_API['id']}"
         album_url = album['external_urls']['spotify']
-        dominant_rgb = await get_accent_color_from_url(cover_url)
+        dominant_rgb = await get_dominant_rgb_from_url(cover_url)
 
         # Create the artist string for the embed
         artist_string = ', '.join(
@@ -411,7 +411,7 @@ class Spotify:
         """
         track = await asyncio.to_thread(self.sessions.sp.track, track_id)
         cover_url = track['album']['images'][0]['url']
-        dominant_rgb = await get_accent_color_from_url(cover_url)
+        dominant_rgb = await get_dominant_rgb_from_url(cover_url)
 
         return {'url': cover_url, 'dominant_rgb': dominant_rgb}
 

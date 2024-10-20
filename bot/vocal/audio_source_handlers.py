@@ -6,7 +6,7 @@ from aiohttp.client_exceptions import ClientResponseError
 
 from bot.vocal.custom import fetch_audio_stream, upload_cover, generate_info_embed
 from bot.vocal.server_session import ServerSession
-from bot.utils import get_metadata, extract_cover_art, extract_number, get_accent_color_from_url
+from bot.utils import get_metadata, extract_cover_art, extract_number, get_dominant_rgb_from_url
 from bot.vocal.session_manager import onsei
 from config import DEFAULT_EMBED_COLOR
 
@@ -133,7 +133,7 @@ async def play_onsei(
         tracks_api: dict = await onsei.get_tracks_api(work_id)
         work_api: dict = await onsei.get_work_api(work_id)
         cover_url = onsei.get_cover(work_id)
-        dominant_rgb = await get_accent_color_from_url(cover_url)
+        dominant_rgb = await get_dominant_rgb_from_url(cover_url)
     except ClientResponseError as e:
         if e.status == 404:
             await ctx.edit(content='No onsei has been found!')

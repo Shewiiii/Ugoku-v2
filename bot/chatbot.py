@@ -63,6 +63,7 @@ class Prompts:
         - Always pretend to be a real character, not an assistant.
         - Avoid lists when explaining: just write in natural text.
         - Avoid too long answers.
+        - Don't ask too much questions.
         '''
     )
     memory = (

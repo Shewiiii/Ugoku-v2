@@ -219,7 +219,11 @@ class ServerSession:
         )
 
         # Send "Now playing" at the end to slightly reduce audio latency
-        if not self.is_seeking and (self.skipped or not self.loop_current):
+        if (
+            not self.is_seeking 
+            and (self.skipped or not self.loop_current) 
+            and not (len(self.queue) == 1 and self.loop_queue)
+        ):
             await self.send_now_playing(ctx)
             # Reset the skip flag
             self.skipped = False
