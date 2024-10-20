@@ -27,6 +27,12 @@ if CHATBOT_ENABLED:
             if server_id not in active_chats:
                 active_chats[server_id] = Chat(server_id)
             chat: Chat = active_chats[server_id]
+            
+            # Neko arius
+            lowered_msg = message.content.lower()
+            if any(lowered_msg.startswith(neko) for neko in ['-neko', '- neko']):
+                await message.channel.send('Arius')
+                return
 
             if await chat.is_interacting(message):
                 async with message.channel.typing():
