@@ -404,5 +404,5 @@ async def tag_ogg_file(
     audio["metadata_block_picture"] = [picture_encoded]
 
     # Save the tags
-    audio.save(file_path, padding=lambda info: 0)
+    audio.save(file_path)
     logging.info(f"Tagged '{file_path}' successfully.")

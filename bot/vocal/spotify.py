@@ -54,9 +54,9 @@ class SpotifySessions:
                 client_id=self.config.client_id,
                 client_secret=self.config.client_secret
             ))
-            logger.info("Spotify sessions initialized successfully")
+            logging.info("Spotify sessions initialized successfully")
         except Exception as e:
-            logger.error(f"Error initializing Spotify sessions: {str(e)}")
+            logging.error(f"Error initializing Spotify sessions: {str(e)}")
             raise
 
     async def librespot_refresh_loop(self) -> None:

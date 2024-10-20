@@ -25,7 +25,7 @@ server = api.server
 api.bot = bot
 
 
-@bot.event
+@bot.event 
 async def on_ready() -> None:
     logging.info(f"{bot.user} is running !")
     if SPOTIFY_ENABLED:
@@ -33,6 +33,7 @@ async def on_ready() -> None:
         await spotify_sessions.init_spotify()
         spotify = Spotify(spotify_sessions)
         bot.spotify = spotify
+        bot.downloading = False
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')

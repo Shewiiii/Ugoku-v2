@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 from librespot.audio.decoders import AudioQuality
 
-from config import SPOTIFY_ENABLED, TEMP_FOLDER
+from config import SPOTIFY_ENABLED
 from bot.utils import cleanup_cache, tag_ogg_file, get_cache_path
 
 
@@ -35,7 +35,6 @@ class SpotifyDownload(commands.Cog):
         # The following is a proof of concept code~
         # TODO:
         # - Add album/playlist support
-        # - Don't refresh Librespot while someone is downloading
         # - Add messages context
 
         if not SPOTIFY_ENABLED:
@@ -51,28 +50,33 @@ class SpotifyDownload(commands.Cog):
             'Low (OGG 96kbps)': AudioQuality.NORMAL
         }
 
-        # Get the tracks
-        tracks = await ctx.bot.spotify.get_tracks(
-            user_input=query,
-            aq=quality_dict[quality]
-        )
+        self.bot.downloading = True
+        try:
+            # Get the tracks
+            tracks = await ctx.bot.spotify.get_tracks(
+                user_input=query,
+                aq=quality_dict[quality]
+            )
+            if not tracks:
+                await ctx.edit(content="No track has been found!")
+                return
+            # TO CHANGE, only get the first track
+            track = tracks[0]
 
-        if not tracks:
-            await ctx.edit(content="No track has been found!")
-            return
+            # Update cached files
+            cleanup_cache()
+            # The idea: when the cover (url) changes, do not use the cached file
+            cover_url: str = track['cover']
+            file_path = get_cache_path(cover_url.encode('utf-8'))
 
-        # TO CHANGE, only get the first track
-        track = tracks[0]
-        stream = await track['source']()
-        data = await asyncio.to_thread(stream.read)
+            if not file_path.is_file():
+                # Get track data
+                stream = await track['source']()
+                data = await asyncio.to_thread(stream.read)
 
-        # Update cached files
-        cleanup_cache()
-        file_path = get_cache_path(data)
+                with open(file_path, 'wb') as file:
+                    file.write(data)
 
-        if not file_path.is_file():
-            with open(file_path, 'wb') as file:
-                file.write(data)
                 await tag_ogg_file(
                     file_path=file_path,
                     title=track['title'],
@@ -80,23 +84,25 @@ class SpotifyDownload(commands.Cog):
                     album_cover_url=track['cover'],
                     album=track['album']
                 )
-            size = len(data)
+                size = len(data)
 
-        else:
-            size = os.path.getsize(file_path)
+            else:
+                size = os.path.getsize(file_path)
 
-        if size < ctx.guild.filesize_limit:
-            await ctx.send(
-                file=discord.File(
-                    file_path,
-                    f"{track['display_name']}.ogg",
+            if size < ctx.guild.filesize_limit:
+                await ctx.send(
+                    file=discord.File(
+                        file_path,
+                        f"{track['display_name']}.ogg",
+                    )
                 )
-            )
-        else:
-            await ctx.edit(
-                content=f"The download of {track['display_name']} "
-                'failed: file too big.'
-            )
+            else:
+                await ctx.edit(
+                    content=f"The download of {track['display_name']} "
+                    'failed: file too big.'
+                )
+        finally:
+            self.bot.downloading = False
 
 
 def setup(bot):
