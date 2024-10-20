@@ -26,11 +26,10 @@
   - [X] Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !
 
 > [!NOTE]
-> Ugoku-v2 is only using Spotify or Youtube as streaming service sources, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs.
+> Ugoku-v2 is only using Spotify as a streaming service source, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs.
 
 - [X] Stream audio works (音声作品) in a voice channel (because why not).
 - [X] Chat using GPT-4o Mini. (WIP)
-  - [ ] Use a fine-tuned GPT-4o Mini model.
   - [ ] Optimize token usage.
 - [ ] And maybe more in the future~
 
@@ -38,5 +37,3 @@
 
 - Queue not showing when too many characters in the queue/loop section. (mostly the case with onsei)
   ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in length.").
-
-- Can't tag most OGG files: ("OggVorbisHeaderError: unable to read full header; got b'\x00').
