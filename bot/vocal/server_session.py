@@ -237,7 +237,8 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext,
         tracks_info: List[TrackInfo],
-        source: Literal['Spotify', 'Custom', 'Onsei']
+        source: Literal['Spotify', 'Custom', 'Onsei'],
+        interaction: Optional[discord.Interaction] = None
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing.
 
@@ -245,9 +246,19 @@ class ServerSession:
             ctx: The Discord application context.
             tracks_info: A list of track information dictionaries.
             source: The source of the tracks ('Spotify', 'Custom', or 'Onsei').
+            interaction: A discord interaction if that method has been triggered by one.
         """
+        # Check if triggered by an interaction
+        if interaction:
+            edit = interaction.edit_original_response
+        else:
+            edit = ctx.edit
+            
         for track_info in tracks_info:
-            queue_item: QueueItem = {'track_info': track_info, 'source': source}
+            queue_item: QueueItem = {
+                'track_info': track_info, 
+                'source': source
+            }
             self.queue.append(queue_item)
             # Add to original queue for shuffle
             self.original_queue.append(queue_item)
@@ -263,7 +274,7 @@ class ServerSession:
         if len(tracks_info) == 1:
             title = tracks_info[0]['display_name']
             url = tracks_info[0]['url']
-            await ctx.edit(content=f'Added to queue: [{title}](<{url}>) !')
+            await edit(content=f'Added to queue: [{title}](<{url}>) !')
 
         # If 2 or 3 songs are added
         elif len(tracks_info) in [2, 3]:
@@ -271,7 +282,7 @@ class ServerSession:
                 f'[{track_info["display_name"]}](<{track_info["url"]}>)'
                 for track_info in tracks_info
             )
-            await ctx.edit(content=f'Added to queue: {titles_urls} !')
+            await edit(content=f'Added to queue: {titles_urls} !')
 
         # If more than 3 songs are added
         elif len(tracks_info) > 3:
@@ -280,7 +291,7 @@ class ServerSession:
                 for track_info in tracks_info[:3]
             )
             additional_songs = len(tracks_info) - 3
-            await ctx.edit(
+            await edit(
                 content=(
                     f'Added to queue: {titles_urls}, and '
                     f'{additional_songs} more song(s) !')

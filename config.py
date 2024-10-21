@@ -1,8 +1,9 @@
 from pathlib import Path
 import logging
 
-# If you don't have Spotify Premium, you can't disable Spotify features here
-SPOTIFY_ENABLED = False
+# If you don't have Spotify Premium, you can disable Spotify features here
+# Please check ./commands/lyrics.py if that's the case
+SPOTIFY_ENABLED = True
 
 #  ===SETTINGS===
 # Paths

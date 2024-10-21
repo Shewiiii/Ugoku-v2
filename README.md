@@ -22,7 +22,7 @@
   - [X] Play songs from a URL (custom source).
   - [X] Cache audio from custom sources.
   - [X] Embed info messages with metadata.
-  - [ ] Show the lyrics of a song using.
+  - [x] Show the lyrics of a song using.
   - [X] Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !
 
 > [!NOTE]

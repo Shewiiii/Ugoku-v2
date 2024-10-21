@@ -406,3 +406,42 @@ async def tag_ogg_file(
     # Save the tags
     audio.save(file_path)
     logging.info(f"Tagged '{file_path}' successfully.")
+
+
+def split_into_chunks(string: str, max_length=1024) -> list:
+    """Convert a string into a list of chunks with an adjustable size."""
+    paragraphs = string.split('\n')  # Split the text into paragraphs
+    chunks = []
+    current_chunk = ''
+
+    for paragraph in paragraphs:
+        # +1 accounts for the '\n' that was removed by split
+        additional_length = len(paragraph) + 1  
+
+        if len(current_chunk) + additional_length > max_length:
+            if current_chunk:
+                chunks.append(current_chunk)
+                current_chunk = ''
+
+            # If the single paragraph itself is longer than max_length, split it
+            if additional_length > max_length:
+                # Split the long paragraph into smaller parts
+                start = 0
+                while start < len(paragraph):
+                    end = start + max_length - 1  # -1 to account for '\n'
+                    chunk_part = paragraph[start:end]
+                    chunks.append(chunk_part)
+                    start = end
+                continue
+
+        # Add the paragraph and a newline to the current chunk
+        if current_chunk:
+            current_chunk += '\n' + paragraph
+        else:
+            current_chunk = paragraph
+
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks

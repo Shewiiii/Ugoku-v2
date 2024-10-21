@@ -1,5 +1,7 @@
 import re
 from urllib.parse import unquote
+from typing import Optional
+
 
 import discord
 from aiohttp.client_exceptions import ClientResponseError
@@ -14,7 +16,8 @@ from config import DEFAULT_EMBED_COLOR
 async def play_spotify(
     ctx: discord.ApplicationContext,
     query: str,
-    session: ServerSession
+    session: ServerSession,
+    interaction: Optional[discord.Interaction] = None
 ) -> None:
     """
     Handles playback of Spotify tracks.
@@ -26,14 +29,18 @@ async def play_spotify(
         ctx (discord.ApplicationContext): The Discord application context.
         query (str): The Spotify track or playlist URL, or search query.
         session (ServerSession): The current server's audio session.
+        interaction: A discord interaction if that method has been triggered by one.
     """
     tracks_info = await ctx.bot.spotify.get_tracks(user_input=query)
 
     if not tracks_info:
-        await ctx.edit(content='Track not found!')
+        if interaction:
+            interaction.edit_original_message(content='Track not found!')
+        else:
+            await ctx.edit(content='Track not found!')
         return
 
-    await session.add_to_queue(ctx, tracks_info, source='Spotify')
+    await session.add_to_queue(ctx, tracks_info, 'Spotify', interaction)
 
 
 async def play_custom(

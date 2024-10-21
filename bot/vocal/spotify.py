@@ -83,7 +83,7 @@ class SpotifySessions:
                 "retying in 5 seconds..."
             )
             await asyncio.sleep(5)
-            self.refresh_librespot()
+            await self.refresh_librespot()
         logging.info("Librespot session regenerated successfully.")
 
 
