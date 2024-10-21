@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 import os
+import logging
 
 import discord
 from discord.ext import commands
@@ -8,6 +9,7 @@ from librespot.audio.decoders import AudioQuality
 
 from config import SPOTIFY_ENABLED
 from bot.utils import cleanup_cache, tag_ogg_file, get_cache_path
+from mutagen.oggvorbis import OggVorbisHeaderError
 
 
 class SpotifyDownload(commands.Cog):
@@ -77,13 +79,18 @@ class SpotifyDownload(commands.Cog):
                 with open(file_path, 'wb') as file:
                     file.write(data)
 
-                await tag_ogg_file(
-                    file_path=file_path,
-                    title=track['title'],
-                    artist=track['artist'],
-                    album_cover_url=track['cover'],
-                    album=track['album']
-                )
+                try:
+                    await tag_ogg_file(
+                        file_path=file_path,
+                        title=track['title'],
+                        artist=track['artist'],
+                        album_cover_url=track['cover'],
+                        album=track['album']
+                    )
+                except OggVorbisHeaderError:
+                    logging.warning(
+                        f"Unable to read the full header of {file_path}")
+
                 size = len(data)
 
             else:
