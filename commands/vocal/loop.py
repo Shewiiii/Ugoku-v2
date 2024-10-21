@@ -7,18 +7,10 @@ class Loop(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(
-        name='loop',
-        description='Loop/Unloop what you are listening to in VC.'
-    )
-    async def loop(
+    async def execute_loop(
         self,
         ctx: discord.ApplicationContext,
-        mode: discord.Option(
-            str,
-            choices=['Song', 'Queue'],
-            default='Queue'
-        )  # type: ignore
+        mode: str
     ) -> None:
         session = sm.server_sessions.get(ctx.guild.id)
 
@@ -52,6 +44,21 @@ class Loop(commands.Cog):
             response = 'oi'
 
         await ctx.respond(response)
+
+    @commands.slash_command(
+        name='loop',
+        description='Loop/Unloop what you are listening to in VC.'
+    )
+    async def loop(
+        self,
+        ctx: discord.ApplicationContext,
+        mode: discord.Option(
+            str,
+            choices=['Song', 'Queue'],
+            default='Queue'
+        )  # type: ignore
+    ) -> None:
+        await self.execute_loop(ctx, mode)
 
 
 def setup(bot):

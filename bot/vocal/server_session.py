@@ -145,7 +145,7 @@ class ServerSession:
 
                 @discord.ui.button(
                     label="Pause/Resume",
-                    style=discord.ButtonStyle.primary,
+                    style=discord.ButtonStyle.secondary,
                 )
                 async def pause_button_callback(
                     self,
@@ -191,7 +191,22 @@ class ServerSession:
                     await interaction.response.defer()
 
                     skip_cog = self.bot.get_cog('Skip')
-                    await skip_cog.skip(ctx)
+                    await skip_cog.execute_skip(ctx)
+                    
+                @discord.ui.button(
+                    label="Loop song",
+                    style=discord.ButtonStyle.secondary,
+                )
+                async def loop_button_callback(
+                    self,
+                    button: discord.ui.Button,
+                    interaction: discord.Interaction
+                ) -> None:
+                    await interaction.response.defer()
+
+                    loop_cog = self.bot.get_cog('Loop')
+                    await loop_cog.execute_loop(ctx, 'Song')
+
 
             view = controlView(self.bot, ctx, self.voice_client)
 
