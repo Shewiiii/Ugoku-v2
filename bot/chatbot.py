@@ -92,8 +92,8 @@ class Chat:
         self.count: int = 0
         self.status: int = 0
 
+    @staticmethod
     async def simple_prompt(
-        self,
         message: Optional[str] = '',
         messages: Optional[List[dict]] = None,
         model: str = 'gpt-4o-mini'

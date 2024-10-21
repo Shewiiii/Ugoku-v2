@@ -1,11 +1,11 @@
 import logging
 from typing import Optional
-from config import SPOTIFY_ENABLED, DEFAULT_EMBED_COLOR
+from config import SPOTIFY_ENABLED, DEFAULT_EMBED_COLOR, CHATBOT_ENABLED
 
 import discord
 from discord.ext import commands
 
-from bot.musixmatch_lyrics import get_lyrics
+from bot.lyrics import BotLyrics
 from bot.vocal.session_manager import session_manager
 from bot.utils import get_dominant_rgb_from_url, split_into_chunks
 from commands.vocal.play import Play
@@ -26,6 +26,11 @@ class Lyrics(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         query: Optional[str],
+        convert_to: discord.Option(
+            str,
+            choices=['Romaji', 'Kana', 'English', 'Japanese', 'French'],
+            required=False
+        )  # type: ignore
         # Uncomment the following if Spotify features are disabled
         # artist: str = Optional[str]
     ) -> None:
@@ -54,10 +59,21 @@ class Lyrics(commands.Cog):
                     # 'artist': artist
                 }
 
-        lyrics = await get_lyrics(track_info)
+        lyrics = await BotLyrics.get(track_info)
         if not lyrics:
             await ctx.respond(lyrics or 'No lyrics found!')
             return
+
+        # CONVERT
+        if convert_to:
+            if not CHATBOT_ENABLED:
+                await ctx.respond(
+                    'Chatbot features need to be enabled in '
+                    'order to use lyrics conversion.'
+                )
+                return
+            await ctx.respond('Converting~')
+            lyrics = await BotLyrics.convert(lyrics, convert_to)
 
         # Split the lyrics in case it's too long
         splitted_lyrics: list = split_into_chunks(lyrics)
