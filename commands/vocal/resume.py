@@ -7,11 +7,7 @@ class Resume(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(
-        name='resume',
-        description='Resume the current song.'
-    )
-    async def resume(self, ctx: discord.ApplicationContext) -> None:
+    async def execute_resume(self, ctx: discord.ApplicationContext) -> None:
         session = session_manager.server_sessions.get(ctx.guild.id)
 
         if not session:
@@ -25,6 +21,13 @@ class Resume(commands.Cog):
             await ctx.respond('Resumed!')
         else:
             await ctx.respond('The audio is not paused.')
+
+    @commands.slash_command(
+        name='resume',
+        description='Resume the current song.'
+    )
+    async def resume(self, ctx: discord.ApplicationContext) -> None:
+        await self.execute_resume(ctx)
 
 
 def setup(bot):

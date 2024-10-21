@@ -9,11 +9,8 @@ class Pause(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(
-        name='pause',
-        description='Pause the current song.'
-    )
-    async def pause(self, ctx: discord.ApplicationContext) -> None:
+    
+    async def execute_pause(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
         session: ServerSession | None = sm.server_sessions.get(guild_id)
 
@@ -34,6 +31,12 @@ class Pause(commands.Cog):
         else:
             await ctx.respond("No audio is playing!")
 
+    @commands.slash_command(
+        name='pause',
+        description='Pause the current song.'
+    )
+    async def execute(self, ctx: discord.ApplicationContext) -> None:
+        await self.execute_pause(ctx)
 
 def setup(bot):
     bot.add_cog(Pause(bot))

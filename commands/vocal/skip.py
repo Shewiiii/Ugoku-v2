@@ -10,11 +10,7 @@ class Skip(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(
-        name='skip',
-        description='Skip the current song.'
-    )
-    async def skip(self, ctx: discord.ApplicationContext) -> None:
+    async def execute_skip(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
 
         if guild_id not in sm.server_sessions:
@@ -41,6 +37,13 @@ class Skip(commands.Cog):
                 await session.play_next(ctx)
         else:
             await ctx.respond('No songs in queue!')
+
+    @commands.slash_command(
+        name='skip',
+        description='Skip the current song.'
+    )
+    async def skip(self, ctx: discord.ApplicationContext) -> None:
+        await self.execute_skip(ctx)
 
 
 def setup(bot):

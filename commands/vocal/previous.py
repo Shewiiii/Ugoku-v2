@@ -9,11 +9,10 @@ class Previous(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(
-        name='previous',
-        description='Play the previous track.'
-    )
-    async def previous(self, ctx: discord.ApplicationContext):
+    async def execute_previous(
+        self,
+        ctx: discord.ApplicationContext
+    ) -> None:
         guild_id = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
 
@@ -28,6 +27,12 @@ class Previous(commands.Cog):
         await ctx.respond('Playing the previous track!')
         await session.play_previous(ctx)
 
+    @commands.slash_command(
+        name='previous',
+        description='Play the previous track.'
+    )
+    async def previous(self, ctx: discord.ApplicationContext) -> None:
+        await self.execute_previous(ctx)
 
 def setup(bot):
     bot.add_cog(Previous(bot))
