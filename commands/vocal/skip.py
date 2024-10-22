@@ -25,8 +25,8 @@ class Skip(commands.Cog):
 
             if session.loop_current:
                 session.queue.pop(0)
-                await ctx.respond('Switching loop mode to queue.')
-                session.loop_current, session.loop_queue = False, True
+                await ctx.send('Loop the current song disabled.')
+                session.loop_current, False
 
             if len(session.queue) == 1:
                 session.voice_client.stop()
