@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Any, Callable, Awaitable, Literal
+from concurrent.futures import ThreadPoolExecutor
 
 import discord
 import spotipy
@@ -13,6 +14,7 @@ from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import Session
 from librespot.metadata import TrackId
 from librespot.zeroconf import ZeroconfServer
+from librespot.audio import AbsChunkedInputStream
 from spotipy.oauth2 import SpotifyClientCredentials
 
 from bot.search import is_url, token_sort_ratio
@@ -43,54 +45,35 @@ class SpotifySessions:
         self.lp: Optional[Librespot] = None
         self.sp: Optional[spotipy.Spotify] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
-        asyncio.create_task(self.librespot_refresh_loop())
 
     async def init_spotify(self) -> None:
         try:
             self.loop = asyncio.get_running_loop()
+
+            # Librespot
             self.lp = Librespot()
             await self.lp.create_session()
+            asyncio.create_task(self.lp.listen_to_session())
+
+            # Spotify API
             self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
                 client_id=self.config.client_id,
                 client_secret=self.config.client_secret
             ))
+
             logging.info("Spotify sessions initialized successfully")
+
         except Exception as e:
             logging.error(f"Error initializing Spotify sessions: {str(e)}")
             raise
-
-    async def librespot_refresh_loop(self) -> None:
-        while True:
-            await asyncio.sleep(LIBRESPOT_REFRESH_INTERVAL)
-            # Check if ugoku is disconnected from every vc
-            if not sm.server_sessions:
-                await self.refresh_librespot()
-
-    async def refresh_librespot(self) -> None:
-        if self.lp:
-            try:
-                await self.lp.close_session()
-            except:
-                # To precise, except ConnectionAbortedError is
-                # interrupting the function
-                pass
-        self.lp = Librespot()
-        try:
-            await self.lp.generate_session()
-        except Exception as e:
-            logging.error(
-                f"An error occurred when refreshing Librespot: {e},"
-                "retying in 5 seconds..."
-            )
-            await asyncio.sleep(5)
-            await self.refresh_librespot()
-        logging.info("Librespot session regenerated successfully.")
 
 
 class Librespot:
     def __init__(self) -> None:
         self.updated: Optional[datetime] = None
         self.session: Optional[Session] = None
+        self.loop = asyncio.get_running_loop()
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     async def create_session(
         self,
@@ -98,11 +81,14 @@ class Librespot:
     ) -> None:
         """Wait for credentials and generate a json file if needed."""
         if not path.exists():
-            logging.error(
+            logging.warning(
                 "Please log in to Librespot from Spotify's official client! "
                 "Any command using Spotify features will not work."
             )
-            session = await asyncio.to_thread(ZeroconfServer.Builder().create)
+            session = await self.loop.run_in_executor(
+                self.executor,
+                ZeroconfServer.Builder().create
+            )
             while not path.exists():
                 await asyncio.sleep(1)
             logging.info(
@@ -114,22 +100,83 @@ class Librespot:
         await self.generate_session()
 
     async def generate_session(self) -> None:
-        loop = asyncio.get_running_loop()
         if self.session:
             return
-        self.session = await loop.run_in_executor(
-            None,
+        self.session = await self.loop.run_in_executor(
+            self.executor,
             lambda: Session.Builder().stored_file().create()
         )
         self.updated = datetime.now()
         logging.info('Librespot session created!')
 
-    async def close_session(self):
-        """Close the Librespot session gracefully."""
+    async def close_session(self) -> None:
+        """Close the Librespot session."""
         if self.session:
-            await asyncio.to_thread(self.session.close())
+            await self.loop.run_in_executor(self.executor, self.session.close)
             self.session = None
             logging.info("Librespot session closed.")
+
+    async def refresh_librespot(self) -> None:
+        if self.session:
+            try:
+                await self.close_session()
+            except:
+                # To precise, except ConnectionAbortedError is
+                # interrupting the function
+                pass
+            self.session = None
+        try:
+            await self.generate_session()
+        except Exception as e:
+            logging.error(
+                f"An error occurred when refreshing Librespot: {e},"
+                "retying in 5 seconds..."
+            )
+            await asyncio.sleep(5)
+            await self.refresh_librespot()
+        logging.info("Librespot session regenerated successfully.")
+
+    async def listen_to_session(self) -> None:
+        """Read data from Spotify, regenerate Librespot session on failure."""
+        track_id = await asyncio.to_thread(
+            TrackId.from_uri,
+            "spotify:track:4oLiJFE0PE8ZKTVNraDt7s"
+        )
+        stream = await self.get_stream(track_id)
+        while True:
+            # Super dirty, just to test if it works
+            try:
+                self.loop.run_in_executor(
+                    self.executor,
+                    stream.read,
+                    1
+                )
+            # TO PRECISE:
+            except Exception as e:
+                logging.error(e)
+                try:
+                    await self.refresh_librespot()
+                    stream = await self.get_stream(track_id)
+
+                except Exception as e:
+                    await asyncio.sleep(2)
+                    logging.error(e)
+
+            await asyncio.sleep(2)
+
+    async def get_stream(
+        self,
+        track_id: TrackId,
+        audio_quality: AudioQuality = AudioQuality.VERY_HIGH
+    ) -> AbsChunkedInputStream:
+        stream = await asyncio.to_thread(
+            self.session.content_feeder().load,
+            track_id,
+            VorbisOnlyAudioQuality(audio_quality),
+            False,
+            None
+        )
+        return stream.input_stream.stream()
 
 
 class Spotify:
@@ -198,22 +245,18 @@ class Spotify:
             AudioQuality.HIGH,
             AudioQuality.NORMAL
         ] = AudioQuality.VERY_HIGH
-    ) -> Callable[[], Awaitable[Any]]:
+    ) -> AbsChunkedInputStream:
         """Generates a stream for a given Spotify track ID.
 
         Args:
             id: The Spotify ID of the track.
 
         Returns:
-            Callable[[], Awaitable[Any]]: An async function that returns the audio stream.
+            AbsChunkedInputStream: An async function that returns the audio stream.
         """
         track_id = await asyncio.to_thread(TrackId.from_uri, f"spotify:track:{id}")
-        stream = await asyncio.to_thread(
-            self.sessions.lp.session.content_feeder().load,
-            track_id, VorbisOnlyAudioQuality(aq),
-            False, None
-        )
-        return stream.input_stream.stream()
+        stream = await self.sessions.lp.get_stream(track_id, audio_quality=aq)
+        return stream
 
     def get_track_info(
         self,
