@@ -2,7 +2,7 @@ import os
 import logging
 import asyncio
 from config import COMMANDS_FOLDER, SPOTIFY_ENABLED
-import api
+import api.api as api
 
 import discord
 from dotenv import load_dotenv

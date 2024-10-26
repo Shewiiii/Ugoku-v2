@@ -7,7 +7,7 @@ from typing import Optional, Callable, List, Literal
 import discord
 from librespot.audio import AbsChunkedInputStream
 
-from bot.utils import update_active_servers
+from api.update_active_servers import update_active_servers
 from bot.vocal.queue_view import QueueView
 from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
 from config import AUTO_LEAVE_DURATION
@@ -61,6 +61,7 @@ class ServerSession:
         self.queue: List[QueueItem] = []
         self.to_loop: List[QueueItem] = []
         self.last_played_time = datetime.now()
+        self.time_elapsed = 0
         self.loop_current = False
         self.loop_queue = False
         self.skipped = False
@@ -192,7 +193,7 @@ class ServerSession:
 
                     skip_cog = self.bot.get_cog('Skip')
                     await skip_cog.execute_skip(ctx)
-                    
+
                 @discord.ui.button(
                     label="Loop song",
                     style=discord.ButtonStyle.secondary,
@@ -206,7 +207,6 @@ class ServerSession:
 
                     loop_cog = self.bot.get_cog('Loop')
                     await loop_cog.execute_loop(ctx, 'Song')
-
 
             view = controlView(self.bot, ctx, self.voice_client)
 
@@ -260,15 +260,16 @@ class ServerSession:
             return  # No songs to play
 
         source = self.queue[0]['track_info']['source']
+
         # If source is a stream generator
         if isinstance(source, Callable):
             source = await source()  # Generate a fresh stream
             source.seek(167)  # Skip the non-audio content
 
         # Set up FFmpeg options for seeking
-        # ffmpeg_options = {
-        #     'options': f'-vn -ss {start_position} -af aresample=async=1 -ar 44100 -acodec pcm_s16le -ac 2'
-        # }
+        ffmpeg_options = {
+            'options': f'-ss {start_position}'
+        }
 
         # ffmpeg_source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(
         #     source,
@@ -285,7 +286,8 @@ class ServerSession:
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
             pipe=isinstance(source, AbsChunkedInputStream),
-            bitrate=510
+            bitrate=510,
+            **ffmpeg_options
         )
 
         self.voice_client.play(

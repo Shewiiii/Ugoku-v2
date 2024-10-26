@@ -32,7 +32,12 @@ from bot.vocal.audio_controls import (
     skip_track,
     toggle_loop, toggle_playback
 )
-from bot.vocal.types import ActiveGuildInfo, LoopMode
+from bot.vocal.types import (
+    ActiveGuildInfo,
+    ActiveGuildInfo,
+    LoopMode
+)
+
 
 """FastAPI-based API for managing Discord bot audio playback and authentication.
 
@@ -106,6 +111,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class UserDetails(TypedDict):
     """User details from Discord OAuth
 
@@ -136,6 +142,7 @@ class UserDetails(TypedDict):
     mfa_enabled: bool
     premium_type: int
 
+
 class UserSession(TypedDict):
     """User session data.
 
@@ -148,47 +155,67 @@ class UserSession(TypedDict):
     refresh_token: str
     expiration: datetime
 
+
 user_sessions: Dict[str, UserSession] = {}
 security = HTTPBearer()
 
 # ========== Custom exceptions ============
 
+
 class InvalidTokenError(HTTPException):
     """Exception raised for invalid session tokens."""
+
     def __init__(self):
         super().__init__(status_code=401, detail="Invalid token")
 
+
 class ExpiredTokenError(HTTPException):
     """Exception raised for expired session tokens."""
+
     def __init__(self):
         super().__init__(status_code=401, detail="Token expired")
 
+
 class BotOfflineError(HTTPException):
     """Exception raised when the bot is not connected."""
+
     def __init__(self):
         super().__init__(status_code=503, detail="Bot is not online")
 
+
 class GuildNotFoundError(HTTPException):
     """Exception raised when a guild is not found."""
+
     def __init__(self):
         super().__init__(status_code=400, detail="Guild not found")
 
+
 class VoiceClientError(HTTPException):
     """Exception raised when the bot is not connected to a voice channel."""
+
     def __init__(self):
         super().__init__(status_code=400, detail="Bot is not connected to a voice channel")
 
+
 class PlaybackOperationError(HTTPException):
     def __init__(self, operation: str):
-        super().__init__(status_code=400, detail=f"Failed to {operation}. The guild might not be playing any audio.")
+        super().__init__(
+            status_code=400,
+            detail=(f"Failed to {operation}. "
+                    "The guild might not be playing any audio.")
+        )
 
 # ======= Request models =========
 
 # Base model for guild-related requests
+
+
 class GuildRequest(BaseModel):
     guildId: str
 
 # Dependency for session validation
+
+
 async def get_valid_session(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserSession:
     token = credentials.credentials
     session = user_sessions.get(token)
@@ -203,6 +230,8 @@ async def get_valid_session(credentials: HTTPAuthorizationCredentials = Depends(
     return session
 
 # Wrapper function for playback operations
+
+
 async def execute_playback_operation(operation_func, guild_id: str, *args):
     if bot is None:
         raise BotOfflineError()
@@ -222,40 +251,46 @@ async def execute_playback_operation(operation_func, guild_id: str, *args):
     return {"status": "success"}
 
 
-
 class SeekRequest(BaseModel):
     """Request model for seeking to a position in a track."""
     guildId: str
     position: int
+
 
 class LoopRequest(BaseModel):
     """Request model for toggling loop mode."""
     guildId: str
     mode: LoopMode
 
+
 class SkipRequest(BaseModel):
     """Request model for skipping the current track."""
     guildId: str
+
 
 class ShuffleRequest(BaseModel):
     """Request model for toggling shuffle mode."""
     guildId: str
     isActive: bool
 
+
 class PreviousRequest(BaseModel):
     """Request model for playing the previous track."""
     guildId: str
+
 
 class VolumeRequest(BaseModel):
     """Request model for setting the volume."""
     guildId: str
     volume: int
 
+
 @app.on_event("startup")
 async def startup_event() -> None:
     global user_sessions
     user_sessions = load_sessions()
     logger.info(f"Loaded {len(user_sessions)} sessions from file")
+
 
 def load_sessions() -> Dict[str, UserSession]:
     """Load user sessions from a JSON file.
@@ -274,6 +309,7 @@ def load_sessions() -> Dict[str, UserSession]:
     except FileNotFoundError:
         return {}
 
+
 def save_sessions() -> None:
     """Save current user sessions to a JSON file."""
     sessions_to_save = {
@@ -285,6 +321,7 @@ def save_sessions() -> None:
     }
     with open("sessions.json", "w") as f:
         json.dump(sessions_to_save, f)
+
 
 class OAuthResponse(TypedDict):
     """Response from Discord OAuth2 token exchange.
@@ -301,6 +338,7 @@ class OAuthResponse(TypedDict):
     expires_in: int
     refresh_token: str
     scope: str
+
 
 def exchange_code(code: str) -> OAuthResponse:
     """Exchange OAuth2 code for access token.
@@ -329,6 +367,7 @@ def exchange_code(code: str) -> OAuthResponse:
     response.raise_for_status()
     return response.json()
 
+
 def get_user_details(access_token: str, token_type: str) -> UserDetails:
     """Fetch user details from Discord API.
 
@@ -341,6 +380,7 @@ def get_user_details(access_token: str, token_type: str) -> UserDetails:
     """
     headers = {"Authorization": f"{token_type} {access_token}"}
     return requests.get(f"{API_ENDPOINT}/users/@me", headers=headers).json()
+
 
 def create_session(user_details: UserDetails) -> tuple[str, str, datetime]:
     """Create a new user session.
@@ -366,27 +406,6 @@ def create_session(user_details: UserDetails) -> tuple[str, str, datetime]:
 
     return session_token, refresh_token, expiration
 
-async def notify_clients() -> None:
-    """Notify all connected SSE clients of server updates."""
-    logger.info(f"Notifying {len(connected_clients)} clients of server update")
-    for queue in connected_clients:
-        await queue.put(json.dumps({
-            "message": "Success!" if active_servers else "No active voice connections",
-            "server_time": datetime.now().isoformat(),
-            "guilds": active_servers
-        }))
-    logger.info("All clients notified")
-
-async def update_active_servers(guild_infos: List[ActiveGuildInfo]) -> None:
-    """Update the list of active servers and notify clients.
-
-    Args:
-        guild_infos (List[ActiveGuildInfo]): List of active guild information.
-    """
-    global active_servers
-    active_servers = guild_infos
-    logger.info("Active servers updated.")
-    await notify_clients()
 
 @app.get("/")
 async def ping() -> Dict[str, str]:
@@ -396,6 +415,7 @@ async def ping() -> Dict[str, str]:
         dict: A dictionary with a "pong" message.
     """
     return {"message": "pong"}
+
 
 @app.get("/play/stream")
 async def stream_active_servers(request: Request) -> EventSourceResponse:
@@ -439,8 +459,11 @@ async def stream_active_servers(request: Request) -> EventSourceResponse:
 
     return EventSourceResponse(event_generator())
 
+
 @app.get("/auth/discord", response_model=None)
-async def auth_discord(code: str = Query(...)) -> Union[RedirectResponse, JSONResponse]:
+async def auth_discord(
+    code: str = Query(...)
+) -> Union[RedirectResponse, JSONResponse]:
     """Handle Discord OAuth2 callback.
 
     Args:
@@ -472,8 +495,11 @@ async def auth_discord(code: str = Query(...)) -> Union[RedirectResponse, JSONRe
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=400)
 
+
 @app.post("/auth/logout")
-async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, str]:
+async def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> Dict[str, str]:
     """Log out a user by invalidating their session.
 
     Args:
@@ -492,13 +518,19 @@ async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)) 
         return {"message": "Logged out successfully!"}
     raise HTTPException(status_code=401, detail="Invalid token")
 
+
 @app.get("/api/user")
-async def get_user(session: UserSession = Depends(get_valid_session)) -> Dict[str, Union[str, UserDetails]]:
+async def get_user(
+    session: UserSession = Depends(get_valid_session)
+) -> Dict[str, Union[str, UserDetails]]:
     """Get authenticated user details."""
     return {"message": "Success!", "user": session["user_details"]}
 
+
 @app.post("/auth/refresh")
-async def refresh(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
+async def refresh(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> JSONResponse:
     """Refresh an authentication token.
 
     Args:
@@ -525,13 +557,17 @@ async def refresh(credentials: HTTPAuthorizationCredentials = Depends(security))
 
     raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+
 @app.post("/api/playback/toggle")
 async def toggle_playback_route(
     request: GuildRequest,
     session: UserSession = Depends(get_valid_session)
 ) -> Dict[str, str]:
     """Toggle playback for a specific guild."""
-    return await execute_playback_operation(toggle_playback, request.guildId)
+    return await execute_playback_operation(
+        toggle_playback,
+        request.guildId
+    )
 
 
 @app.post("/api/playback/seek")
@@ -540,7 +576,11 @@ async def seek_playback_route(
         session: UserSession = Depends(get_valid_session)
 ) -> Dict[str, str]:
     """Seek to a specific position in the current track."""
-    return await execute_playback_operation(seek_playback, request.guildId, request.position)
+    return await execute_playback_operation(
+        seek_playback,
+        request.guildId,
+        request.position
+    )
 
 
 @app.post("/api/playback/loop")
@@ -549,7 +589,11 @@ async def toggle_loop_route(
     session: UserSession = Depends(get_valid_session)
 ) -> Dict[str, str]:
     """Toggle loop mode for a guild."""
-    return await execute_playback_operation(toggle_loop, request.guildId, request.mode)
+    return await execute_playback_operation(
+        toggle_loop,
+        request.guildId,
+        request.mode
+    )
 
 
 @app.post("/api/playback/skip")
@@ -558,8 +602,10 @@ async def skip_track_route(
     session: UserSession = Depends(get_valid_session)
 ) -> Dict[str, str]:
     """Skip the current track for a guild."""
-    return await execute_playback_operation(skip_track, request.guildId)
-
+    return await execute_playback_operation(
+        skip_track,
+        request.guildId
+    )
 
 
 @app.post("/api/playback/shuffle")
@@ -568,7 +614,11 @@ async def shuffle_playback(
     session: UserSession = Depends(get_valid_session)
 ) -> Dict[str, str]:
     """Toggle shuffle mode for a guild."""
-    return await execute_playback_operation(shuffle_queue, request.guildId, request.isActive)
+    return await execute_playback_operation(
+        shuffle_queue,
+        request.guildId,
+        request.isActive
+    )
 
 
 @app.post("/api/playback/previous")
@@ -577,7 +627,10 @@ async def play_previous_track_route(
     session: UserSession = Depends(get_valid_session)
 ) -> Dict[str, str]:
     """Play the previous track for a guild."""
-    return await execute_playback_operation(previous_track, request.guildId)
+    return await execute_playback_operation(
+        previous_track,
+        request.guildId
+    )
 
 
 @app.post("/api/playback/volume")
@@ -586,4 +639,8 @@ async def set_volume_route(
     session: UserSession = Depends(get_valid_session)
 ) -> Dict[str, str]:
     """Set the volume for a guild."""
-    return await execute_playback_operation(set_volume, request.guildId, request.volume)
+    return await execute_playback_operation(
+        set_volume,
+        request.guildId,
+        request.volume
+    )

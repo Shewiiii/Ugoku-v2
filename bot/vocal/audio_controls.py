@@ -1,5 +1,5 @@
 from bot.vocal.server_session import ServerSession
-from bot.utils import update_active_servers
+from api.update_active_servers import update_active_servers
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.types import LoopMode
 
