@@ -21,11 +21,9 @@ from bot.search import is_url, token_sort_ratio
 from bot.utils import get_dominant_rgb_from_url
 from bot.vocal.types import TrackInfo, SpotifyID, CoverData, SpotifyAlbum, SpotifyTrackAPI, SpotifyAlbumAPI, \
     SpotifyPlaylistAPI, SpotifyArtistAPI
-from config import SPOTIFY_TOP_COUNTRY, LIBRESPOT_REFRESH_INTERVAL
-from bot.vocal.session_manager import session_manager as sm
+from config import SPOTIFY_TOP_COUNTRY
 
 
-logger = logging.getLogger(__name__)
 logging.getLogger('zeroconf').setLevel(logging.ERROR)
 
 
@@ -138,31 +136,36 @@ class Librespot:
 
     async def listen_to_session(self) -> None:
         """Read data from Spotify, regenerate Librespot session on failure."""
+        retry_delay = 1
+        max_retry_delay = 60
         track_id = await asyncio.to_thread(
             TrackId.from_uri,
             "spotify:track:4oLiJFE0PE8ZKTVNraDt7s"
         )
-        stream = await self.get_stream(track_id)
         while True:
-            # Super dirty, just to test if it works
             try:
-                self.loop.run_in_executor(
-                    self.executor,
-                    stream.read,
-                    1
-                )
-            # TO PRECISE:
+                while True:
+                    try:
+                        logging.info("Check Librespot session..")
+                        
+                        # Simulate a track play
+                        stream = await self.get_stream(track_id)
+                        await asyncio.sleep(2)
+                        await asyncio.to_thread(stream.read, 1)
+                        await asyncio.sleep(60)
+                    except Exception as e:
+                        logging.error(f"Stream read error: {e}")
+                        await self.refresh_librespot()
+                        await asyncio.sleep(10)
+                        
+                        # Break to outer loop to get a new stream
+                        break
             except Exception as e:
-                logging.error(e)
-                try:
-                    await self.refresh_librespot()
-                    stream = await self.get_stream(track_id)
-
-                except Exception as e:
-                    await asyncio.sleep(2)
-                    logging.error(e)
-
-            await asyncio.sleep(2)
+                logging.error(
+                    f"Error getting stream or refreshing session: {e}")
+                await asyncio.sleep(retry_delay)
+                # Exponential backoff
+                retry_delay = min(max_retry_delay, retry_delay * 2)
 
     async def get_stream(
         self,
