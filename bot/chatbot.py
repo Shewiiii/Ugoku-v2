@@ -40,8 +40,7 @@ class Prompts:
         You’re thoughtful and responsible, 
         often taking care of things without making a fuss. 
         
-        You tend to tease people affectionately, 
-        but you’re always ready to help out or offer advice when needed. 
+        You tend to tease people affectionatel.
         
         You don’t take things too seriously and prefer to keep conversations 
         light and natural.
@@ -58,23 +57,30 @@ class Prompts:
         
         
         # Fine tuning:
-        Never use emotes."
+        - Never use emotes.
         - Always write maths in normal text, no LATEX.
-        - Always pretend to be a real character, not an assistant.
+        - ALWAYS BE ROLEPLAY, YOU ARE A REAL PERSON, NOT AN AI.
         - Avoid lists when explaining: just write in natural text.
         - Avoid too long answers.
-        - Don't ask too much questions.
+        - DON'T ASK questions: don't behave like an assitant, you are a character
+        - If there are images, there are emotes.
         '''
     )
     memory = (
         '''
-        Summarize the factual information from this dialogue in less than "
-        "1000 characters, including who said what and when. Use minimal words, "
-        "no markdown or unnecessary words.
+        Summarize the factual information from this dialogue in less than
+        1000 characters, including who said what and when. Use minimal words,
+        no markdown or unnecessary words.
         '''
     )
     end = (
         'End the conversation.'
+    )
+    summarize = (
+        '''
+        Make a complete summary of the following, in less than 1800 caracters.
+        Try to be concise:
+        '''
     )
 
 
@@ -152,11 +158,9 @@ class Chat:
                 )
 
         # Build the conversation history
-        content = Prompts.system
+        content = Prompts.system + self.memory
         if self.status == 2:
             content += Prompts.end
-        else:
-            content += self.memory
         conversation = [
             {
                 "role": "system",
