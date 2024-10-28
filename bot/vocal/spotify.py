@@ -339,36 +339,36 @@ class Spotify:
             'embed': lambda: self.generate_info_embed(id)
         }
 
-    async def fetch_id(self, user_input: str) -> Optional[SpotifyID]:
+    async def fetch_id(self, query: str) -> Optional[SpotifyID]:
         """Fetch the Spotify ID and type either from a URL or search query.
 
         Args:
-            user_input: A Spotify URL or search query.
+            query: A Spotify URL or search query.
 
         Returns:
             dict (SpotifyID): A dictionary containing the Spotify ID and type,
             or None if not found.
         """
-        if is_url(user_input, ['open.spotify.com']):
+        if is_url(query, ['open.spotify.com']):
             match = re.match(
                 r"https?://open\.spotify\.com/(?:(?:intl-[a-z]{2})/)?"
                 r"(track|album|playlist|artist)/(?P<ID>[0-9a-zA-Z]{22})",
-                user_input,
+                query,
                 re.IGNORECASE
             )
             return {'id': match.group('ID'), 'type': match.group(1)} if match else None
 
-        search = await asyncio.to_thread(self.sessions.sp.search, q=user_input, limit=1)
+        search = await asyncio.to_thread(self.sessions.sp.search, q=query, limit=1)
         if not search or not search['tracks']['items']:
             return None
 
         item = search['tracks']['items'][0]
         track_ratio = token_sort_ratio(
-            user_input,
+            query,
             f"{item['artists'][0]['name']} {item['name']}"
         )
         album_ratio = token_sort_ratio(
-            user_input,
+            query,
             f"{item['album']['artists'][0]['name']} {item['album']['name']}"
         )
 
@@ -379,7 +379,7 @@ class Spotify:
 
     async def get_tracks(
         self,
-        user_input: str,
+        query: str,
         aq: Literal[
             AudioQuality.VERY_HIGH,
             AudioQuality.HIGH,
@@ -391,13 +391,13 @@ class Spotify:
         This method can handle tracks, albums, playlists, and artists.
 
         Args:
-            user_input: A Spotify URL or search query.
+            query: A Spotify URL or search query.
             aq: The audio quality chosen.
 
         Returns:
             List[dict]: A list of dictionaries containing track information.
         """
-        result = await self.fetch_id(user_input)
+        result = await self.fetch_id(query)
         if not result:
             return []
 
