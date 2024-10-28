@@ -19,6 +19,8 @@
   - [X] Loop song, Loop queue, pause, resume...
   - [X] Bypass the channel's audio bitrate.
   - [X] Stream songs from Spotify.
+  - [X] Stream videos from Youtube.
+  - [X] Stream audio works (音声作品) in a voice channel (because why not).
   - [X] Play songs from a URL (custom source).
   - [X] Cache audio from custom sources.
   - [X] Embed info messages with metadata.
@@ -28,9 +30,9 @@
 > [!NOTE]
 > Ugoku-v2 is only using Spotify as a streaming service source, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs.
 
-- [X] Stream audio works (音声作品) in a voice channel (because why not).
 - [X] Chat using GPT-4o Mini. (WIP)
   - [ ] Optimize token usage.
+  - [ ] Make her message more human-like.
 - [ ] And maybe more in the future~
 
 <h2>Known bugs to fix</h2>
