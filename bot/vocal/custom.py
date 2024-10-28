@@ -133,7 +133,7 @@ async def generate_info_embed(
     title: str,
     album: str,
     artists: list,
-    cover_url: bytes | None,
+    cover_url: Optional[str],
     dominant_rgb: tuple[int, int, int],
 ) -> discord.Embed:
     """
@@ -144,7 +144,7 @@ async def generate_info_embed(
         title (str): The title of the track.
         album (str): The album name.
         artists (list): List of artist names.
-        cover_url (bytes | None): The URL of the cover image, or None if not available.
+        cover_url Optional[str]: The URL of the cover image, or None if not available.
         dominant_rgb (tuple[int, int, int]): The dominant RGB color of the cover.
 
     Returns:

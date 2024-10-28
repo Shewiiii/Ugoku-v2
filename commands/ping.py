@@ -1,11 +1,7 @@
 import discord
 from discord.ext import commands
-import config
 
 import logging
-
-
-logger = logging.getLogger(__name__)
 
 
 class Ping(commands.Cog):

@@ -9,10 +9,11 @@ from dotenv import load_dotenv
 
 if SPOTIFY_ENABLED:
     from bot.vocal.spotify import SpotifySessions, Spotify
+from bot.vocal.youtube import Youtube
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-# DEV_TOKEN = os.getenv('DEV_TOKEN')
+DEV_TOKEN = os.getenv('DEV_TOKEN')
 logger = logging.getLogger(__name__)
 
 
@@ -34,6 +35,7 @@ async def on_ready() -> None:
         spotify = Spotify(spotify_sessions)
         bot.spotify = spotify
         bot.downloading = False
+    bot.youtube = Youtube()
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')
@@ -43,7 +45,7 @@ for filepath in COMMANDS_FOLDER.rglob('*.py'):
     bot.load_extension(module_name)
 
 async def start() -> None:
-    await asyncio.gather(bot.start(BOT_TOKEN), server.serve())
+    await asyncio.gather(bot.start(DEV_TOKEN), server.serve())
 
 try:
     loop.run_until_complete(start())

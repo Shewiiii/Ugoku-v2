@@ -5,6 +5,7 @@ from typing import Optional
 
 import discord
 from aiohttp.client_exceptions import ClientResponseError
+from yt_dlp.utils import DownloadError
 
 from bot.vocal.custom import fetch_audio_stream, upload_cover, generate_info_embed
 from bot.vocal.server_session import ServerSession
@@ -31,7 +32,7 @@ async def play_spotify(
         session (ServerSession): The current server's audio session.
         interaction: A discord interaction if that method has been triggered by one.
     """
-    tracks_info = await ctx.bot.spotify.get_tracks(user_input=query)
+    tracks_info = await ctx.bot.spotify.get_tracks(query)
 
     if not tracks_info:
         if interaction:
@@ -41,6 +42,21 @@ async def play_spotify(
         return
 
     await session.add_to_queue(ctx, tracks_info, 'Spotify', interaction)
+
+
+def get_display_name_from_query(query: str) -> str:
+    """
+    Extracts a display name from the query URL if no title is found.
+
+    Args:
+        query (str): The URL query string.
+
+    Returns:
+        str: The extracted display name or 'Custom track' if extraction fails.
+    """
+
+    match = re.search(r'(?:.+/)([^#?]+)', query)
+    return unquote(match.group(1)) if match else 'Custom track'
 
 
 async def play_custom(
@@ -75,9 +91,9 @@ async def play_custom(
         f'{artists[0]} - {titles[0]}' if titles
         else get_display_name_from_query(query)
     )
-    title=titles[0] if titles else display_name
+    title = titles[0] if titles else display_name
     albums = metadata.get('album')
-    album=albums[0] if albums else '?'
+    album = albums[0] if albums else '?'
 
     # Extract the cover art
     cover_bytes: bytes | None = extract_cover_art(audio_path)
@@ -182,16 +198,25 @@ async def play_onsei(
     await session.add_to_queue(ctx, tracks_info, source='Custom')
 
 
-def get_display_name_from_query(query: str) -> str:
-    """
-    Extracts a display name from the query URL if no title is found.
+async def play_youtube(
+    ctx: discord.ApplicationContext,
+    query: str,
+    session: ServerSession,
+    interaction: Optional[discord.Interaction] = None
+) -> None:
+    if interaction:
+        edit = interaction.edit_original_message
+    else:
+        edit = ctx.edit
 
-    Args:
-        query (str): The URL query string.
+    try:
+        tracks_info = await ctx.bot.youtube.get_track_info(query)
+    except DownloadError as e:
+        await edit(content='Download failed: Ugoku has been detected as a bot.')
+        return
 
-    Returns:
-        str: The extracted display name or 'Custom track' if extraction fails.
-    """
+    if not tracks_info:
+        await edit(content='No video has been found!')
+        return
 
-    match = re.search(r'(?:.+/)([^#?]+)', query)
-    return unquote(match.group(1)) if match else 'Custom track'
+    await session.add_to_queue(ctx, [tracks_info], 'Youtube', interaction)

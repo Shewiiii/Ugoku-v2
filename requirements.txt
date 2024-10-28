@@ -13,3 +13,4 @@ fastapi
 uvicorn
 sse-starlette
 typing-extensions
+yt-dlp[default] --pre

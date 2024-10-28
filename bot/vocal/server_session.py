@@ -319,7 +319,7 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext,
         tracks_info: List[TrackInfo],
-        source: Literal['Spotify', 'Custom', 'Onsei'],
+        source: Literal['Spotify', 'Youtube', 'Custom', 'Onsei'],
         interaction: Optional[discord.Interaction] = None
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing.
@@ -327,7 +327,7 @@ class ServerSession:
         Args:
             ctx: The Discord application context.
             tracks_info: A list of track information dictionaries.
-            source: The source of the tracks ('Spotify', 'Custom', or 'Onsei').
+            source: The source of the tracks ('Spotify', 'Youtube', 'Custom', or 'Onsei').
             interaction: A discord interaction if that method has been triggered by one.
         """
         # Check if triggered by an interaction

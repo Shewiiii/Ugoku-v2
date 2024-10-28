@@ -4,6 +4,7 @@ import discord
 from discord.ui import View
 
 from bot.vocal.custom import get_cover_data_from_hash
+from bot.utils import get_dominant_rgb_from_url
 from bot.vocal.types import QueueItem
 from config import DEFAULT_EMBED_COLOR
 
@@ -138,6 +139,11 @@ class QueueView(View):
             cover_data = await self.bot.spotify.get_cover_data(track_info['id'])
         elif source == 'Custom':
             cover_data = await get_cover_data_from_hash(track_info['id'])
+        else:
+            cover_data = {
+                'url': track_info['cover'],
+                'dominant_rgb': await get_dominant_rgb_from_url(track_info['cover'])
+            }
 
         # Create the embed
         embed = discord.Embed(
