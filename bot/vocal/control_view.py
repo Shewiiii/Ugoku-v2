@@ -78,3 +78,17 @@ class controlView(discord.ui.View):
 
         loop_cog = self.bot.get_cog('Loop')
         await loop_cog.execute_loop(self.ctx, 'Song')
+
+    @discord.ui.button(
+        label="Shuffle",
+        style=discord.ButtonStyle.secondary,
+    )
+    async def shuffle_button_callback(
+        self,
+        button: discord.ui.Button,
+        interaction: discord.Interaction
+    ) -> None:
+        await interaction.response.defer()
+
+        shuffle_cog = self.bot.get_cog('Shuffle')
+        await shuffle_cog.execute_shuffle(self.ctx)

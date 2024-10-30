@@ -271,11 +271,10 @@ class ServerSession:
             self.original_queue.append(queue_item)
 
         if self.shuffle:
-            current_song = self.queue[0] if self.queue else None
-            remaining_songs = self.queue[1:] if current_song else self.queue
+            current_song = [self.queue[0]] if self.queue else []
+            remaining_songs = self.queue[1:]
             random.shuffle(remaining_songs)
-            self.queue = [current_song] + \
-                remaining_songs if current_song else remaining_songs
+            self.queue = current_song + remaining_songs
 
         # If only one song is added
         if len(tracks_info) == 1:
@@ -353,33 +352,30 @@ class ServerSession:
             for track in self.queue
         ]
 
-    async def shuffle_queue(self, is_active: bool) -> bool:
+    def shuffle_queue(self) -> bool:
         """Toggles shuffling of the queue.
-
-        Args:
-            is_active: Boolean indicating whether to activate or deactivate shuffling.
-
         Returns:
             bool: True if the operation was successful, False otherwise.
         """
         if len(self.queue) <= 1:
-            return True  # No need to shuffle if queue has 0 or 1 song
+            self.shuffle = not self.shuffle
+            # No need to shuffle if queue has 0 or 1 song
+            return True
 
         current_song = self.queue[0]
 
-        if is_active and not self.shuffle:
-            self.shuffled_queue = self.queue[1:]
-            random.shuffle(self.shuffled_queue)
-            self.queue = [current_song] + self.shuffled_queue
-            self.shuffle = True
-
-        elif not is_active and self.shuffle:
+        if self.shuffle:
             # Restore the original order
             current_index = self.original_queue.index(current_song)
             self.queue = [current_song] + \
                 self.original_queue[current_index + 1:]
-            self.shuffle = False
 
+        else:
+            self.shuffled_queue = self.queue[1:]
+            random.shuffle(self.shuffled_queue)
+            self.queue = [current_song] + self.shuffled_queue
+
+        self.shuffle = not self.shuffle
         return True
 
     def after_playing(
