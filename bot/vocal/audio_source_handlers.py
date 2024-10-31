@@ -160,8 +160,10 @@ async def play_onsei(
     except ClientResponseError as e:
         if e.status == 404:
             await ctx.edit(content='No onsei has been found!')
+            return
         else:
             await ctx.edit(content=f'An error occurred: {e.message}')
+            return
 
     # Grab the data needed
     tracks = onsei.get_all_tracks(tracks_api)
