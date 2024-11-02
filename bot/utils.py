@@ -10,6 +10,7 @@ from collections import Counter
 from io import BytesIO
 from pathlib import Path
 from time import time
+from urllib.parse import urlparse, parse_qs
 
 import aiohttp
 import mutagen
@@ -385,3 +386,29 @@ def split_into_chunks(string: str, max_length=1024) -> list:
         chunks.append(current_chunk)
 
     return chunks
+
+
+def extract_video_id(url):
+    """
+    Extracts the YouTube video ID from a given URL.
+
+    Args:
+        url (str): The YouTube URL.
+
+    Returns:
+        str or None: The extracted video ID if found; otherwise, None.
+    """
+    parsed_url = urlparse(url)
+    if 'youtube' in parsed_url.hostname:
+        # For URLs like https://www.youtube.com/watch?v=VIDEO_ID
+        if parsed_url.path == '/watch':
+            query_params = parse_qs(parsed_url.query)
+            return query_params.get('v', [None])[0]
+        # For URLs like https://www.youtube.com/embed/VIDEO_ID
+        elif '/embed/' in parsed_url.path:
+            return parsed_url.path.split('/embed/')[1]
+    elif 'youtu.be' in parsed_url.hostname:
+        # For URLs like https://youtu.be/VIDEO_ID
+        return parsed_url.path.lstrip('/')
+    else:
+        return None
