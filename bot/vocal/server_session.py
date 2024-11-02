@@ -411,7 +411,6 @@ class ServerSession:
         Args:
             ctx: The Discord application context.
         """
-        # Playing previous track ? :kanna_sus:
         if self.queue and not self.loop_current and not self.previous:
             self.stack_previous.append(self.queue[0])
 

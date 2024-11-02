@@ -108,7 +108,6 @@ async def get_stickerpack(
         raise ValueError("No stickers found on the page.")
 
     # Get sticker type and count
-    print(stickers[0].get('class', ['']))
     sticker_class = stickers[0].get('class', [''])
     sticker_type = (sticker_class[-1] if len(sticker_class)>= 3 
                     else 'emote')
