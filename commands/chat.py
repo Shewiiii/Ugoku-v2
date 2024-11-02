@@ -1,7 +1,5 @@
 import discord
 from discord.ext import commands
-from bot.vocal.session_manager import session_manager as sm
-
 from config import CHATBOT_WHITELIST, CHATBOT_ENABLED
 
 if CHATBOT_ENABLED:
@@ -27,7 +25,7 @@ if CHATBOT_ENABLED:
             if server_id not in active_chats:
                 active_chats[server_id] = Chat(server_id)
             chat: Chat = active_chats[server_id]
-            
+
             # Neko arius
             lowered_msg = message.content.lower()
             if any(lowered_msg.startswith(neko) for neko in ['-neko', '- neko']):
@@ -41,6 +39,11 @@ if CHATBOT_ENABLED:
                     formatted_reply = chat.format_reply(reply)
                 await message.channel.send(formatted_reply)
                 await chat.post_prompt()
+else:
+    class Chatbot(commands.Cog):
+        def __init__(self, bot) -> None:
+            self.bot = bot
 
-    def setup(bot):
-        bot.add_cog(Chatbot(bot))
+
+def setup(bot):
+    bot.add_cog(Chatbot(bot))
