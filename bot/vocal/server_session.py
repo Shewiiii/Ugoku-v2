@@ -233,7 +233,9 @@ class ServerSession:
         )
 
         self.time_elapsed = start_position
-        self.playback_start_time = datetime.now().isoformat()
+        now = datetime.now()
+        self.playback_start_time = now.isoformat()
+        self.last_played_time = now
         await update_active_servers(
             self.bot,
             self.session_manager.server_sessions
@@ -494,7 +496,7 @@ class ServerSession:
                 time_until_disconnect = timedelta(
                     seconds=AUTO_LEAVE_DURATION) - time_since_last_played
 
-                logging.info(
+                logging.debug(
                     'Time until disconnect due to '
                     f'inactivity in {self.guild_id}: '
                     f'{time_until_disconnect}'
