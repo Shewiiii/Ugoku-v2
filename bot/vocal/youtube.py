@@ -86,6 +86,7 @@ class Youtube:
             dominant_rgb = await get_dominant_rgb_from_url(cover_url)
         else:
             dominant_rgb = None
+        # Duration in seconds
         duration = metadata.get('duration', 0)
 
         # Prepare the track/video

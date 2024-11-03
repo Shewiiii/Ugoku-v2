@@ -1,8 +1,10 @@
+from datetime import datetime
+
 import discord
 from discord.ext import commands
+
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
-from datetime import datetime
 
 
 class Pause(commands.Cog):
@@ -26,8 +28,9 @@ class Pause(commands.Cog):
 
         if voice_client.is_playing():
             voice_client.pause()
+            session.time_elapsed +=  (datetime.now() - session.last_played_time).seconds
             session.last_played_time = datetime.now()
-            await ctx.respond("Paused!")
+            await ctx.respond(f"Paused at {session.time_elapsed}s !")
         else:
             await ctx.respond("No audio is playing!")
 

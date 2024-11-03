@@ -329,7 +329,7 @@ class Spotify:
             'artist': ', '.join(artist['name'] for artist in track_API['artists']),
             'album': get_album_name(),
             'cover': get_cover_url(),
-            'duration': track_API['duration_ms'],
+            'duration': round(track_API['duration_ms'] / 1000),
             'url': f"https://open.spotify.com/track/{id}",
             'id': id,
             'source': lambda: self.generate_stream(

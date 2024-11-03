@@ -26,7 +26,7 @@ server = api.server
 api.bot = bot
 
 
-@bot.event 
+@bot.event
 async def on_ready() -> None:
     logging.info(f"{bot.user} is running !")
     if SPOTIFY_ENABLED:
@@ -43,6 +43,7 @@ for filepath in COMMANDS_FOLDER.rglob('*.py'):
 
     logging.info(f'Loading {module_name}')
     bot.load_extension(module_name)
+
 
 async def start() -> None:
     await asyncio.gather(bot.start(DEV_TOKEN), server.serve())

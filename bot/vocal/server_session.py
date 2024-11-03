@@ -55,7 +55,7 @@ class ServerSession:
         bot: discord.Bot,
         channel_id: int,
         session_manager: 'SessionManager'
-    ):
+    ) -> None:
         self.bot = bot
         self.guild_id = guild_id
         self.voice_client = voice_client
@@ -70,7 +70,7 @@ class ServerSession:
         self.original_queue: List[QueueItem] = []
         self.shuffled_queue: List[QueueItem] = []
         self.previous = False
-        self.stack_previous = []  # Im not sure what type is this :kanna_sus:
+        self.stack_previous = []
         self.is_seeking = False
         self.channel_id = channel_id
         self.session_manager = session_manager
@@ -85,12 +85,19 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
-        """Displays the current queue using a QueueView.
+        """Displays the current queue.
 
         Args:
             ctx: The Discord application context.
         """
-        view = QueueView(self.queue, self.to_loop, self.bot)
+        view = QueueView(
+            self.queue,
+            self.to_loop,
+            self.bot,
+            self.last_played_time,
+            self.time_elapsed,
+            self.voice_client.is_playing()
+        )
         await view.display(ctx)
 
     async def send_now_playing(
@@ -142,7 +149,11 @@ class ServerSession:
         # Send the message or edit the previous message based on the context
         await ctx.send(content=message, embed=embed, view=view)
 
-    async def seek(self, position: int) -> bool:
+    async def seek(
+        self,
+        position: int,
+        quiet: bool = False
+    ) -> bool:
         """Seeks to a specific position in the current track.
 
         Args:
@@ -151,27 +162,28 @@ class ServerSession:
         Returns:
             bool: True if seeking was successful, False otherwise.
         """
+        # No audio is playing
         if not self.voice_client or not self.voice_client.is_playing():
             return False
 
-        # Flag to indicate that the player is seeking
         self.is_seeking = True
-        # Stop the current playback
+        self.time_elapsed = position
         self.voice_client.stop()
 
         # Wait a short time to ensure the stop has been processed
         await asyncio.sleep(0.1)
 
-        # Send "Seeking" message
-        if self.last_context:
+        if not quiet and self.last_context:
             await self.last_context.send(f"Seeking to {position} seconds")
 
-        # Use start_playing with the new position
         await self.start_playing(self.last_context, start_position=position)
-
         return True
 
-    async def start_playing(self, ctx: discord.ApplicationContext, start_position: int = 0) -> None:
+    async def start_playing(
+        self,
+        ctx: discord.ApplicationContext,
+        start_position: int = 0
+    ) -> None:
         """Handles the playback of the next track in the queue.
 
         Args:
@@ -390,6 +402,7 @@ class ServerSession:
             error: Any error that occurred during playback, or None.
         """
         self.last_played_time = datetime.now()
+        self.time_elapsed = 0
         if error:
             raise error
 

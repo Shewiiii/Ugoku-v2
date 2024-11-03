@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import discord
 from discord.ext import commands
 from bot.vocal.session_manager import session_manager
@@ -18,6 +20,7 @@ class Resume(commands.Cog):
 
         if voice_client.is_paused():
             voice_client.resume()
+            session.last_played_time = datetime.now()
             await ctx.respond('Resumed!')
         else:
             await ctx.respond('The audio is not paused.')

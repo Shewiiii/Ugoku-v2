@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Union
+from datetime import datetime
 
 import discord
 from discord.ui import View
@@ -15,6 +16,9 @@ class QueueView(View):
         queue: List[QueueItem],
         to_loop: List[QueueItem],
         bot: discord.Bot,
+        last_played_time: datetime,
+        time_elapsed: int,
+        is_playing: bool,
         page: int = 1
     ) -> None:
         """
@@ -30,6 +34,9 @@ class QueueView(View):
         self.queue = queue
         self.to_loop = to_loop
         self.bot = bot
+        self.time_elapsed = time_elapsed
+        self.last_played_time = last_played_time
+        self.is_playing = is_playing
         self.page = page
         self.max_per_page = 7
         self.update_buttons()
@@ -156,8 +163,21 @@ class QueueView(View):
         now_playing = self.queue[0]['track_info']
         title = now_playing['display_name']
         url = now_playing['url']
+
+        # Time indication
+        if self.is_playing:
+            current_pos: int = (
+                self.time_elapsed +
+                (datetime.now() - self.last_played_time).seconds
+            )
+        else:
+            current_pos: int = self.time_elapsed
+        total_seconds: Union[int, str] = now_playing.get('duration', '?')
+        time_string = f"{current_pos}s / {total_seconds}s"
+
         embed.add_field(
-            name="Now Playing",
+            # Now playing + time indication
+            name=f"Now Playing - {time_string}",
             value=f"[{title}]({url})",
             inline=False
         )
