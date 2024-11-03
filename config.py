@@ -13,7 +13,7 @@ TEMP_FOLDER = Path('.') / 'temp'
 CACHE_SIZE = 100  # Cache size limit (in number of files) for custom sources and downloads
 CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds) for custom sources and downloads
 # VC and audio bot behavior
-AUTO_LEAVE_DURATION = 300 # Duration before killing an audio session (in seconds)
+AUTO_LEAVE_DURATION = 900 # Duration before killing an audio session (in seconds)
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
 LIBRESPOT_REFRESH_INTERVAL = 120 # How often Librespot sessions should be regenerated (in seconds) 
 DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
