@@ -232,6 +232,7 @@ class ServerSession:
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
+        self.time_elapsed = start_position
         self.playback_start_time = datetime.now().isoformat()
         await update_active_servers(
             self.bot,
@@ -402,7 +403,6 @@ class ServerSession:
             error: Any error that occurred during playback, or None.
         """
         self.last_played_time = datetime.now()
-        self.time_elapsed = 0
         if error:
             raise error
 
