@@ -13,4 +13,6 @@ fastapi
 uvicorn
 sse-starlette
 typing-extensions
+deepgram-sdk
+youtube-transcript-api
 yt-dlp[default] --pre
