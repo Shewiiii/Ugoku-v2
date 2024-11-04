@@ -1,6 +1,7 @@
 import mutagen.ogg
 import mutagen.oggvorbis
-from typing import Dict, Optional, Tuple, List, Union
+from typing import Dict, Optional, Tuple, List, Union, Callable
+import discord
 import base64
 import hashlib
 import logging
@@ -412,3 +413,17 @@ def extract_video_id(url):
         return parsed_url.path.lstrip('/')
     else:
         return None
+
+
+async def send_response(
+    respond: Callable[[str], discord.Message],
+    message: str,
+    guild_id: int
+) -> None:
+    try:
+        await respond(message)
+    except discord.errors.HTTPException:
+        logging.error(
+            f"Failed to send response for guild {guild_id}. "
+            "Invalid Webhook Token."
+        )

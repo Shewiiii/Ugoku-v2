@@ -147,7 +147,12 @@ class ServerSession:
             view = None
 
         # Send the message or edit the previous message based on the context
-        await ctx.send(content=message, embed=embed, view=view)
+        await ctx.send(
+            content=message,
+            embed=embed,
+            view=view,
+            silent=True
+        )
 
     async def seek(
         self,

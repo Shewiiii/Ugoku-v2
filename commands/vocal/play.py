@@ -3,9 +3,10 @@ from typing import Optional
 from discord.ext import commands
 import discord
 
-from bot.vocal.session_manager import session_manager
+from bot.vocal.session_manager import session_manager as sm
+from bot.vocal.server_session import ServerSession
 from bot.vocal.audio_source_handlers import play_spotify, play_custom, play_onsei, play_youtube
-from bot.utils import is_onsei
+from bot.utils import is_onsei, send_response
 from bot.search import is_url
 from config import SPOTIFY_ENABLED
 
@@ -32,12 +33,12 @@ class Play(commands.Cog):
             edit = ctx.edit
 
         # Connect to the voice channel
-        session = await session_manager.connect(ctx, self.bot)
+        session: Optional[ServerSession] = await sm.connect(ctx, self.bot)
         if not session:
             await respond('You are not in a voice channel!')
             return
 
-        await respond('Give me a second~')
+        await send_response(respond, "Give me a second~", session.guild_id)
 
         source = source.lower()
         youtube_domains = ['youtube.com', 'www.youtube.com', 'youtu.be']
@@ -50,7 +51,7 @@ class Play(commands.Cog):
         # If the query is custom or an URL not from Spotify/Youtube
         elif (source == 'custom'
               or (is_url(query)
-                  and not is_url(query, 
+                  and not is_url(query,
                                  from_=spotify_domains+youtube_domains))):
             await play_custom(ctx, query, session)
 

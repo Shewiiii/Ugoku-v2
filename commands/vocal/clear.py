@@ -25,6 +25,7 @@ class Clear(commands.Cog):
             session.to_loop.clear()
             session.stack_previous.clear()
             session.loop_current = False
+            session.loop_queue = False
             session.shuffle = False
 
             if voice_client.is_playing():

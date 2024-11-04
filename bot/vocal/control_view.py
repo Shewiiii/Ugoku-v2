@@ -30,12 +30,12 @@ class controlView(discord.ui.View):
         # Pause if audio is playing
         if self.voice_client.is_playing():
             pause_cog = self.bot.get_cog('Pause')
-            await pause_cog.execute_pause(self.ctx)
+            await pause_cog.execute_pause(self.ctx, send=True)
 
         # Resume if audio is paused
         else:
             resume_cog = self.bot.get_cog('Resume')
-            await resume_cog.execute_resume(self.ctx)
+            await resume_cog.execute_resume(self.ctx, send=True)
 
     @discord.ui.button(
         label="Play previous",
@@ -49,7 +49,7 @@ class controlView(discord.ui.View):
         await interaction.response.defer()
 
         previous_cog = self.bot.get_cog('Previous')
-        await previous_cog.execute_previous(self.ctx)
+        await previous_cog.execute_previous(self.ctx, send=True)
 
     @discord.ui.button(
         label="Skip",
@@ -63,7 +63,7 @@ class controlView(discord.ui.View):
         await interaction.response.defer()
 
         skip_cog = self.bot.get_cog('Skip')
-        await skip_cog.execute_skip(self.ctx)
+        await skip_cog.execute_skip(self.ctx, send=True)
 
     @discord.ui.button(
         label="Loop song",
@@ -77,7 +77,7 @@ class controlView(discord.ui.View):
         await interaction.response.defer()
 
         loop_cog = self.bot.get_cog('Loop')
-        await loop_cog.execute_loop(self.ctx, 'Song')
+        await loop_cog.execute_loop(self.ctx, 'Song', send=True)
 
     @discord.ui.button(
         label="Shuffle",
@@ -91,4 +91,4 @@ class controlView(discord.ui.View):
         await interaction.response.defer()
 
         shuffle_cog = self.bot.get_cog('Shuffle')
-        await shuffle_cog.execute_shuffle(self.ctx)
+        await shuffle_cog.execute_shuffle(self.ctx, send=True)
