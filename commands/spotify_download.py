@@ -56,7 +56,7 @@ class SpotifyDownload(commands.Cog):
         try:
             # Get the tracks
             tracks = await ctx.bot.spotify.get_tracks(
-                user_input=query,
+                query=query,
                 aq=quality_dict[quality]
             )
             if not tracks:
