@@ -10,8 +10,11 @@ if CHATBOT_ENABLED:
             self.bot = bot
 
         @commands.Cog.listener()
-        async def on_message(self, message: discord.Message):
-            server_id = message.guild.id
+        async def on_message(self, message: discord.Message) -> None:
+            server = message.guild
+            if not server:
+                return
+            server_id = server.id
 
             # Only allow whitelisted servers
             if not server_id in CHATBOT_WHITELIST:
