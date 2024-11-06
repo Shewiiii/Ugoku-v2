@@ -10,7 +10,11 @@ class Ping(commands.Cog):
 
     @commands.slash_command(
         name="ping",
-        description='Test the reactivity of Ugoku !'
+        description='Test the reactivity of Ugoku !',
+        integration_types={
+            discord.IntegrationType.guild_install,
+            discord.IntegrationType.user_install
+        }
     )
     async def ping(self, ctx: discord.ApplicationContext) -> None:
         latency = round(self.bot.latency*1000, 2)

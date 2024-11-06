@@ -13,38 +13,38 @@ class Stickers(commands.Cog):
 
     @commands.slash_command(
         name='get-stickers',
-        description='Download a LINE sticker pack from a given URL.'
+        description='Download a LINE sticker pack from a given URL.',
+        integration_types={
+            discord.IntegrationType.guild_install,
+            discord.IntegrationType.user_install
+        }
     )
     async def stickers(
         self,
         ctx: discord.ApplicationContext,
-        url: str
+        url: discord.Option(
+            str,
+            required=True
+        )  # type: ignore
     ) -> None:
-        if not url:
-            await ctx.respond(
-                'Please specify a URL to a sticker pack. '
-                'E.g: https://store.line.me/stickershop/product/1472670/'
-            )
-            return
-
         await ctx.respond('Give me a second~')
 
         try:
             zip_file = await get_stickerpack(url, ctx=ctx)
         except IncorrectURL:
-            await ctx.edit(content='Invalid URL! Please check the URL and try again.')
+            await ctx.edit(
+                content="Invalid URL! Please check the URL and try again."
+                "\nExample: "
+                "https://store.line.me/stickershop/product/20347097/en"
+                )
             return
 
-        await ctx.send(
+        await ctx.edit(
             file=discord.File(zip_file),
-            content=f'Sorry for the wait, <@{ctx.author.id}>, '
-            "here's the sticker pack you requested~"
+            content="Here's the sticker pack you requested~"
         )
-
         # Clean up the file after sending
         os.remove(zip_file)
-
-        await ctx.edit(content='Done!')
 
 
 def setup(bot):

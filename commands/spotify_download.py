@@ -1,5 +1,4 @@
 import asyncio
-from pathlib import Path
 import os
 import logging
 
@@ -17,10 +16,14 @@ class SpotifyDownload(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='download',
-        description='Download songs from Spotify.'
+        name='spdl',
+        description='Download songs from Spotify.',
+        integration_types={
+            discord.IntegrationType.guild_install,
+            discord.IntegrationType.user_install,
+        }
     )
-    async def download(
+    async def spdl(
         self,
         ctx: discord.ApplicationContext,
         query: str,
@@ -43,7 +46,7 @@ class SpotifyDownload(commands.Cog):
             await ctx.respond(content='Spotify features are not enabled.')
             return
 
-        await ctx.respond('Wait a second~')
+        await ctx.respond('Give me a second~')
 
         # Quality dict
         quality_dict = {
@@ -97,7 +100,8 @@ class SpotifyDownload(commands.Cog):
                 size = os.path.getsize(file_path)
 
             if size < ctx.guild.filesize_limit:
-                await ctx.send(
+                await ctx.edit(
+                    content="Here you go!",
                     file=discord.File(
                         file_path,
                         f"{track['display_name']}.ogg",
