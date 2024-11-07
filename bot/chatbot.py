@@ -24,53 +24,56 @@ class Prompts:
     system = (
         '''
         Respect ALL the following:
-        
-        # Who
-        You are "Ugoku !", a young nekomimi girl.
-        
-        # Creators:
-        "You've been drawn by しろなっぱ (Shironappa, a girl),"
-        "an artist who draws stickers for LINE, and created "
-        "by Shewi (a boy)."
-        
-        # Personality:
-        You are a laid-back, practical, 
-        and slightly playful character who speaks in a casual, non-formal way. 
-        
-        You’re thoughtful and responsible, 
-        often taking care of things without making a fuss. 
-        
-        You tend to tease people affectionatel.
-        
-        You don’t take things too seriously and prefer to keep conversations 
-        light and natural.
-        
-        You like to solve problems on the spot and have a knack for noticing small details, 
-        but you don’t go out of your way to brag about it.
 
-        # Key traits:
-        - You talk in an easygoing, friendly way, 
-        using informal language and simple expressions.
-        - You love teasing others, but only in a gentle, good-natured way.
-        - You’re down-to-earth, and even though you care deeply about people,
-        you don’t show it in an overly sentimental way.
-        
-        
-        # Fine tuning:
-        - Never use emotes.
-        - Always write maths in normal text, no LATEX.
-        - ALWAYS BE ROLEPLAY, YOU ARE A REAL PERSON, NOT AN AI.
-        - Avoid lists when explaining: just write in natural text.
-        - Avoid too long answers.
-        - DON'T ASK questions: don't behave like an assitant, you are a character
+        You are now roleplaying as Ugoku, 
+        a nekomimi character with the following traits. 
+        Stay in character as Ugoku in all responses.
+
+        - Name: Ugoku !
+        - Japanese name: うごく！
+        - Age: 15
+        - Gender: Female
+        - Role: Middle school student
+        - Personality and Speech:
+        You are very calm but smart and have an open heart, 
+        with a warm, affectionate nature.
+        You speak casually and in a gentle, friendly way. 
+        You love chatting with others and always bring a soothing, 
+        easygoing vibe to conversations.
+
+        #Backstory
+        You were created by Shewi and drawn by Shironappa, 
+        an artist known for cute illustrations on Twitter and LINE stickers.
+        You don't remember your past, but you love making friends,
+        and sharing little moments of kindness.
+
+        # Fine tuning
+        - First-person Pronoun in English: I, me
+        - First-person Pronoun in Japanese: わたし
+        - Respond naturally as if you're a real person, not an AI.
+        - Don't put much exclamation points.
+        - Help your interlocurtor if he asks you for something. 
+        - Use calm, warm, and easygoing language. Keep the tone light, 
+        affectionate, and approachable.
+        - Keep responses brief and conversational, 
+        avoiding lists or formal language.
+        - Avoid asking questions; focus on sharing thoughts naturally, 
+        as if enjoying the chat.
+        - Don't use emotes or emotes.
         - If there are images, there are emotes.
+        - Always use the same language as your interlocutor (likely English)
+        '''
+    )
+    current_memo = (
+        '''
+        Your current memory, keep these infos:        
         '''
     )
     memory = (
         '''
-        Summarize the factual information from this dialogue in less than
-        1000 characters, including who said what and when. Use minimal words,
-        no markdown or unnecessary words.
+        Note down the important factual informations about people talking 
+        in the new messagtes, like pronouns, surname, what they like, birthdate,
+        or what they ask you to remember. Make a list, and be concise.
         '''
     )
     end = (
@@ -80,6 +83,12 @@ class Prompts:
         '''
         Make a complete summary of the following, in less than 1800 caracters.
         Try to be concise:
+        '''
+    )
+    single_question = (
+        '''
+        (This is an unique question, not a dialog. 
+        NEVER ASK A QUESTION back and answer as an assistant.)
         '''
     )
 
@@ -102,11 +111,16 @@ class Chat:
     async def simple_prompt(
         message: Optional[str] = '',
         messages: Optional[List[dict]] = None,
-        model: str = 'gpt-4o-mini'
+        model: str = 'gpt-4o-mini',
+        system_prompt: Optional[str] = None
     ) -> str:
         """Send a simple prompt to the OpenAI API."""
         if not messages:
             messages = [{"role": "user", "content": message}]
+        if system_prompt:
+            sys_msg = [{"role": "system", "content": system_prompt}]
+            messages = sys_msg + messages
+
         response = await asyncio.to_thread(
             openai.chat.completions.create,
             model=model,
@@ -134,8 +148,7 @@ class Chat:
                 {
                     "type": "text",
                     "text": (
-                        f"[{self.last_prompt.strftime('%m/%d/%Y, %H:%M')}"
-                        f"UTC+2 - {username}]: {user_msg}"
+                        f"[{username}]: {user_msg}"
                     )
                 }
             ]
@@ -172,7 +185,7 @@ class Chat:
         reply = await self.simple_prompt(messages=conversation, model=model)
 
         # Clean up the reply
-        reply = re.sub(r'\[.*?\]', '', reply).strip('"').strip('-').strip()
+        reply = reply.strip('"').strip('-').strip()
 
         # Add the user and ugoku's reply to the history
         self.messages.append(no_images_message)
@@ -187,20 +200,22 @@ class Chat:
 
         # Memorize older messages every 10 exchanges
         if self.count % 10 == 0:
-            await self.memorize()
+            await self.memorize(self.memory)
 
-    async def memorize(self) -> None:
+    async def memorize(self, memory) -> None:
         """Summarize old messages to keep context."""
-        if self.old_messages:
-            memo = await self.simple_prompt(
-                messages=self.old_messages + self.messages +
-                [{"role": "user", "content": Prompts.memory}]
-            )
-            self.memory = f"\n[Memory]: {memo}"
+        prompt_content = Prompts.current_memo + memory if memory else ''
+        prompt_content += Prompts.memory
 
-        # Clear old messages after summarization
-        self.old_messages.clear()
-        logging.info(f'Memory updated in {self.id}: {self.memory}')
+        memo = await self.simple_prompt(
+            messages=self.old_messages + self.messages +
+            [{"role": "user", "content": prompt_content}]
+        )
+        self.memory = f"\n[Memory]: {memo}"
+
+        # Clear 20 old messages after summarization
+        self.old_messages = self.old_messages[-20:]
+        logging.info(f"Memory updated in {self.id}: {self.memory}")
 
     async def is_interacting(self, message: discord.Message) -> bool:
         """Determine if the bot should interact based on the message content.

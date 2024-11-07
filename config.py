@@ -22,10 +22,25 @@ ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a f
 ONSEI_BLACKLIST = ['なし'] # Chosen tracks containing one of these words will be blacklisted
 # Chatbot settings
 CHATBOT_ENABLED = True
-CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot
+CHATBOT_WHITELIST = [
+    1193547778090082324,
+    1246163086847512616,
+    1065522460251922493,
+    1277873579374940242,
+    1249512334540406904,
+    955583104741941349,
+    398543191370104832
+    ] # All server ids allowed to use the chatbot
 CHATBOT_PREFIX = '-' # Prefix to trigger the chatbot
-CHATBOT_TIMEOUT = 90 # Time before disabling continuous chat (in seconds, enabled with double prefix)
-
+CHATBOT_TIMEOUT = 300 # Time before disabling continuous chat (in seconds, enabled with double prefix)
+LANGUAGES = [
+    # Put any language you want to support in /translate command.
+    # Has to be supported by GPT-4o Mini.
+    "Arabic", "Bengali", "Dutch", "English", "French", "German", "Greek",
+    "Hebrew", "Hindi", "Indonesian", "Italian", "Japanese",
+    "Korean", "Mandarin Chinese", "Persian", "Polish", "Portuguese",
+    "Russian", "Spanish", "Swedish", "Thai", "Turkish", "Vietnamese"
+]
 # Logs
 logging.basicConfig(
     level=logging.INFO,
