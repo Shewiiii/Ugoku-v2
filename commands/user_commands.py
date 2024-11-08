@@ -1,9 +1,11 @@
 import discord
+import logging
 from discord.ext import commands
-from bot.chatbot import Chat, Prompts
-
 from config import LANGUAGES, CHATBOT_WHITELIST, CHATBOT_ENABLED
+from google.generativeai.types.generation_types import BlockedPromptException
 
+if CHATBOT_ENABLED:
+    from bot.gemini import Gembot, active_chats
 
 class Test(commands.Cog):
     def __init__(self, bot) -> None:
@@ -42,9 +44,9 @@ class Test(commands.Cog):
             Keep emojis (between <>).
             Don't add ANY extra text:
         '''
-        await ctx.respond("Translating~", ephemeral=ephemeral)
-        response = await Chat.simple_prompt(message=prompt+query)
-        await ctx.edit(content=response)
+        await ctx.defer()
+        response = await Gembot.simple_prompt(message=prompt+query)
+        await ctx.respond(content=response)
 
     @commands.slash_command(
         name='ask',
@@ -60,18 +62,46 @@ class Test(commands.Cog):
         query: str,
         ephemeral: bool = True
     ) -> None:
+        guild_id = ctx.guild.id
+        author_name = ctx.author.display_name
+
         if not CHATBOT_ENABLED:
-            ctx.respond("Chatbot features are not enabled.")
+            await ctx.respond("Chatbot features are not enabled.")
+            return
         if ctx.guild.id not in CHATBOT_WHITELIST:
             await ctx.respond("This server is not allowed to use that command.")
             return
 
-        await ctx.respond("Thinking..", ephemeral=ephemeral)
-        response = await Chat.simple_prompt(
-            message=query,
-            system_prompt=Prompts.system+Prompts.single_question
-        )
-        await ctx.edit(content=response)
+        await ctx.defer()
+
+        # Create/Use a chat
+        if guild_id not in active_chats:
+            chat = Gembot(guild_id)
+        chat = active_chats.get(guild_id)
+
+        # Create response
+        try:
+            reply = await chat.send_message(
+                user_query=query, 
+                username=author_name
+            )
+        except BlockedPromptException as e:
+            await ctx.respond(
+                "-# No response.", 
+                ephemeral=ephemeral
+            )
+            logging.error(f"Response blocked by Gemini in {chat.id_}")
+            return
+        except BlockedPromptException:
+            logging.error(
+                "Prompt against Gemini's policies! "
+                "Please change it and try again."
+            )
+            return
+
+        # Response
+        formatted_reply = f"-# {author_name}: {query}\n{reply}"
+        await ctx.respond(formatted_reply, ephemeral=ephemeral)
 
 
 def setup(bot):

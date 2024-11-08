@@ -22,17 +22,13 @@ ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a f
 ONSEI_BLACKLIST = ['なし'] # Chosen tracks containing one of these words will be blacklisted
 # Chatbot settings
 CHATBOT_ENABLED = True
-CHATBOT_WHITELIST = [
-    1193547778090082324,
-    1246163086847512616,
-    1065522460251922493,
-    1277873579374940242,
-    1249512334540406904,
-    955583104741941349,
-    398543191370104832
-    ] # All server ids allowed to use the chatbot
+CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot
 CHATBOT_PREFIX = '-' # Prefix to trigger the chatbot
 CHATBOT_TIMEOUT = 300 # Time before disabling continuous chat (in seconds, enabled with double prefix)
+CHATBOT_TIMEZONE = 'Asia/Tokyo'
+GEMINI_MODEL = 'gemini-1.5-pro'
+GEMINI_UTILS_MODEL = 'gemini-1.5-flash' # Used for summaries and lyrics
+GEMINI_HISTORY_SIZE = 20 # How many messages to remember per chat instance
 LANGUAGES = [
     # Put any language you want to support in /translate command.
     # Has to be supported by GPT-4o Mini.

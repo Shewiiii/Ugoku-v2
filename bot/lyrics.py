@@ -6,7 +6,10 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 
-from bot.chatbot import Chat
+from config import CHATBOT_ENABLED, GEMINI_UTILS_MODEL
+if CHATBOT_ENABLED:
+    from bot.gemini import Gembot
+    import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -62,5 +65,10 @@ class BotLyrics:
             Convert these lyrics to {to}.
             Don't add ANY extra text:
         '''
-        response = await Chat.simple_prompt(message=prompt+lyrics)
+        response = await Gembot.simple_prompt(
+            query=prompt+lyrics,
+            model=genai.GenerativeModel(
+                model_name=GEMINI_UTILS_MODEL
+            )
+        )
         return response

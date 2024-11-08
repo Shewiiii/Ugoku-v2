@@ -1,6 +1,10 @@
 import logging
 from typing import Optional
-from config import SPOTIFY_ENABLED, DEFAULT_EMBED_COLOR, CHATBOT_ENABLED
+from config import (
+    SPOTIFY_ENABLED, 
+    DEFAULT_EMBED_COLOR, 
+    CHATBOT_ENABLED,
+)
 
 import discord
 from discord.ext import commands
@@ -28,7 +32,13 @@ class Lyrics(commands.Cog):
         query: Optional[str],
         convert_to: discord.Option(
             str,
-            choices=['Romaji', 'Kana', 'English', 'Japanese', 'French'],
+            choices=[
+                'Romaji',
+                'Japanese Kana',
+                'English',
+                'Japanese',
+                'French'
+            ],
             required=False
         )  # type: ignore
         # Uncomment the following if Spotify features are disabled

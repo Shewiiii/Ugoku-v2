@@ -30,9 +30,9 @@
 > [!NOTE]
 > Ugoku-v2 is only using Spotify as a streaming service source, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. However the audio quality is extremely similar to FLAC -> Opus 510kpbs.
 
-- [X] Chat using GPT-4o Mini. (WIP)
+- [X] Chat using Gemini 1.5 Pro. (WIP)
   - [ ] Optimize token usage.
-  - [ ] Make her message more human-like.
+  - [X] Make its messages more human-like.
 - [ ] And maybe more in the future~
 
 <h2>Known bugs to fix</h2>
