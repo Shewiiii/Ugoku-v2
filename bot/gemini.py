@@ -13,7 +13,8 @@ from config import (
     GEMINI_HISTORY_SIZE,
     CHATBOT_TIMEOUT,
     CHATBOT_PREFIX,
-    CHATBOT_TIMEZONE
+    CHATBOT_TIMEZONE,
+    CHATBOT_EMOTES
 )
 
 import discord
@@ -73,37 +74,15 @@ Never, never put the message infos (in brackets)
 Use the provided time and date to make time related answers
 You may are chat with multiple persons
 '''
-# Add any discord emote you want here!
-# You can get the snowflake id of an emote,
-# by adding "\" before it like so: \:emote:
-
-# - Example1: <:emote1:1234567890123456789>
-# - Example2: <:emote2:1234567890123456789>
-# - ...
-'''
-# Emotes
-You can rarely use the following discord emotes:
-- Proud: <:ugoku_umai:1237692831968002111>
-- Feeling happy: <:ugoku_joy:1287404777013116968>
-- Looking: <:ugoku_yummy:1287404796931866757>
-- Understood !: <a:ugokuRyoukai:1184580209861722253>
-- Peeking: <a:ugoku_lurk:1210390029889699880>
-- Proud nod: <a:ugokuNod:1206324404158726176>
-- Pout: <a:ugokuPout:1146758672509308939>
-- Curious: <a:ugokuCurious:1160244389260574860>
-- Tired: <a:ugokuTired:1163949347445162044>
-- Sleepy: <a:ugokuSleepy:1151650758056476763>
-Return the line IF the emote at the end of sentence
-'''
     )
     # current_memo = (
     #     '''
-    #     Your current memory, keep these infos:        
+    #     Your current memory, keep these infos:
     #     '''
     # )
     # memory = (
     #     '''
-    #     Note down the important factual informations about people talking 
+    #     Note down the important factual informations about people talking
     #     in the new messagtes, like pronouns, surname, what they like, birthdate,
     #     or what they ask you to remember. Make a list, and be concise.
     #     '''
@@ -119,7 +98,7 @@ Return the line IF the emote at the end of sentence
     )
     # single_question = (
     #     '''
-    #     (This is an unique question, not a dialog. 
+    #     (This is an unique question, not a dialog.
     #     NEVER ASK A QUESTION back and answer as an assistant.)
     #     '''
     # )
@@ -136,7 +115,7 @@ class Gembot:
         self.message_count = 0
         self.model = genai.GenerativeModel(
             model_name=GEMINI_MODEL,
-            system_instruction=Prompts.system
+            system_instruction=self.with_emotes(Prompts.system)
         )
         self.chat = self.model.start_chat()
         active_chats[id_] = self
@@ -290,12 +269,16 @@ class Gembot:
             )
         elif status == 3:
             return f'{reply}\n-# End of chat.'
-        
+
+        # Remove default emoticons (face emojis)
         emoticon_pattern = re.compile(
-            "[\U0001F600-\U0001F64F]", 
+            "[\U0001F600-\U0001F64F]",
             flags=re.UNICODE
         )
         reply = emoticon_pattern.sub(r'', reply)
+
+        # Add custom emote snowflakes (to properly show up in Discord)
+        reply = self.convert_emotes(reply)
         return reply
 
     def get_params(self, message: discord.Message) -> tuple:
@@ -347,3 +330,29 @@ class Gembot:
         )
 
         return request
+
+    @staticmethod
+    def convert_emotes(string: str, bot_emotes: dict = CHATBOT_EMOTES) -> str:
+        """Add the snowflake_id to emotes in a message string."""
+        msg_string = string
+        emotes = re.findall(r":(\w+):", msg_string)
+        for emote in emotes:
+            if emote in bot_emotes:
+                msg_string = msg_string.replace(
+                    f":{emote}:", CHATBOT_EMOTES.get(emote, ''))
+
+        return msg_string
+
+    @staticmethod
+    def with_emotes(prompt: str, bot_emotes: dict = CHATBOT_EMOTES) -> str:
+        """Add emotes the chatbot can use in a prompt."""
+        # Don't add anything if there is no bot emotes
+        if not bot_emotes:
+            return prompt
+
+        emote_prompt = (
+            "\n# Emotes\nYou can rarely use the following discord emotes."
+            "Return the line if the emote is at the end of a sentence;\n")
+        emote_list = '\n'.join([f":{emote}:" for emote in bot_emotes.keys()])
+        final_prompt = prompt + emote_prompt + emote_list
+        return final_prompt

@@ -26,6 +26,9 @@ CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot
 CHATBOT_PREFIX = '-' # Prefix to trigger the chatbot
 CHATBOT_TIMEOUT = 300 # Time before disabling continuous chat (in seconds, enabled with double prefix)
 CHATBOT_TIMEZONE = 'Asia/Tokyo'
+CHATBOT_EMOTES = {} # Add here all the discord emotes the chatbot should use ! 
+  #E.g: {'Happy': <:emote1:1234567890123456789>, 'Sad': <:sad:1234567890123456789>} etc.
+  # Get the snowflake id by adding a \ before sending the emote. Eg: \:emote:
 GEMINI_MODEL = 'gemini-1.5-pro'
 GEMINI_UTILS_MODEL = 'gemini-1.5-flash' # Used for summaries and lyrics
 GEMINI_HISTORY_SIZE = 20 # How many messages to remember per chat instance

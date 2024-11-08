@@ -7,6 +7,7 @@ from google.generativeai.types.generation_types import BlockedPromptException
 if CHATBOT_ENABLED:
     from bot.gemini import Gembot, active_chats
 
+
 class Test(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
@@ -79,20 +80,25 @@ class Test(commands.Cog):
             chat = Gembot(guild_id)
         chat = active_chats.get(guild_id)
 
+        # Remove continuous chat notice (if enabled the msg before)
+        if chat.status == 1:
+            chat.status = 2
+
         # Create response
         try:
             reply = await chat.send_message(
-                user_query=query, 
+                user_query=query,
                 username=author_name
             )
-        except BlockedPromptException:
 
+        except BlockedPromptException:
             await ctx.respond(
-                "*filtered*", 
+                "*filtered*",
                 ephemeral=ephemeral
             )
             logging.error(f"Response blocked by Gemini in {chat.id_}")
             return
+
         except BlockedPromptException:
             logging.error(
                 "Prompt against Gemini's policies! "
@@ -101,6 +107,7 @@ class Test(commands.Cog):
             return
 
         # Response
+        reply = chat.format_reply(reply)
         formatted_reply = f"-# {author_name}: {query}\n{reply}"
         await ctx.respond(formatted_reply, ephemeral=ephemeral)
 
