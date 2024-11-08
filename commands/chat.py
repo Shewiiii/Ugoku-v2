@@ -49,8 +49,8 @@ if CHATBOT_ENABLED:
                     params = chat.get_params(message)
                     try:
                         reply = await chat.send_message(*params)
-                    except StopCandidateException as e:
-                        await message.channel.send("-# No response.")
+                    except StopCandidateException:
+                        await message.channel.send("*filtered*")
                         logging.error(
                             f"Response blocked by Gemini in {chat.id_}")
                         return

@@ -85,9 +85,10 @@ class Test(commands.Cog):
                 user_query=query, 
                 username=author_name
             )
-        except BlockedPromptException as e:
+        except BlockedPromptException:
+
             await ctx.respond(
-                "-# No response.", 
+                "*filtered*", 
                 ephemeral=ephemeral
             )
             logging.error(f"Response blocked by Gemini in {chat.id_}")
