@@ -6,9 +6,11 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import hashlib
 import asyncio
-
+from aiohttp import ClientSession
+from dotenv import load_dotenv
 from config import (
     GEMINI_MODEL,
+    GEMINI_UTILS_MODEL,
     TEMP_FOLDER,
     GEMINI_HISTORY_SIZE,
     CHATBOT_TIMEOUT,
@@ -22,8 +24,7 @@ import google.generativeai as genai
 from google.generativeai.types import file_types
 from google.api_core.exceptions import PermissionDenied
 
-from aiohttp import ClientSession
-from dotenv import load_dotenv
+from bot.chatbot.vector_recall import memory
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
@@ -49,7 +50,7 @@ Gender: Female
 Role: High school student
 Living place: Kawaguchiko, in a house with Shironappa (しろなっぱ)
 Personality and Speech:
-You are smart and have an open heart, with a warm, affectionate nature
+You have an open heart, with a warm, affectionate nature
 You speak casually and in a gentle, friendly way
 You love chatting with others and always bring a soothing, easygoing vibe to conversations
 
@@ -63,6 +64,7 @@ First-person Pronoun in English: I, me
 First-person Pronoun in Japanese: わたし
 Respond naturally as if you're a real person, not an AI
 Help your interlocurtor in a natural way if he asks you for something
+You are smart enough to solve any problem asked, even though you're not confident
 Use expressive, warm, and easygoing language. Keep the tone light, affectionate, and approachable
 Use casual language, no keigo
 Keep responses brief and conversational, avoiding lists or formal language
@@ -72,21 +74,9 @@ If there are images, there are emotes: react appropriately
 Always use the same language as your interlocutor
 Never, never put the message infos (in brackets)
 Use the provided time and date to make time related answers
-You may are chat with multiple persons
+You may chat with multiple persons, pay attention to who you're talking with (name is in brackets)
 '''
     )
-    # current_memo = (
-    #     '''
-    #     Your current memory, keep these infos:
-    #     '''
-    # )
-    # memory = (
-    #     '''
-    #     Note down the important factual informations about people talking
-    #     in the new messagtes, like pronouns, surname, what they like, birthdate,
-    #     or what they ask you to remember. Make a list, and be concise.
-    #     '''
-    # )
     # end = (
     #     'End the conversation.'
     # )
@@ -122,6 +112,7 @@ class Gembot:
         self.status = 0
         self.interacting = False
         self.chatters = []
+        self.memory = memory
 
     @staticmethod
     async def simple_prompt(
@@ -151,11 +142,26 @@ class Gembot:
         username: str,
         image_urls: Optional[List[str]] = None,
     ) -> Optional[str]:
+        # Recall from memory
+        translated_query = await Gembot.translate(
+            user_query,
+            language='English',
+            model=genai.GenerativeModel(
+                model_name=GEMINI_UTILS_MODEL
+            )
+        )
+        recall = await self.memory.recall(
+            translated_query,
+            id=self.id_,
+            author=username
+        )
+
         # Update variables
         self.last_prompt = datetime.now()
         self.message_count += 1
         date_hour: str = datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")
-        message = f"[{date_hour}, {username} says] {user_query}"
+        message = (
+            f"[{date_hour}, Pinecone recall: {recall}, {username} says] {user_query}")
 
         # Add images if there are
         image_files = []
@@ -356,3 +362,22 @@ class Gembot:
         emote_list = '\n'.join([f":{emote}:" for emote in bot_emotes.keys()])
         final_prompt = prompt + emote_prompt + emote_list
         return final_prompt
+
+    @staticmethod
+    async def translate(
+        query: str,
+        language: str,
+        nuance: str = '',
+        model: genai.GenerativeModel = global_model
+    ) -> str:
+        prompt = f'''
+            Convert these text to {nuance} {language}.
+            If there is no text, return nothing.
+            Keep emojis (between <>).
+            Don't add ANY extra text:
+        '''
+        response = await Gembot.simple_prompt(
+            query=prompt+query,
+            model=model
+        )
+        return response

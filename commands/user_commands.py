@@ -1,11 +1,15 @@
 import discord
 import logging
 from discord.ext import commands
-from config import LANGUAGES, CHATBOT_WHITELIST, CHATBOT_ENABLED
+from config import (
+    LANGUAGES,
+    CHATBOT_WHITELIST,
+    CHATBOT_ENABLED
+)
 from google.generativeai.types.generation_types import BlockedPromptException
 
 if CHATBOT_ENABLED:
-    from bot.gemini import Gembot, active_chats
+    from bot.chatbot.gemini import Gembot, active_chats
 
 
 class Test(commands.Cog):
@@ -39,15 +43,15 @@ class Test(commands.Cog):
         ),  # type: ignore
         ephemeral: bool = True
     ) -> None:
-        prompt = f'''
-            Convert these text to {nuance} {language}.
-            If there is no text, return nothing.
-            Keep emojis (between <>).
-            Don't add ANY extra text:
-        '''
         await ctx.defer()
-        response = await Gembot.simple_prompt(message=prompt+query)
-        await ctx.respond(content=response)
+        await ctx.respond(
+            content=Gembot.translate(
+                query,
+                language=language,
+                nuance=nuance
+            ),
+            ephemeral=ephemeral
+        )
 
     @commands.slash_command(
         name='ask',
@@ -107,9 +111,17 @@ class Test(commands.Cog):
             return
 
         # Response
-        reply = chat.format_reply(reply)
-        formatted_reply = f"-# {author_name}: {query}\n{reply}"
+        formatted_reply = (
+            f"-# {author_name}: {query}\n{chat.format_reply(reply)}")
         await ctx.respond(formatted_reply, ephemeral=ephemeral)
+
+        # Memory
+        await chat.memory.store(
+            query,
+            author=author_name,
+            id=guild_id,
+            bot_reply=reply
+        )
 
 
 def setup(bot):

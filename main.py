@@ -1,20 +1,25 @@
+from bot.vocal.youtube import Youtube
+import api.api as api
+from config import COMMANDS_FOLDER, SPOTIFY_ENABLED, CHATBOT_ENABLED
+import discord
 import os
 import logging
 import asyncio
-from config import COMMANDS_FOLDER, SPOTIFY_ENABLED
-import api.api as api
-
-import discord
 from dotenv import load_dotenv
+
+load_dotenv()
+
 
 if SPOTIFY_ENABLED:
     from bot.vocal.spotify import SpotifySessions, Spotify
-from bot.vocal.youtube import Youtube
+
+if CHATBOT_ENABLED:
+    from bot.chatbot.vector_recall import Memory
+
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 DEV_TOKEN = os.getenv('DEV_TOKEN')
-logger = logging.getLogger(__name__)
 
 
 # Init bot
@@ -36,6 +41,7 @@ async def on_ready() -> None:
         bot.spotify = spotify
         bot.downloading = False
     bot.youtube = Youtube()
+
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')

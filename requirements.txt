@@ -18,3 +18,4 @@ yt-dlp[default] --pre
 google-generativeai
 setuptools
 pytz
+"pinecone[grpc]"

@@ -2,12 +2,12 @@ from pathlib import Path
 from typing import Optional
 import asyncio
 
-from bot.gemini import Prompts, Gembot
+from bot.chatbot.gemini import Prompts, Gembot
 from bot.utils import extract_video_id, get_cache_path
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from bot.gemini import Gembot
+from bot.chatbot.gemini import Gembot
 from config import GEMINI_UTILS_MODEL
 
 class Summaries:

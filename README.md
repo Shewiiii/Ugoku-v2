@@ -33,6 +33,7 @@
 - [X] Chat using Gemini 1.5 Pro. (WIP)
   - [ ] Optimize token usage.
   - [X] Make its messages more human-like.
+  - [X] Have a permanent memory!
 - [ ] And maybe more in the future~
 
 <h2>Known bugs to fix</h2>

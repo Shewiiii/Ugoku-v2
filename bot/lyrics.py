@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from config import CHATBOT_ENABLED, GEMINI_UTILS_MODEL
 if CHATBOT_ENABLED:
-    from bot.gemini import Gembot
+    from bot.chatbot.gemini import Gembot
     import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
