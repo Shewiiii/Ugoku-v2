@@ -11,13 +11,16 @@ from pinecone import ServerlessSpec
 from dotenv import load_dotenv
 import pytz
 
-from config import CHATBOT_TIMEZONE
+from config import CHATBOT_TIMEZONE, GEMINI_UTILS_MODEL
 
 
 # Init
 load_dotenv()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel(
+    model_name=GEMINI_UTILS_MODEL
+)
 PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
 pc = Pinecone(api_key=PINECONE_API_KEY)
 
@@ -37,6 +40,11 @@ class Memory:
             )
         self.index = pc.Index(index_name)
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
+        self.sum_prompt = (
+            "Summarize the following dialog. "
+            "Remove as much words as possible."
+            "Write down facts only and the date:\n"
+        )
 
     @staticmethod
     async def generate_embeddings(inputs: list) -> list:
@@ -56,20 +64,30 @@ class Memory:
         bot_reply: str,
         id: int
     ) -> None:
+        # Infos to summarize
         date_hour: str = datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")
-        vector_values = await self.generate_embeddings([user_text, bot_reply])
-        vectors = []
+        string = '\n'.join(
+            [f"[{date_hour} {author_} says] {text}"
+             for text, author_ in [(user_text, author), (bot_reply, "Ugoku")]]
+        )
 
-        # Create embeddings (A vector for the user, another for Ugoku)
-        for i, (text, author_) in enumerate([(user_text, author), (bot_reply, "Ugoku")]):
-            string = f"[{date_hour} {author_} says] {text}"
-            unique_id = str(uuid.uuid4())
-            vectors.append({
-                'id': unique_id,
-                'values': vector_values[i],
-                'metadata': {'text': string,
-                             'id': id}
-            })
+        # Gemini's summary
+        summary = (await model.generate_content_async(
+            self.sum_prompt+string,
+            generation_config=genai.types.GenerationConfig(
+                candidate_count=1,
+            )
+        )).text
+
+        # Create the embeddings/vectors
+        vector_values = await self.generate_embeddings([summary])
+        unique_id = str(uuid.uuid4())
+        vectors = [{
+            'id': unique_id,
+            'values': vector_values[0],
+            'metadata': {'text': summary,
+                         'id': id}
+        }]
 
         # Add to db
         await asyncio.to_thread(
