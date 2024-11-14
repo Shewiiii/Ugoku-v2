@@ -92,7 +92,7 @@ class Test(commands.Cog):
         try:
             reply = await chat.send_message(
                 user_query=query,
-                username=author_name
+                author=author_name
             )
 
         except BlockedPromptException:
