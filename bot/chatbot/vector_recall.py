@@ -59,7 +59,7 @@ class Memory:
         self.index = pc.Index(index_name)
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.prompt = (
-            "Precise type of query, date and author."
+            "Precise type of query."
             "Keep only meaningful words:"
         )
 
@@ -94,6 +94,7 @@ class Memory:
             )
         )).text)
         metadata['id'] = id
+        metadata['text'] = f"{author}, {date_hour}: {metadata['text']}"
 
         if metadata['query_type'] in ['question', 'other']:
             return
@@ -135,7 +136,6 @@ class Memory:
         )
         rec = [match['metadata'].get('text') for match in results['matches']]
         rec_string = ', '.join(recall.replace('\n', '') for recall in rec)
-        logging.info(f"Pinecone recall: {rec_string}")
 
         return rec_string
 
