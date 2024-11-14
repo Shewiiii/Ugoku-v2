@@ -68,7 +68,7 @@ class Test(commands.Cog):
         ephemeral: bool = True
     ) -> None:
         guild_id = ctx.guild.id
-        author_name = ctx.author.display_name
+        author_name = ctx.author.global_name
 
         if not CHATBOT_ENABLED:
             await ctx.respond("Chatbot features are not enabled.")

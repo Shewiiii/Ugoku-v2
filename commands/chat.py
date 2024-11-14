@@ -73,7 +73,7 @@ if CHATBOT_ENABLED:
                 # Memory
                 await chat.memory.store(
                     params[0],
-                    author=message.author.display_name,
+                    author=message.author.global_name,
                     id=server_id,
                 )
 else:

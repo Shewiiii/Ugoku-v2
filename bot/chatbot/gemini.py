@@ -72,7 +72,7 @@ Avoid asking questions; focus on sharing thoughts naturally, as if enjoying the 
 NEVER, never use emotes
 If there are images, there are emotes: react appropriately
 Always use the same language as your interlocutor
-Never, never put the message infos (in brackets)
+Never, never put the message infos, only output your message
 Use the provided time and date to make time related answers
 You may chat with multiple persons, pay attention to who you're talking with (name is in brackets)
 '''
@@ -161,7 +161,7 @@ class Gembot:
 
         # Recall from memory
         recall = await self.memory.recall(
-            user_query,
+            f"{author}: {user_query}",
             id=self.id_,
             author=author,
             date_hour=date_hour
@@ -194,7 +194,7 @@ class Gembot:
         )
         logging.info(
             "Gemini API call, message: "
-            f"{response.usage_metadata}".replace('\n', ', ')
+            f"{response.usage_metadata}. Text: {message}".replace('\n', ', ')
         )
 
         # Limit history length
@@ -354,7 +354,7 @@ class Gembot:
             if r_id:
                 r_message = await message.channel.fetch_message(r_id)
                 r_content = r_message.content
-                r_author = r_message.author
+                r_author = r_message.author.global_name
                 for attachment in r_message.attachments:
                     if attachment.content_type and "image" in attachment.content_type:
                         image_urls.append(attachment.url)
@@ -363,7 +363,7 @@ class Gembot:
         # Get Ugoku's response
         request = (
             msg_text,
-            message.author.display_name,
+            message.author.global_name,
             image_urls,
             r_text
         )
