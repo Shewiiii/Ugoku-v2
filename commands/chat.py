@@ -51,7 +51,7 @@ if CHATBOT_ENABLED:
 
             if await chat.is_interacting(message):
                 async with message.channel.typing():
-                    params = chat.get_params(message)
+                    params = await chat.get_params(message)
                     try:
                         reply = await chat.send_message(*params)
                     except StopCandidateException:

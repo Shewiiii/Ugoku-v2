@@ -144,31 +144,34 @@ class Gembot:
     async def send_message(
         self,
         user_query: str,
-        username: str,
+        author: str,
         image_urls: Optional[List[str]] = None,
+        r_text: str = "",
         temperature: float = 2.0,
         max_output_tokens: int = 300
     ) -> Optional[str]:
-        # Recall from memory
-        translated_query = await Gembot.translate(
-            user_query,
-            language='English',
-            model=genai.GenerativeModel(
-                model_name=GEMINI_UTILS_MODEL
-            )
-        )
-        recall = await self.memory.recall(
-            translated_query,
-            id=self.id_,
-            author=username
-        )
 
         # Update variables
         self.last_prompt = datetime.now()
         self.message_count += 1
         date_hour: str = datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")
-        message = (
-            f"[{date_hour}, Pinecone recall: {recall}, {username} says] {user_query}")
+
+        # Recall from memory
+        recall = await self.memory.recall(
+            user_query,
+            id=self.id_,
+            author=author,
+            date_hour=date_hour
+        )
+
+        # Create message
+        infos = [
+            date_hour,
+            f"Pinecone recall: {recall}",
+            r_text,
+            f"{author} says"
+        ]
+        message = f"[{', '.join(infos)}] {user_query}"
 
         # Add images if there are
         image_files = []
@@ -246,10 +249,6 @@ class Gembot:
             self.interacting = False
             self.chatters = []
 
-        # Remove interaction flag if replying to someone else
-        if message.reference:
-            return False
-
         # Check enable continuous chat with ugoku
         if message.content.startswith(CHATBOT_PREFIX*2):
             self.status = 2 if self.interacting else 1
@@ -303,7 +302,7 @@ class Gembot:
         reply = self.convert_emotes(reply)
         return reply
 
-    def get_params(self, message: discord.Message) -> tuple:
+    async def get_params(self, message: discord.Message) -> tuple:
         """Get Gemini message params from a discord.Message."""
         image_urls = []
 
@@ -344,11 +343,25 @@ class Gembot:
             image_urls.append(
                 f'https://cdn.discordapp.com/emojis/{snowflake}.png')
 
+        # Process message reference (if any)
+        r_text = ""
+        if message.reference:
+            r_id = message.reference.message_id
+            if r_id:
+                r_message = await message.channel.fetch_message(r_id)
+                r_content = r_message.content
+                r_author = r_message.author
+                for attachment in r_message.attachments:
+                    if attachment.content_type and "image" in attachment.content_type:
+                        image_urls.append(attachment.url)
+                r_text = f"Message referencing {r_author}: {r_content}) "
+
         # Get Ugoku's response
         request = (
             msg_text,
             message.author.display_name,
-            image_urls
+            image_urls,
+            r_text
         )
 
         return request

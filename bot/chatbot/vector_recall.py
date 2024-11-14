@@ -60,7 +60,8 @@ class Memory:
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.prompt = (
             "Precise type of query."
-            "Keep only meaningful words:"
+            "Keep only meaningful words, "
+            "write English:"
         )
 
     @staticmethod
@@ -120,10 +121,15 @@ class Memory:
         text: str,
         id: int,
         top_k: int = PINECONE_RECALL_WINDOW,
-        author: Optional[str] = None
+        author: Optional[str] = '?',
+        date_hour: str = ''
     ) -> str:
-        if author:
-            text = f"[{author} says] {text}"
+        infos = [
+            date_hour,
+            f"{author} says"
+        ]
+        text = f"[{', '.join(infos)}] {text}"
+
         vectors = await self.generate_embeddings([text])
         results = await asyncio.to_thread(
             self.index.query,
@@ -135,9 +141,11 @@ class Memory:
             include_metadata=True
         )
         rec = [match['metadata'].get('text') for match in results['matches']]
-        rec_string = ', '.join(recall.replace('\n', '') for recall in rec)
+        if rec:
+            rec_string = ', '.join(str(recall).replace('\n', '')
+                                   for recall in rec)
 
         return rec_string
 
 
-memory = Memory('ugoku')
+memory = Memory('ugoku-dev')
