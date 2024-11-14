@@ -4,6 +4,9 @@ from typing import Optional
 import logging
 import uuid
 from datetime import datetime
+import typing_extensions as typing
+import enum
+import json
 
 import google.generativeai as genai
 from pinecone.grpc import PineconeGRPC as Pinecone
@@ -11,7 +14,11 @@ from pinecone import ServerlessSpec
 from dotenv import load_dotenv
 import pytz
 
-from config import CHATBOT_TIMEZONE, GEMINI_UTILS_MODEL
+from config import (
+    CHATBOT_TIMEZONE,
+    GEMINI_UTILS_MODEL,
+    PINECONE_RECALL_WINDOW
+)
 
 
 # Init
@@ -23,6 +30,17 @@ model = genai.GenerativeModel(
 )
 PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
 pc = Pinecone(api_key=PINECONE_API_KEY)
+
+
+class QueryType(enum.Enum):
+    QUESTION = 'question'
+    ASSERTION = 'assertion'
+    OTHER = 'other'
+
+
+class VectorMetadata(typing.TypedDict):
+    query_type: QueryType
+    text: str
 
 
 class Memory:
@@ -40,10 +58,9 @@ class Memory:
             )
         self.index = pc.Index(index_name)
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
-        self.sum_prompt = (
-            "Summarize the following dialog. "
-            "Remove as much words as possible."
-            "Write down facts only and the date:\n"
+        self.prompt = (
+            "Precise type of query, date and author."
+            "Keep only meaningful words:"
         )
 
     @staticmethod
@@ -61,32 +78,33 @@ class Memory:
         self,
         user_text: str,
         author: str,
-        bot_reply: str,
         id: int
     ) -> None:
         # Infos to summarize
         date_hour: str = datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")
-        string = '\n'.join(
-            [f"[{date_hour} {author_} says] {text}"
-             for text, author_ in [(user_text, author), (bot_reply, "Ugoku")]]
-        )
+        string = f"[{date_hour} {author} says] {user_text}"
 
-        # Gemini's summary
-        summary = (await model.generate_content_async(
-            self.sum_prompt+string,
+        # Generate metadata using Gemini
+        metadata = json.loads((await model.generate_content_async(
+            self.prompt+string,
             generation_config=genai.types.GenerationConfig(
-                candidate_count=1,
+                response_mime_type="application/json",
+                response_schema=VectorMetadata,
+                candidate_count=1
             )
-        )).text
+        )).text)
+        metadata['id'] = id
+
+        if metadata['query_type'] in ['question', 'other']:
+            return
 
         # Create the embeddings/vectors
-        vector_values = await self.generate_embeddings([summary])
+        vector_values = await self.generate_embeddings(metadata['text'])
         unique_id = str(uuid.uuid4())
         vectors = [{
             'id': unique_id,
             'values': vector_values[0],
-            'metadata': {'text': summary,
-                         'id': id}
+            'metadata': metadata
         }]
 
         # Add to db
@@ -94,14 +112,15 @@ class Memory:
             self.index.upsert,
             vectors=vectors
         )
+        logging.info(f"Added to Pinecone: {metadata['text']}")
 
     async def recall(
         self,
         text: str,
         id: int,
-        top_k=5,
+        top_k: int = PINECONE_RECALL_WINDOW,
         author: Optional[str] = None
-    ) -> list:
+    ) -> str:
         if author:
             text = f"[{author} says] {text}"
         vectors = await self.generate_embeddings([text])
@@ -114,7 +133,11 @@ class Memory:
             top_k=top_k,
             include_metadata=True
         )
-        return [match['metadata']['text'] for match in results['matches']]
+        rec = [match['metadata'].get('text') for match in results['matches']]
+        rec_string = ', '.join(recall.replace('\n', '') for recall in rec)
+        logging.info(f"Pinecone recall: {rec_string}")
+
+        return rec_string
 
 
 memory = Memory('ugoku')

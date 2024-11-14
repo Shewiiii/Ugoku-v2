@@ -119,8 +119,7 @@ class Test(commands.Cog):
         await chat.memory.store(
             query,
             author=author_name,
-            id=guild_id,
-            bot_reply=reply
+            id=guild_id
         )
 
 

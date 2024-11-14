@@ -75,7 +75,6 @@ if CHATBOT_ENABLED:
                     params[0],
                     author=message.author.display_name,
                     id=server_id,
-                    bot_reply=reply
                 )
 else:
     class Chatbot(commands.Cog):

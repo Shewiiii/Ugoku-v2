@@ -339,13 +339,21 @@ class Gembot:
 
     @staticmethod
     def convert_emotes(string: str, bot_emotes: dict = CHATBOT_EMOTES) -> str:
-        """Add the snowflake_id to emotes in a message string."""
+        """Replace the firt custom emote by its snowflake id.
+           Removes it otherwise."""
         msg_string = string
         emotes = re.findall(r":(\w+):", msg_string)
+        # One conversion is done ?
+        converted = False
         for emote in emotes:
-            if emote in bot_emotes:
+            if emote in bot_emotes and not converted:
                 msg_string = msg_string.replace(
-                    f":{emote}:", CHATBOT_EMOTES.get(emote, ''))
+                    f":{emote}:",
+                    CHATBOT_EMOTES.get(emote, '')
+                )
+                converted = True
+            else:
+                msg_string = msg_string.replace(f':{emote}:', '')
 
         return msg_string
 
@@ -357,8 +365,7 @@ class Gembot:
             return prompt
 
         emote_prompt = (
-            "\n# Emotes\nYou can rarely use the following discord emotes."
-            "Return the line if the emote is at the end of a sentence;\n")
+            "\n# Emotes\nYou can rarely use the following discord emotes.\n")
         emote_list = '\n'.join([f":{emote}:" for emote in bot_emotes.keys()])
         final_prompt = prompt + emote_prompt + emote_list
         return final_prompt
