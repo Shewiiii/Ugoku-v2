@@ -28,7 +28,7 @@ class Echo(commands.Cog):
             await ctx.respond(content=message)
         else:
             await ctx.send(content=message)
-            await ctx.edit('Done !', ephemeral=True)
+            await ctx.respond('Done !', ephemeral=True)
 
 
 def setup(bot):
