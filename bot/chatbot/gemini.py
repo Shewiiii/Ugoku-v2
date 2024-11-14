@@ -10,7 +10,7 @@ from aiohttp import ClientSession
 from dotenv import load_dotenv
 from config import (
     GEMINI_MODEL,
-    GEMINI_UTILS_MODEL,
+    GEMINI_SAFETY_SETTINGS,
     TEMP_FOLDER,
     GEMINI_HISTORY_SIZE,
     CHATBOT_TIMEOUT,
@@ -113,13 +113,15 @@ class Gembot:
         self.interacting = False
         self.chatters = []
         self.memory = memory
+        self.safety_settings = GEMINI_SAFETY_SETTINGS
 
     @staticmethod
     async def simple_prompt(
         query: str,
         model: genai.GenerativeModel = global_model,
         temperature: float = 2.0,
-        max_output_tokens: int = 300
+        max_output_tokens: int = 300,
+        safety_settings=GEMINI_SAFETY_SETTINGS
     ) -> Optional[str]:
         try:
             response = await model.generate_content_async(
@@ -128,7 +130,8 @@ class Gembot:
                     candidate_count=1,
                     temperature=temperature,
                     max_output_tokens=max_output_tokens
-                )
+                ),
+                safety_settings=safety_settings
             )
             logging.info(
                 "Gemini API call, simple prompt: "
@@ -186,7 +189,8 @@ class Gembot:
                 candidate_count=1,
                 temperature=temperature,
                 max_output_tokens=max_output_tokens
-            )
+            ),
+            safety_settings=self.safety_settings
         )
         logging.info(
             "Gemini API call, message: "

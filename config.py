@@ -33,6 +33,28 @@ PINECONE_RECALL_WINDOW = 20
 GEMINI_MODEL = 'gemini-1.5-pro'
 GEMINI_UTILS_MODEL = 'gemini-1.5-flash' # Used for summaries and lyrics
 GEMINI_HISTORY_SIZE = 20 # How many messages to remember per chat instance
+GEMINI_SAFETY_SETTINGS = [
+    {
+        "category": "HARM_CATEGORY_DANGEROUS",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE",
+    },
+] # See https://ai.google.dev/gemini-api/docs/safety-settings
 LANGUAGES = [
     # Put any language you want to support in /translate command.
     # Has to be supported by GPT-4o Mini.
