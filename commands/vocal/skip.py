@@ -19,7 +19,7 @@ class Skip(commands.Cog):
         send=False
     ) -> None:
         guild_id = ctx.guild.id
-        respond = (ctx.send if send else respond)
+        respond = (ctx.send if send else ctx.respond)
 
         if guild_id not in sm.server_sessions:
             await send_response(
