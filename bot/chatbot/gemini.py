@@ -130,10 +130,15 @@ class Gembot:
                     max_output_tokens=max_output_tokens
                 )
             )
+            logging.info(
+                "Gemini API call, simple prompt: "
+                f"{response.usage_metadata}".replace('\n', ', ')
+            )
         except Exception as e:
             logging.error(
                 f"An error occured when generating a Gemini response: {e}")
             return
+
         return response.text
 
     async def send_message(
@@ -141,6 +146,8 @@ class Gembot:
         user_query: str,
         username: str,
         image_urls: Optional[List[str]] = None,
+        temperature: float = 2.0,
+        max_output_tokens: int = 300
     ) -> Optional[str]:
         # Recall from memory
         translated_query = await Gembot.translate(
@@ -171,7 +178,16 @@ class Gembot:
                 image_files.append(file)
 
         response = await self.chat.send_message_async(
-            [message] + image_files
+            [message] + image_files,
+            generation_config=genai.types.GenerationConfig(
+                candidate_count=1,
+                temperature=temperature,
+                max_output_tokens=max_output_tokens
+            )
+        )
+        logging.info(
+            "Gemini API call, message: "
+            f"{response.usage_metadata}".replace('\n', ', ')
         )
 
         # Limit history length
