@@ -11,7 +11,7 @@ from api.update_active_servers import update_active_servers
 from bot.vocal.queue_view import QueueView
 from bot.vocal.control_view import controlView
 from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
-from config import AUTO_LEAVE_DURATION
+from config import AUTO_LEAVE_DURATION, DEFAULT_AUDIO_VOLUME
 
 from typing import TYPE_CHECKING
 
@@ -79,7 +79,7 @@ class ServerSession:
         )
         self.playback_start_time = None
         self.last_context = None
-        self.volume = 100
+        self.volume = DEFAULT_AUDIO_VOLUME
 
     async def display_queue(
         self,
@@ -208,22 +208,10 @@ class ServerSession:
             source = await source()  # Generate a fresh stream
             source.seek(167)  # Skip the non-audio content
 
-        # Set up FFmpeg options for seeking
+        # Set up FFmpeg options for seeking and volume
         ffmpeg_options = {
-            'options': f'-ss {start_position}'
+            'options': f'-ss {start_position} -filter:a "volume={self.volume / 100}"'
         }
-
-        # ffmpeg_source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(
-        #     source,
-        #     pipe=isinstance(source, AbsChunkedInputStream),
-        #     **ffmpeg_options
-        # ))
-
-        # # Set the volume
-        # ffmpeg_source.volume = self.volume / 100
-
-        # That would be cool if we could have 2 modes, like one with volume controls,
-        # the other with a better audio quality :11:
 
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
