@@ -51,6 +51,8 @@ class SessionManager:
 
         if not ctx.voice_client:
             await channel.connect()
+            # Clean server session after a new connection
+            self.server_sessions.pop(guild_id, None)
 
         if ctx.voice_client.is_connected():
             if guild_id not in self.server_sessions:
