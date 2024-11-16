@@ -34,7 +34,7 @@ pc = Pinecone(api_key=PINECONE_API_KEY)
 
 class QueryType(enum.Enum):
     QUESTION = 'question'
-    ASSERTION = 'assertion'
+    INFO = 'info'
     OTHER = 'other'
 
 
@@ -60,7 +60,7 @@ class Memory:
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.prompt = (
             "Precise type of query."
-            "Keep only meaningful words, "
+            "Summarize the message, "
             "write English:"
         )
 
@@ -83,11 +83,10 @@ class Memory:
     ) -> None:
         # Infos to summarize
         date_hour: str = datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")
-        string = f"[{date_hour} {author} says] {user_text}"
 
         # Generate metadata using Gemini
         metadata = json.loads((await model.generate_content_async(
-            self.prompt+string,
+            self.prompt+user_text,
             generation_config=genai.types.GenerationConfig(
                 response_mime_type="application/json",
                 response_schema=VectorMetadata,
@@ -148,4 +147,4 @@ class Memory:
         return rec_string
 
 
-memory = Memory('ugoku-dev')
+memory = Memory('ugoku')
