@@ -67,7 +67,7 @@ class Pause(commands.Cog):
         description='Pause the current song.'
     )
     async def execute(self, ctx: discord.ApplicationContext) -> None:
-        await self.execute_pause(ctx)
+        await self.execute_pause(ctx, send=False)
 
 
 def setup(bot):
