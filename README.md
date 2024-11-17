@@ -49,7 +49,7 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   <img src="img/spectrogram.png" alt="spectrogram"/>
   <p>Spectrogram of the bot's audio output of a Spotify song with "Very High" audio quality.</p>
   <img src="img/delta_of_spectra.png" alt="delta of spectra"/>
-  <p>Predicted delta vs. lossless audio track (~±0.6dBFS y-scale).</p>
+  <p>Predicted delta vs. lossless audio track (~0.6dB y-scale).</p>
   <img src="img/delta_waveform.jpg" alt="delta waveform vs. lossless audio track"/>
   <p>Delta waveform vs. lossless audio track (~-17dBFS y-scale).</p>
 </div>
