@@ -169,7 +169,7 @@ class Gembot:
 
         # Create message
         infos = [
-            date_hour,
+            f"Time in Kyoto: {date_hour}",
             f"Pinecone recall: {recall}",
             r_text,
             f"{author} says"
