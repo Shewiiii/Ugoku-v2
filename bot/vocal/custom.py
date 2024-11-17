@@ -43,9 +43,8 @@ async def upload_cover(cover_bytes: bytes) -> Optional[CoverData]:
     cover_hash = hashlib.md5(cover_bytes).hexdigest()
 
     # Step 2: Check if the hash already exists in the cache
-    cache_file_path = os.path.join(TEMP_FOLDER, f"{cover_hash}.json")
-
-    if os.path.exists(cache_file_path):
+    cache_file_path: Path = TEMP_FOLDER / f"{cover_hash}.json"
+    if cache_file_path.is_file():
         # Step 3: If cached, read and return the stored dict
         with open(cache_file_path, 'r') as cache_file:
             cached_data: dict = json.load(cache_file)

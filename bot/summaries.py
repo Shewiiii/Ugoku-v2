@@ -2,13 +2,13 @@ from pathlib import Path
 from typing import Optional
 import asyncio
 
-from bot.chatbot.gemini import Prompts, Gembot
-from bot.utils import extract_video_id, get_cache_path
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from bot.chatbot.gemini import Gembot
+from bot.chatbot.gemini import Prompts, Gembot
+from bot.utils import extract_video_id, get_cache_path
 from config import GEMINI_UTILS_MODEL
+
 
 class Summaries:
     def __init__(self) -> None:
@@ -23,7 +23,7 @@ class Summaries:
             model=genai.GenerativeModel(
                 model_name=GEMINI_UTILS_MODEL
             )
-            )
+        )
         return response
 
     @staticmethod

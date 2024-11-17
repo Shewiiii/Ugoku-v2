@@ -96,17 +96,17 @@ async def play_custom(
     album = albums[0] if albums else '?'
 
     # Extract the cover art
-    cover_bytes: bytes | None = extract_cover_art(audio_path)
-    if cover_bytes:
-        cover_dict = await upload_cover(cover_bytes)
+    cover_bytes = extract_cover_art(audio_path)
+    if cover_bytes and (cover_dict := await upload_cover(cover_bytes)):
         cover_url = cover_dict.get('url')
         id = cover_dict.get('cover_hash')
         dominant_rgb = cover_dict.get('dominant_rgb')
     else:
-        cover_url, id = None, None
+        cover_url = id = None
         dominant_rgb = DEFAULT_EMBED_COLOR
 
     # Prepare the track
+
     def embed():
         return generate_info_embed(
             url=query,
