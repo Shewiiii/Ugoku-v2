@@ -45,12 +45,37 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
 > [!NOTE]
 > Ugoku-v2 is only using Spotify as a music streaming service source, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. I'm planning to implement Deezer as a streaming source to the bot, in order to get the best possible audio quality out of any discord Bot.
 
+> Benchmark reference:
+> - Reference track: Ayiko - Tsundere Love
+> - Reference source: Deezer, FLAC  
+> - Time: ~0-30 seconds  
+> - Amplitude normalization: -10dBFS
+> - Recorded with: VB-Audio Hi-Fi Cable (Virtual cable)
+> - Normalized with: Audacity
+> - Downsampled with: Audacity
+> - Commands:
+>   -  Ugoku: ```/play https://open.spotify.com/intl-fr/track/0d6cQvE2RqPS9Mgl3Lcfbo```
+>   -  Jockie: ```m!play https://open.spotify.com/intl-fr/track/0d6cQvE2RqPS9Mgl3Lcfbo```
+> - Audio quality:
+>   -  Ugoku: Very High
+>   -  Jockie: No Patreon subscription to Jockie
+
+
+<h2>Results:</h2>
+
 <div align="center">
-  <img src="img/spectrogram.png" alt="spectrogram"/>
-  <p>Spectrogram of the bot's audio output of a Spotify song with "Very High" audio quality.</p>
-  <img src="img/delta_of_spectra.png" alt="delta of spectra"/>
-  <p>Predicted delta vs. lossless audio track (~0.6dB y-scale).</p>
-  <img src="img/delta_waveform.jpg" alt="delta waveform vs. lossless audio track"/>
-  <p>Delta waveform vs. lossless audio track (~-17dBFS y-scale).</p>
+  <h3>Delta of spectra, Ugoku: (Lower absolute value is better)</h3>
+  <img src="benchmarks/measures/delta_spectra_ugoku.jpg" alt="delta spectra ugoku"/>
+  <h3>Delta of spectra, Jockie:</h3>
+  <img src="benchmarks/measures/delta_spectra_jockie.jpg" alt="delta spectra jockie"/>
+  <h3>Delta waveform, Ugoku: (Lower is better)</h3>
+  <img src="benchmarks/measures/delta_waveform_ugoku.jpg" alt="delta waveform ugoku"/>
+  <h3>Delta waveform, Jockie:</h3>
+  <img src="benchmarks/measures/delta_waveform_jockie.jpg" alt="delta waveform jockie"/>
+  <h3>Spectrogram, Reference:</h3>
+  <img src="benchmarks/measures/spectrogram_reference.jpg" alt="spectrogram reference"/>
+  <h3>Spectrogram, Ugoku:</h3>
+  <img src="benchmarks/measures/spectrogram_ugoku.jpg" alt="spectrogram ugoku"/>
+  <h3>Spectrogram, Jockie:</h3>
+  <img src="benchmarks/measures/spectrogram_jockie.jpg" alt="spectrogram jockie"/>
 </div>
-<p>Comparison vs. other music bot to add.</p>
