@@ -19,3 +19,4 @@ google-generativeai
 setuptools
 pytz
 pinecone[grpc]
+deemix

@@ -3,7 +3,9 @@ import logging
 
 # If you don't have Spotify Premium, you can disable Spotify features here
 # Please check ./commands/lyrics.py if that's the case
-SPOTIFY_ENABLED = True
+SPOTIFY_ENABLED = False
+DEEZER_ENABLED = False
+DEFAULT_STREAMING_SERVICE = 'Youtube' # Deezer, Spotify, Youtube.
 
 #  ===SETTINGS===
 # Paths

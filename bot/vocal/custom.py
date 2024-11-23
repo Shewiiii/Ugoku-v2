@@ -133,7 +133,7 @@ async def generate_info_embed(
     album: str,
     artists: list,
     cover_url: Optional[str],
-    dominant_rgb: tuple[int, int, int],
+    dominant_rgb: tuple[int, int, int]
 ) -> discord.Embed:
     """
     Generate a Discord Embed with track information.

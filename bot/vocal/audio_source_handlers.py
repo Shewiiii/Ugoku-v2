@@ -18,7 +18,9 @@ async def play_spotify(
     ctx: discord.ApplicationContext,
     query: str,
     session: ServerSession,
-    interaction: Optional[discord.Interaction] = None
+    interaction: Optional[discord.Interaction] = None,
+    # TEMP VARIABLE
+    source: str = 'Spotify'
 ) -> None:
     """
     Handles playback of Spotify tracks.
@@ -41,7 +43,7 @@ async def play_spotify(
             await ctx.edit(content='Track not found!')
         return
 
-    await session.add_to_queue(ctx, tracks_info, 'Spotify', interaction)
+    await session.add_to_queue(ctx, tracks_info, source, interaction)
 
 
 def get_display_name_from_query(query: str) -> str:

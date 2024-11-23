@@ -8,10 +8,7 @@ from bot.vocal.server_session import ServerSession
 from bot.vocal.audio_source_handlers import play_spotify, play_custom, play_onsei, play_youtube
 from bot.utils import is_onsei, send_response
 from bot.search import is_url
-from config import SPOTIFY_ENABLED
-
-
-default = 'Spotify' if SPOTIFY_ENABLED else 'Youtube'
+from config import SPOTIFY_ENABLED, DEFAULT_STREAMING_SERVICE
 
 
 class Play(commands.Cog):
@@ -69,6 +66,16 @@ class Play(commands.Cog):
 
             await play_spotify(ctx, query, session, interaction)
 
+        # TO CHANGE: Deezer should be independant from Librespot.
+        elif source == 'deezer':
+            if not SPOTIFY_ENABLED:
+                await edit(
+                    content=('Spotify features are not enabled.')
+                )
+                return
+
+            await play_spotify(ctx, query, session, interaction, 'Deezer')
+
         else:
             await edit(content='wut duh')
 
@@ -82,8 +89,8 @@ class Play(commands.Cog):
         query: str,
         source: discord.Option(
             str,
-            choices=['Spotify', 'Youtube', 'Custom', 'Onsei'],
-            default=default
+            choices=['Deezer', 'Spotify', 'Youtube', 'Custom', 'Onsei'],
+            default=DEFAULT_STREAMING_SERVICE
         )  # type: ignore
     ) -> None:
         await self.execute_play(ctx, query, source)
