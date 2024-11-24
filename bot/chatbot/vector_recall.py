@@ -29,12 +29,11 @@ model = genai.GenerativeModel(
     model_name=GEMINI_UTILS_MODEL
 )
 PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
-pc = Pinecone(api_key=PINECONE_API_KEY)
 
 
 class QueryType(enum.Enum):
     QUESTION = 'question'
-    INFO = 'info'
+    AFFIRMATION = 'affirmation'
     OTHER = 'other'
 
 
@@ -44,11 +43,31 @@ class VectorMetadata(typing.TypedDict):
 
 
 class Memory:
-    def __init__(self, index_name: str) -> None:
-        logging.info("Initialization of Pinecone...")
-        existing_indexes = [index.name for index in pc.list_indexes()]
+    def __init__(self) -> None:
+        self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
+        self.prompt = (
+            "Precise type of query"
+            "Summarize the message, "
+            "write English:"
+        )
+        self.active = False
+
+    async def init_pinecone(self, index_name: str) -> None:
+        logging.info("Initialization of Pinecone..")
+        while not self.active:
+            try:
+                self.pc = Pinecone(api_key=PINECONE_API_KEY)
+                self.active = True
+            except:
+                await asyncio.sleep(60)
+                await logging.error(
+                    "Connection to Pinecone API failed, trying again in 60 seconds.")
+        logging.info("Pinecone has been initialized successfully")
+
+        self.index = self.pc.Index(index_name)
+        existing_indexes = [index.name for index in self.pc.list_indexes()]
         if not index_name in existing_indexes:
-            pc.create_index(
+            self.pc.create_index(
                 index_name,
                 dimension=1024,
                 spec=ServerlessSpec(
@@ -56,18 +75,10 @@ class Memory:
                     region="us-east-1"
                 )
             )
-        self.index = pc.Index(index_name)
-        self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
-        self.prompt = (
-            "Precise type of query."
-            "Summarize the message, "
-            "write English:"
-        )
 
-    @staticmethod
-    async def generate_embeddings(inputs: list) -> list:
+    async def generate_embeddings(self, inputs: list) -> list:
         embeddings = await asyncio.to_thread(
-            pc.inference.embed,
+            self.pc.inference.embed,
             model="multilingual-e5-large",
             inputs=inputs,
             parameters={"input_type": "query", "truncate": "END"}
@@ -81,6 +92,9 @@ class Memory:
         author: str,
         id: int
     ) -> None:
+        if not self.active:
+            return
+
         # Infos to summarize
         date_hour: str = datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")
 
@@ -122,7 +136,10 @@ class Memory:
         top_k: int = PINECONE_RECALL_WINDOW,
         author: Optional[str] = '?',
         date_hour: str = ''
-    ) -> str:
+    ) -> Optional[str]:
+        if not self.active:
+            return
+
         infos = [
             date_hour,
             f"{author} says"
@@ -143,8 +160,7 @@ class Memory:
         if rec:
             rec_string = ', '.join(str(recall).replace('\n', '')
                                    for recall in rec)
+            return rec_string
 
-        return rec_string
 
-
-memory = Memory('ugoku')
+memory = Memory()
