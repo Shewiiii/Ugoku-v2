@@ -13,7 +13,7 @@ from api.update_active_servers import update_active_servers
 from bot.vocal.queue_view import QueueView
 from bot.vocal.control_view import controlView
 from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
-from config import AUTO_LEAVE_DURATION, DEFAULT_AUDIO_VOLUME, DEEZER_ENABLED
+from config import AUTO_LEAVE_DURATION, DEFAULT_AUDIO_VOLUME, DEEZER_ENABLED, SPOTIFY_ENABLED
 from bot.vocal.deezer import DeezerChunkedInputStream
 from deemix.errors import GenerationError
 
@@ -198,26 +198,35 @@ class ServerSession:
         await self.start_playing(self.last_context, start_position=position)
         return True
 
-    async def inject_lossless_stream(self) -> None:
-        # Var
+    async def inject_lossless_stream(self) -> bool:
         track_info = self.queue[0]['track_info']
-        display_name = track_info['display_name']
+        deezer = self.bot.deezer
+        track = track_info.get('track')
 
-        if self.queue[0]['source'] == 'Deezer':
-            deezer = self.bot.deezer
-            spotify_url = track_info['url']
-            link_id: str = await deezer.get_link_id(spotify_url)
-            try:
-                track: Track = await deezer.get_track(link_id)
-                if track:
-                    # Replace Spotify source
-                    self.queue[0]['track_info']['source'] = lambda: deezer.stream(
-                        track)
-                    logging.info(f"Lossless stream injected in {display_name}")
-            except (DataException, GenerationError):
-                logging.info(f"Track not found on deezer: {display_name}")
-            except Exception as e:
-                logging.error(f"Error when injecting lossless stream: {e}")
+        # Create stream directly if Track class in track infos
+        if track:
+            track_info['source'] = await deezer.stream(track)
+            return
+
+        try:
+            track = await deezer.get_stream_url(track_info['url'])
+            if track:
+                track_info['source'] = await deezer.stream(track)
+                logging.info("Lossless stream injected in "
+                             f"{track_info['display_name']}")
+
+        except (DataException, GenerationError):
+            logging.info(
+                f"Track not found on deezer: {track_info['display_name']}")
+            return False
+        except Exception as e:
+            logging.error(f"Error when injecting lossless stream: {e}")
+            return False
+
+        # Put the track dict in the track info dict
+        # Contains: {'stream_url': stream_url, 'track_id': id}
+        self.queue[0]['track_info']['track'] = track
+        return True
 
     async def start_playing(
         self,
@@ -239,9 +248,19 @@ class ServerSession:
             )
             return  # No songs to play
 
-        # If Deezer enabled and is a spotfy source, inject lossless stream
-        if DEEZER_ENABLED:
-            await self.inject_lossless_stream()
+        # If Deezer enabled, injecta  lossless stream in a spotify track
+        if DEEZER_ENABLED and self.queue[0]['source'] == 'Deezer':
+            # If not on Deezer and Spotify is not enabled, remove the song
+            if not await self.inject_lossless_stream() and not SPOTIFY_ENABLED:
+                await ctx.send(
+                    content=(
+                        f"{self.queue[0]['track_info']['display_name']} "
+                        "is not available !"
+                    ),
+                    silent=True
+                )
+                self.queue.pop(0)
+                return
 
         # Audio source to play
         source = self.queue[0]['track_info']['source']
@@ -461,7 +480,8 @@ class ServerSession:
 
         if self.queue and self.voice_client.is_connected():
             asyncio.run_coroutine_threadsafe(
-                self.play_next(ctx), self.bot.loop
+                self.play_next(ctx),
+                self.bot.loop
             )
 
     async def play_next(

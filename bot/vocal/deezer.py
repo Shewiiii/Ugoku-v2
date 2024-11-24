@@ -1,20 +1,19 @@
 import os
 import asyncio
-from typing import Optional, Callable
+from typing import Optional
 import logging
 from requests import get, Response
 
-import spotipy
+from spotipy import Spotify, SpotifyClientCredentials
 
 from deezer import Deezer
-from deemix import generateTrackItem, parseLink
-from deemix.utils import getBitrateNumberFromText
+from deemix import parseLink
 from deemix.utils.crypto import generateBlowfishKey, decryptChunk
 from deemix.types.Track import Track
 from deemix.utils import USER_AGENT_HEADER
 from deemix.plugins.spotify import Spotify as Sp_plugin
 
-from config import SPOTIFY_ENABLED
+from config import  SPOTIFY_API_ENABLED
 from bot.search import is_url
 
 SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
@@ -23,10 +22,13 @@ DEEZER_ARL = os.getenv('DEEZER_ARL')
 
 
 class DeezerChunkedInputStream:
-    def __init__(self, track: Track) -> None:
-        self.track: Track = track
+    """track: {'track_id': int, 'stream_url': str}"""
+
+    def __init__(self, track: dict) -> None:
+        self.id: int = track['track_id']
+        self.stream_url = track['stream_url']
         self.buffer: bytes = b''
-        self.blowfish_key: bytes = generateBlowfishKey(str(track.id))
+        self.blowfish_key: bytes = generateBlowfishKey(str(self.id))
         self.headers: dict = {'User-Agent': USER_AGENT_HEADER}
         # Do not change the chunk size
         self.chunk_size = 2048 * 3
@@ -36,7 +38,7 @@ class DeezerChunkedInputStream:
     async def get_encrypted_stream(self) -> None:
         self.encrypted_stream: Response = await asyncio.to_thread(
             get,
-            self.track.downloadURL,
+            self.stream_url,
             headers=self.headers,
             stream=True,
             timeout=10
@@ -70,106 +72,83 @@ class DeezerChunkedInputStream:
             self.finished = True
             return
 
-    def seek(self, position: int) -> None:
-        if position < 0:
-            position = 0
-
-        if position <= len(self.buffer):
-            # If the position is within the already-buffered data
-            self.current_position = position
-        else:
-            # If the position is beyond buffered data, fetch chunks until reaching it
-            while len(self.buffer) < position and not self.finished:
-                try:
-                    chunk = next(self.chunks)
-                    decrypted_chunk = decryptChunk(
-                        self.blowfish_key, chunk[0:2048]) + chunk[2048:]
-                    self.buffer += decrypted_chunk
-                except StopIteration:
-                    self.finished = True
-                    break
-            self.current_position = min(position, len(self.buffer))
-
 
 class Deezer_:
-    def __init__(self, sp: Optional[spotipy.Spotify]) -> None:
+    def __init__(self) -> None:
         self.dz = None
-        self.sp = sp
+        self.sp = Spotify(auth_manager=SpotifyClientCredentials(
+            client_id=SPOTIPY_CLIENT_ID,
+            client_secret=SPOTIPY_CLIENT_SECRET
+        ))
         self.format = 'FLAC'
 
     async def init_deezer(self) -> None:
+        assert SPOTIFY_API_ENABLED, "Spotify API is requred."
         self.dz = Deezer()
         await asyncio.to_thread(
             self.dz.login_via_arl,
             DEEZER_ARL
         )
         # Create DEEZER_ENABLED variable in config file
-        if SPOTIFY_ENABLED:
+        if SPOTIFY_API_ENABLED:
             self.spotify = Sp_plugin()
             self.spotify.enabled = True
             self.spotify.sp = self.sp
-        else:
-            self.spotify = None
+
         logging.info("Deezer has been initialized successfully")
 
     async def get_link_id(self, url: str) -> Optional[str]:
-        # Extract track/link ID from URL
         from_spotify = is_url(url, ['open.spotify.com'])
-        parsed_url: Optional[tuple] = (
-            self.spotify.parseLink(url) if from_spotify
-            else parseLink(url)
-        )
+        parse_func = self.spotify.parseLink if from_spotify else parseLink
+        parsed_url = parse_func(url)
 
-        if not parsed_url[2]:
-            # Not found!
-            return
+        if not parsed_url or not parsed_url[2]:
+            return None
 
         if from_spotify:
             if not self.spotify:
-                return
-
+                return None
             spotify_track_data = await asyncio.to_thread(
                 self.spotify.getTrack,
                 parsed_url[2]
             )
-            if not spotify_track_data:
-                return
+            return f"isrc:{spotify_track_data['isrc']}" if spotify_track_data else None
 
-            link_id = f"isrc:{spotify_track_data['isrc']}"
-        else:
-            link_id = parsed_url[2]
+        return parsed_url[2]
 
-        return link_id
+    async def get_stream_url(self, url: str) -> Optional[dict]:
+        link_id = await self.get_link_id(url)
+        if not link_id:
+            return
 
-    async def get_track(self, link_id: str) -> Track:
         # Prepare track object
-        download_object = await asyncio.to_thread(
-            generateTrackItem,
-            self.dz,
-            link_id=link_id,
-            bitrate=getBitrateNumberFromText(self.format)
-        )
+        if link_id.startswith("isrc"):
+            # Spotify
+            track_api = self.dz.api.get_track(link_id)
+            track_token = track_api['track_token']
+            id = track_api['id']
+        else:
+            # Deezer
+            track_api = self.dz.gw.get_track_with_fallback(link_id)
+            track_token = track_api['TRACK_TOKEN']
+            id = int(track_api['SNG_ID'])
 
-        # Acquire track data
-        extra_data = download_object.single
-        trackAPI = extra_data.get('trackAPI')
-        track = await asyncio.to_thread(
-            Track().parseData,
-            dz=self.dz,
-            track_id=extra_data.get('trackAPI')['id'],
-            trackAPI=trackAPI
-        )
         # Track URL
-        track.downloadURL = await asyncio.to_thread(
+        stream_url = await asyncio.to_thread(
             self.dz.get_track_url,
-            track.trackToken,
+            track_token,
             'FLAC'
         )
 
-        return track
+        results = {
+            'stream_url': stream_url,
+            'track_id': id
+        }
+
+        return results
 
     @staticmethod
-    async def stream(track: Track) -> DeezerChunkedInputStream:
+    async def stream(track: dict) -> DeezerChunkedInputStream:
         stream = DeezerChunkedInputStream(track)
         await stream.get_encrypted_stream()
         return stream

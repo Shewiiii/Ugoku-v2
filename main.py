@@ -3,6 +3,7 @@ import api.api as api
 from config import (
     COMMANDS_FOLDER,
     SPOTIFY_ENABLED,
+    SPOTIFY_API_ENABLED,
     CHATBOT_ENABLED,
     PINECONE_INDEX_NAME,
     DEEZER_ENABLED
@@ -16,8 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-if SPOTIFY_ENABLED:
-    from bot.vocal.spotify import SpotifySessions, Spotify
+from bot.vocal.spotify import SpotifySessions, Spotify
 
 if CHATBOT_ENABLED:
     from bot.chatbot.vector_recall import memory
@@ -42,17 +42,18 @@ api.bot = bot
 @bot.event
 async def on_ready() -> None:
     logging.info(f"{bot.user} is running !")
-    if SPOTIFY_ENABLED:
+    if SPOTIFY_API_ENABLED:
         spotify_sessions = SpotifySessions()
-        await spotify_sessions.init_spotify()
         spotify = Spotify(spotify_sessions)
-        bot.spotify = spotify
+        await spotify_sessions.init_spotify()
         bot.downloading = False
+        bot.spotify = spotify
+        if DEEZER_ENABLED:
+            bot.deezer = Deezer_()
+            await bot.deezer.init_deezer()
+
     if CHATBOT_ENABLED:
         await memory.init_pinecone(PINECONE_INDEX_NAME)
-    if DEEZER_ENABLED:
-        bot.deezer = Deezer_(None if not SPOTIFY_ENABLED else spotify_sessions.sp)
-        await bot.deezer.init_deezer()
     bot.youtube = Youtube()
 
 

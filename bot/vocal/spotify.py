@@ -30,7 +30,7 @@ from bot.vocal.types import (
     SpotifyPlaylistAPI,
     SpotifyArtistAPI
 )
-from config import SPOTIFY_TOP_COUNTRY
+from config import SPOTIFY_TOP_COUNTRY, SPOTIFY_ENABLED, SPOTIFY_API_ENABLED
 
 
 logging.getLogger('zeroconf').setLevel(logging.ERROR)
@@ -58,15 +58,17 @@ class SpotifySessions:
             self.loop = asyncio.get_running_loop()
 
             # Librespot
-            self.lp = Librespot()
-            await self.lp.create_session()
-            asyncio.create_task(self.lp.listen_to_session())
+            if SPOTIFY_ENABLED:
+                self.lp = Librespot()
+                await self.lp.create_session()
+                asyncio.create_task(self.lp.listen_to_session())
 
             # Spotify API
-            self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-                client_id=self.config.client_id,
-                client_secret=self.config.client_secret
-            ))
+            if SPOTIFY_API_ENABLED:
+                self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
+                    client_id=self.config.client_id,
+                    client_secret=self.config.client_secret
+                ))
 
             logging.info("Spotify sessions initialized successfully")
 
