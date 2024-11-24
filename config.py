@@ -37,6 +37,7 @@ CHATBOT_EMOTES = {} # Add here all the discord emotes the chatbot should use !
   #E.g: {'Happy': <:emote1:1234567890123456789>, 'Sad': <:sad:1234567890123456789>} etc.
   # Get the snowflake id by adding a \ before sending the emote. Eg: \:emote:
 PINECONE_RECALL_WINDOW = 20
+PINECONE_INDEX_NAME = 'ugoku'
 GEMINI_MODEL = 'gemini-1.5-pro'
 GEMINI_UTILS_MODEL = 'gemini-1.5-flash' # Used for summaries and lyrics
 GEMINI_HISTORY_SIZE = 20 # How many messages to remember per chat instance
