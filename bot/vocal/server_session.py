@@ -205,13 +205,13 @@ class ServerSession:
 
         # Create stream directly if Track class in track infos
         if track:
-            track_info['source'] = await deezer.stream(track)
+            track_info['source'] = await asyncio.to_thread(deezer.stream, track)
             return True
 
         try:
             track = await deezer.get_stream_url(track_info['url'])
             if track:
-                track_info['source'] = await deezer.stream(track)
+                track_info['source'] = await asyncio.to_thread(deezer.stream, track)
                 logging.info("Lossless stream injected in "
                              f"{track_info['display_name']}")
 

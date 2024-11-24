@@ -3,18 +3,21 @@ import asyncio
 from typing import Optional
 import logging
 from requests import get, Response
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 from spotipy import Spotify, SpotifyClientCredentials
-
 from deezer import Deezer
 from deemix import parseLink
 from deemix.utils.crypto import generateBlowfishKey, decryptChunk
+from deemix.decryption import streamTrack
 from deemix.types.Track import Track
 from deemix.utils import USER_AGENT_HEADER
-from deemix.plugins.spotify import Spotify as Sp_plugin
+from deemix.plugins.spotify import Spotify as Spplugin
 
-from config import  SPOTIFY_API_ENABLED
+from config import SPOTIFY_API_ENABLED
 from bot.search import is_url
+from bot.utils import get_cache_path
 
 SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
 SPOTIPY_CLIENT_SECRET = os.getenv('SPOTIPY_CLIENT_SECRET')
@@ -35,9 +38,8 @@ class DeezerChunkedInputStream:
         self.finished = False
         self.current_position = 0
 
-    async def get_encrypted_stream(self) -> None:
-        self.encrypted_stream: Response = await asyncio.to_thread(
-            get,
+    def get_encrypted_stream(self) -> None:
+        self.encrypted_stream: Response = get(
             self.stream_url,
             headers=self.headers,
             stream=True,
@@ -45,9 +47,9 @@ class DeezerChunkedInputStream:
         )
         self.chunks = self.encrypted_stream.iter_content(self.chunk_size)
 
-    def read(self, size: Optional[int] = None) -> Optional[bytes]:
+    def read(self, size: Optional[int] = None) -> bytes:
         if self.finished:
-            return
+            return b''
         # If chunk in buffer, return it directly
         if self.current_position < len(self.buffer):
             end_position = self.current_position + self.chunk_size
@@ -57,7 +59,7 @@ class DeezerChunkedInputStream:
         # Request a new chunk
         try:
             chunk = next(self.chunks)
-            if len(chunk) >= self.chunk_size // 3:
+            if len(chunk) >= 2048:
                 decrypted_chunk = decryptChunk(
                     self.blowfish_key,
                     chunk[0:2048]
@@ -70,7 +72,26 @@ class DeezerChunkedInputStream:
                 self.finished = True
         except StopIteration:
             self.finished = True
-            return
+            return b''
+
+    def seek(self, position: int) -> None:
+        if position < 0:
+            position = 0
+        if position <= len(self.buffer):
+            # If the position is within the already-buffered data
+            self.current_position = position
+        else:
+            # If the position is beyond buffered data, fetch chunks until reaching it
+            while len(self.buffer) < position and not self.finished:
+                try:
+                    chunk = next(self.chunks)
+                    decrypted_chunk = decryptChunk(
+                        self.blowfish_key, chunk[0:2048]) + chunk[2048:]
+                    self.buffer += decrypted_chunk
+                except StopIteration:
+                    self.finished = True
+                    break
+            self.current_position = min(position, len(self.buffer))
 
 
 class Deezer_:
@@ -91,7 +112,7 @@ class Deezer_:
         )
         # Create DEEZER_ENABLED variable in config file
         if SPOTIFY_API_ENABLED:
-            self.spotify = Sp_plugin()
+            self.spotify = Spplugin()
             self.spotify.enabled = True
             self.spotify.sp = self.sp
 
@@ -147,8 +168,72 @@ class Deezer_:
 
         return results
 
+    async def get_stream_url_from_query(self, query: str) -> Optional[dict]:
+        """Get a track stream URL from a query (text or URL)"""
+        # gekiyaba Spotify or Deezer url
+        if is_url(query, ['open.spotify.com', ' deezer.com']):
+            results = await self.get_stream_url(query)
+            return results
+
+        # normal query
+        search_data = await asyncio.to_thread(
+            self.dz.gw.search,
+            query
+        )
+        if not search_data['TRACK']['data']:
+            # Not found!
+            return
+
+        track_api = search_data['TRACK']['data'][0]
+        track_token = track_api['TRACK_TOKEN']
+        id = int(track_api['SNG_ID'])
+
+        # Track URL
+        stream_url = await asyncio.to_thread(
+            self.dz.get_track_url,
+            track_token,
+            'FLAC'
+        )
+
+        results = {
+            'stream_url': stream_url,
+            'track_id': id
+        }
+
+        return results
+
     @staticmethod
-    async def stream(track: dict) -> DeezerChunkedInputStream:
+    def stream(track: dict) -> DeezerChunkedInputStream:
         stream = DeezerChunkedInputStream(track)
-        await stream.get_encrypted_stream()
+        stream.get_encrypted_stream()
         return stream
+
+    @staticmethod
+    def download(track: dict) -> Optional[Path]:
+        """Download a track from Deezer from a track dict.
+        Params: 
+            track (dict): Dict containint the "stream_url" and "track_id"
+
+        Returns:
+            Path: The path to the cache file
+        """
+        # Setup the download
+        cis = DeezerChunkedInputStream(track)
+        cis.get_encrypted_stream()
+        file_path = get_cache_path(str(track['track_id']).encode('utf-8'))
+        chunks = cis.encrypted_stream.iter_content(2048 * 3)
+
+        # Write the content to file cache
+        with open(file_path, 'wb') as file:
+            while True: 
+                try:
+                    chunk = next(chunks)
+                except StopIteration:
+                    # Done
+                    break
+                if len(chunk) >= 2048:
+                    decrypted = decryptChunk(cis.blowfish_key, chunk[:2048])
+                    chunk = decrypted + chunk[2048:]
+                file.write(chunk)
+        logging.info(f"Track {track['track_id']} downloaded successfully")
+        return file_path
