@@ -36,6 +36,23 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   - [X] Have a permanent memory!
 - [ ] And maybe more in the future~
 
+<h2>Random screenshots</h2>
+
+<div align="center">
+  <img src="img/now_playing.png" alt="now playing embed"/>
+  <p>Playing a song</p>
+  <img src="img/song_queue.jpg" alt="song queue"/>
+  <p>Songs in queue</p>
+  <img src="img/spotify_download.jpg" alt="spotify song download"/>
+  <p>Spotify song download</p>
+  <img src="img/lyrics.jpg" alt="lyrics"/>
+  <p>Lyrics</p>
+  <img src="img/youtube_summary.jpg" alt="lyrics"/>
+  <p>Youtube & text summary</p>
+  <img src="img/chat.jpg" alt="chat message"/>
+  <p>Random message w</p>
+</div>
+
 <h2>Known bugs to fix</h2>
 
 - Queue not showing when too many characters in the queue/loop section. (mostly the case with onsei)
