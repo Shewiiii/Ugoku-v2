@@ -248,19 +248,19 @@ class ServerSession:
             )
             return  # No songs to play
 
-        # If Deezer enabled, injecta  lossless stream in a spotify track
+        # If Deezer enabled, inject lossless stream in a spotify track
         if DEEZER_ENABLED and self.queue[0]['source'] == 'Deezer':
-            # If not on Deezer and Spotify is not enabled, remove the song
-            if not await self.inject_lossless_stream() and not SPOTIFY_ENABLED:
+            if await self.inject_lossless_stream():
+                return
+            if not SPOTIFY_ENABLED:
                 await ctx.send(
-                    content=(
-                        f"{self.queue[0]['track_info']['display_name']} "
-                        "is not available !"
-                    ),
+                    content=f"{self.queue[0]['track_info']['display_name']}"
+                    " is not available !",
                     silent=True
                 )
                 self.queue.pop(0)
                 return
+            self.queue[0]['source'] = 'Spotify'
 
         # Audio source to play
         source = self.queue[0]['track_info']['source']
