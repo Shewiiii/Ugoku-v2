@@ -18,7 +18,8 @@ async def play_spotify(
     ctx: discord.ApplicationContext,
     query: str,
     session: ServerSession,
-    interaction: Optional[discord.Interaction] = None
+    interaction: Optional[discord.Interaction] = None,
+    requested_source: str = 'Spotify'
 ) -> None:
     """
     Handles playback of Spotify tracks.
@@ -31,6 +32,7 @@ async def play_spotify(
         query (str): The Spotify track or playlist URL, or search query.
         session (ServerSession): The current server's audio session.
         interaction: A discord interaction if that method has been triggered by one.
+        requested_source: The streaming service that should be used (Spotify or Deezer).
     """
     tracks_info = await ctx.bot.spotify.get_tracks(query)
 
@@ -41,7 +43,12 @@ async def play_spotify(
             await ctx.edit(content='Track not found!')
         return
 
-    await session.add_to_queue(ctx, tracks_info, 'Spotify', interaction)
+    await session.add_to_queue(
+        ctx,
+        tracks_info,
+        requested_source,
+        interaction
+    )
 
 
 def get_display_name_from_query(query: str) -> str:

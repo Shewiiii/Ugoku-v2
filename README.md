@@ -20,6 +20,7 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   - [X] Loop song, Loop queue, pause, resume...
   - [X] Amazing audio quality: bypass the channel's audio bitrate.
   - [X] Stream songs from Spotify.
+  - [X] Inject lossless streams to Spotify songs (when available on Deezer).
   - [X] Stream videos from Youtube.
   - [X] Stream audio works (音声作品) in a voice channel (because why not).
   - [X] Play songs from a URL (custom source).
@@ -57,7 +58,7 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
 >   -  Ugoku: ```/play https://open.spotify.com/intl-fr/track/0d6cQvE2RqPS9Mgl3Lcfbo```
 >   -  Jockie: ```m!play https://open.spotify.com/intl-fr/track/0d6cQvE2RqPS9Mgl3Lcfbo```
 > - Audio quality:
->   -  Ugoku: Very High
+>   -  Ugoku: High (Spotify)
 >   -  Jockie: No Patreon subscription to Jockie
 
 

@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Any, Callable, Awaitable, Literal
+from typing import Optional, List, Literal
 from concurrent.futures import ThreadPoolExecutor
 
 import discord
@@ -19,9 +19,18 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 from bot.search import is_url, token_sort_ratio
 from bot.utils import get_dominant_rgb_from_url
-from bot.vocal.types import TrackInfo, SpotifyID, CoverData, SpotifyAlbum, SpotifyTrackAPI, SpotifyAlbumAPI, \
-    SpotifyPlaylistAPI, SpotifyArtistAPI
-from config import SPOTIFY_TOP_COUNTRY
+from bot.vocal.custom import generate_info_embed
+from bot.vocal.types import (
+    TrackInfo,
+    SpotifyID,
+    CoverData,
+    SpotifyAlbum,
+    SpotifyTrackAPI,
+    SpotifyAlbumAPI,
+    SpotifyPlaylistAPI,
+    SpotifyArtistAPI
+)
+from config import SPOTIFY_TOP_COUNTRY, SPOTIFY_ENABLED, SPOTIFY_API_ENABLED
 
 
 logging.getLogger('zeroconf').setLevel(logging.ERROR)
@@ -49,15 +58,17 @@ class SpotifySessions:
             self.loop = asyncio.get_running_loop()
 
             # Librespot
-            self.lp = Librespot()
-            await self.lp.create_session()
-            asyncio.create_task(self.lp.listen_to_session())
+            if SPOTIFY_ENABLED:
+                self.lp = Librespot()
+                await self.lp.create_session()
+                asyncio.create_task(self.lp.listen_to_session())
 
             # Spotify API
-            self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-                client_id=self.config.client_id,
-                client_secret=self.config.client_secret
-            ))
+            if SPOTIFY_API_ENABLED:
+                self.sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
+                    client_id=self.config.client_id,
+                    client_secret=self.config.client_secret
+                ))
 
             logging.info("Spotify sessions initialized successfully")
 
@@ -147,7 +158,7 @@ class Librespot:
                 while True:
                     try:
                         logging.info("Check Librespot session..")
-                        
+
                         # Simulate a track play
                         stream = await self.get_stream(track_id)
                         await asyncio.sleep(2)
@@ -157,7 +168,7 @@ class Librespot:
                         logging.error(f"Stream read error: {e}")
                         await self.refresh_librespot()
                         await asyncio.sleep(10)
-                        
+
                         # Break to outer loop to get a new stream
                         break
             except Exception as e:
@@ -223,19 +234,13 @@ class Spotify:
         )
 
         # Create the embed
-        embed = discord.Embed(
-            title=track_name,
+        embed = await generate_info_embed(
             url=track_url,
-            description=f"By {artist_string}",
-            color=discord.Colour.from_rgb(*dominant_rgb)
-        ).add_field(
-            name="Part of the album",
-            value=f"[{album['name']}]({album_url})",
-            inline=True
-        ).set_author(
-            name="Now playing"
-        ).set_thumbnail(
-            url=cover_url
+            title=track_name,
+            album=f"[{album['name']}]({album_url})",
+            artists=[artist_string],
+            cover_url=cover_url,
+            dominant_rgb=dominant_rgb
         )
 
         return embed

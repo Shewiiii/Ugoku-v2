@@ -3,15 +3,19 @@ import logging
 import random
 from datetime import datetime, timedelta
 from typing import Optional, Callable, List, Literal
+from deemix.types.Track import Track
 
 import discord
 from librespot.audio import AbsChunkedInputStream
+from deezer.errors import DataException
 
 from api.update_active_servers import update_active_servers
 from bot.vocal.queue_view import QueueView
 from bot.vocal.control_view import controlView
 from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
-from config import AUTO_LEAVE_DURATION, DEFAULT_AUDIO_VOLUME
+from config import AUTO_LEAVE_DURATION, DEFAULT_AUDIO_VOLUME, DEEZER_ENABLED, SPOTIFY_ENABLED
+from bot.vocal.deezer import DeezerChunkedInputStream
+from deemix.errors import GenerationError
 
 from typing import TYPE_CHECKING
 
@@ -128,7 +132,7 @@ class ServerSession:
                 next_track = 'End of queue!'
             # Update the embed with remaining tracks
             embed.add_field(
-                name="Remaining Tracks",
+                name="Remaining",
                 value=str(len(self.queue) - 1),
                 inline=True
             )
@@ -136,6 +140,16 @@ class ServerSession:
                 name="Next",
                 value=next_track, inline=True
             )
+            # Audio quality indicator
+            aq_dict = {'Youtube': 'Low', 'Spotify': 'High', 'Deezer': 'Hifi'}
+            audio_quality = aq_dict.get(self.queue[0]['source'], None)
+            if audio_quality:
+                embed.add_field(
+                    name="Audio quality",
+                    value=audio_quality,
+                    inline=True
+                )
+
             # No need for a text message if embed
             message = ''
 
@@ -184,6 +198,36 @@ class ServerSession:
         await self.start_playing(self.last_context, start_position=position)
         return True
 
+    async def inject_lossless_stream(self) -> bool:
+        track_info = self.queue[0]['track_info']
+        deezer = self.bot.deezer
+        track = track_info.get('track')
+
+        # Create stream directly if Track class in track infos
+        if track:
+            track_info['source'] = await deezer.stream(track)
+            return
+
+        try:
+            track = await deezer.get_stream_url(track_info['url'])
+            if track:
+                track_info['source'] = await deezer.stream(track)
+                logging.info("Lossless stream injected in "
+                             f"{track_info['display_name']}")
+
+        except (DataException, GenerationError):
+            logging.info(
+                f"Track not found on deezer: {track_info['display_name']}")
+            return False
+        except Exception as e:
+            logging.error(f"Error when injecting lossless stream: {e}")
+            return False
+
+        # Put the track dict in the track info dict
+        # Contains: {'stream_url': stream_url, 'track_id': id}
+        self.queue[0]['track_info']['track'] = track
+        return True
+
     async def start_playing(
         self,
         ctx: discord.ApplicationContext,
@@ -198,37 +242,66 @@ class ServerSession:
         self.last_context = ctx
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
-            await update_active_servers(self.bot, self.session_manager.server_sessions)
+            await update_active_servers(
+                self.bot,
+                self.session_manager.server_sessions
+            )
             return  # No songs to play
 
+        # If Deezer enabled, injecta  lossless stream in a spotify track
+        if DEEZER_ENABLED and self.queue[0]['source'] == 'Deezer':
+            # If not on Deezer and Spotify is not enabled, remove the song
+            if not await self.inject_lossless_stream() and not SPOTIFY_ENABLED:
+                await ctx.send(
+                    content=(
+                        f"{self.queue[0]['track_info']['display_name']} "
+                        "is not available !"
+                    ),
+                    silent=True
+                )
+                self.queue.pop(0)
+                return
+
+        # Audio source to play
         source = self.queue[0]['track_info']['source']
 
-        # If source is a stream generator
+        # If source is a stream generator, generate a fresh stream
         if isinstance(source, Callable):
-            source = await source()  # Generate a fresh stream
-            source.seek(167)  # Skip the non-audio content
+            source = await source()
+
+        # Skip the non-audio content in spotify streams
+        if isinstance(source, AbsChunkedInputStream):
+            await asyncio.to_thread(source.seek, 167)
 
         # Set up FFmpeg options for seeking and volume
         ffmpeg_options = {
-            'options': f'-ss {start_position} -filter:a "volume={self.volume / 100}"'
+            'options': f'-ss {start_position} -filter:a volume={self.volume / 100}'
         }
-
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
-            pipe=isinstance(source, AbsChunkedInputStream),
+            pipe=isinstance(
+                source, (
+                    AbsChunkedInputStream,
+                    DeezerChunkedInputStream
+                )
+            ),
             bitrate=510,
             **ffmpeg_options
         )
 
+        # Play the song !
         self.voice_client.play(
             ffmpeg_source,
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
-        self.time_elapsed = start_position
+        # Update dates
         now = datetime.now()
-        self.playback_start_time = now.isoformat()
+        self.time_elapsed = start_position
         self.last_played_time = now
+        self.playback_start_time = now.isoformat()
+
+        # Refresh API
         await update_active_servers(
             self.bot,
             self.session_manager.server_sessions
@@ -407,7 +480,8 @@ class ServerSession:
 
         if self.queue and self.voice_client.is_connected():
             asyncio.run_coroutine_threadsafe(
-                self.play_next(ctx), self.bot.loop
+                self.play_next(ctx),
+                self.bot.loop
             )
 
     async def play_next(

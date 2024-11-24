@@ -1,9 +1,15 @@
 from pathlib import Path
 import logging
 
+# I strongly recommand to enable Spotify API to basically make the music bot work
+# Be sure to specify the SPOTIPY_CLIENT_ID and the SPOTIPY_CLIENT_SECRET in the .env
+SPOTIFY_API_ENABLED = True
+
 # If you don't have Spotify Premium, you can disable Spotify features here
 # Please check ./commands/lyrics.py if that's the case
-SPOTIFY_ENABLED = True
+SPOTIFY_ENABLED = False
+DEEZER_ENABLED = True
+DEFAULT_STREAMING_SERVICE = 'Deezer' # Deezer, Spotify, Youtube.
 
 #  ===SETTINGS===
 # Paths
