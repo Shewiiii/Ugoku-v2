@@ -57,7 +57,7 @@ class SpotifyDownload(commands.Cog):
 
         self.bot.downloading = True
         try:
-            # Get the tracks
+            # Get the tracks, pick the first one
             tracks = await ctx.bot.spotify.get_tracks(
                 query=query,
                 aq=quality_dict[quality]
@@ -65,24 +65,24 @@ class SpotifyDownload(commands.Cog):
             if not tracks:
                 await ctx.edit(content="No track has been found!")
                 return
-            # TO CHANGE, only get the first track
             track = tracks[0]
 
             # Update cached files
             cleanup_cache()
-            # The idea: when the cover (url) changes, do not use the cached file
             cover_url: str = track['cover']
             file_path = get_cache_path(cover_url.encode('utf-8'))
 
-            if not file_path.is_file():
+            if file_path.is_file():
+                size = os.path.getsize(file_path)
+            else:
                 # Get track data
                 stream = await track['source']()
                 data = await asyncio.to_thread(stream.read)
-
+                # Download
                 with open(file_path, 'wb') as file:
                     file.write(data)
-
                 try:
+                    # Tag
                     await tag_ogg_file(
                         file_path=file_path,
                         title=track['title'],
@@ -93,12 +93,9 @@ class SpotifyDownload(commands.Cog):
                 except OggVorbisHeaderError:
                     logging.warning(
                         f"Unable to read the full header of {file_path}")
-
                 size = len(data)
 
-            else:
-                size = os.path.getsize(file_path)
-
+            # Upload
             if size < ctx.guild.filesize_limit:
                 await ctx.edit(
                     content="Here you go!",
@@ -108,10 +105,8 @@ class SpotifyDownload(commands.Cog):
                     )
                 )
             else:
-                await ctx.edit(
-                    content=f"The download of {track['display_name']} "
-                    'failed: file too big.'
-                )
+                await ctx.edit(content=f"Download failed: file too big.")
+
         finally:
             self.bot.downloading = False
 
