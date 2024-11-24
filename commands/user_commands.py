@@ -45,7 +45,7 @@ class Test(commands.Cog):
     ) -> None:
         await ctx.defer()
         await ctx.respond(
-            content=Gembot.translate(
+            content=await Gembot.translate(
                 query,
                 language=language,
                 nuance=nuance

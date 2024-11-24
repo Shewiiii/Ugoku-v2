@@ -206,7 +206,7 @@ class ServerSession:
         # Create stream directly if Track class in track infos
         if track:
             track_info['source'] = await deezer.stream(track)
-            return
+            return True
 
         try:
             track = await deezer.get_stream_url(track_info['url'])
@@ -250,17 +250,14 @@ class ServerSession:
 
         # If Deezer enabled, inject lossless stream in a spotify track
         if DEEZER_ENABLED and self.queue[0]['source'] == 'Deezer':
-            if await self.inject_lossless_stream():
-                return
-            if not SPOTIFY_ENABLED:
+            if not await self.inject_lossless_stream() and not SPOTIFY_ENABLED:
                 await ctx.send(
                     content=f"{self.queue[0]['track_info']['display_name']}"
                     " is not available !",
                     silent=True
                 )
                 self.queue.pop(0)
-                return
-            self.queue[0]['source'] = 'Spotify'
+                self.queue[0]['source'] = 'Spotify'
 
         # Audio source to play
         source = self.queue[0]['track_info']['source']
