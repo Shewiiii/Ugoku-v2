@@ -1,9 +1,10 @@
 import logging
 from typing import Optional
 from config import (
-    SPOTIFY_ENABLED, 
+    SPOTIFY_API_ENABLED, 
     DEFAULT_EMBED_COLOR, 
     CHATBOT_ENABLED,
+    DEFAULT_STREAMING_SERVICE
 )
 
 import discord
@@ -54,7 +55,7 @@ class Lyrics(commands.Cog):
                 await ctx.respond('No song is playing !')
                 return
         else:
-            if SPOTIFY_ENABLED:
+            if SPOTIFY_API_ENABLED:
                 # Use Spotify features for more precise results
                 tracks_info = await self.bot.spotify.get_tracks(query)
 
@@ -101,7 +102,7 @@ class Lyrics(commands.Cog):
         for part in splitted_lyrics:
             embed.add_field(name='', value=part, inline=False)
 
-        if SPOTIFY_ENABLED:
+        if SPOTIFY_API_ENABLED:
             # Create the view if Spotify enabled (buttons)
             class lyricsView(discord.ui.View):
                 def __init__(
@@ -132,8 +133,9 @@ class Lyrics(commands.Cog):
                     play_cog: Play = self.bot.get_cog('Play')
                     await play_cog.execute_play(
                         ctx,
-                        track_info['url'], 'Spotify',
-                        interaction
+                        track_info['url'], 
+                        DEFAULT_STREAMING_SERVICE,
+                        interaction=interaction
                     )
 
             # Add a cover to the embed
