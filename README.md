@@ -61,39 +61,50 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
 <h2>Audio benchmarks</h2>
 
 > [!NOTE]
-> Ugoku-v2 is only using Spotify as a music streaming service source, so the best audio chain (besides custom sources) is OGG 320kbps -> Opus 510kpbs. I'm planning to implement Deezer as a streaming source to the bot, in order to get the best possible audio quality out of any discord Bot.
+> Deezer has finally been integrated into Ugoku! Lossless audio content will now be injected in Spotify tracks before playing (when available). Ugoku now offers the best audio quality possible for a Discord bot, nearly indistinguishable from true lossless audio...except for occasional lags.
 
 > Benchmark reference:
 > - Reference track: Ayiko - Tsundere Love
 > - Reference source: Deezer, FLAC  
+> - Comparison softwate: Deltawave
 > - Time: ~0-30 seconds  
 > - Amplitude normalization: -10dBFS
-> - Recorded with: VB-Audio Hi-Fi Cable (Virtual cable)
 > - Normalized with: Audacity
 > - Downsampled with: Audacity
-> - Commands:
->   -  Ugoku: ```/play https://open.spotify.com/intl-fr/track/0d6cQvE2RqPS9Mgl3Lcfbo```
->   -  Jockie: ```m!play https://open.spotify.com/intl-fr/track/0d6cQvE2RqPS9Mgl3Lcfbo```
+> - Recorded with: VB-Audio Hi-Fi Cable (Bit-perfect virtual cable, Jockie)
+> - Converted with: FFmpeg (Ugoku)
+> - Recording method:
+>   -  Ugoku: Convertion with FFmpeg with the corresponding audio chain
+>      -  FLAC -> Ogg 320 -> Opus 510 ("High" quality)
+>      -  FLAC -> Opus 510 ("Hifi" quality)
+>   -  Jockie: Record Discord's audio output with the virtual cable
 > - Audio quality:
->   -  Ugoku: High (Spotify)
+>   -  Ugoku: High (Spotify), Hifi (Deezer)
 >   -  Jockie: No Patreon subscription to Jockie
 
 
 <h2>Results:</h2>
 
 <div align="center">
-  <h3>Delta of spectra, Ugoku: (Lower absolute value is better)</h3>
-  <img src="benchmarks/measures/delta_spectra_ugoku.jpg" alt="delta spectra ugoku"/>
-  <h3>Delta of spectra, Jockie:</h3>
-  <img src="benchmarks/measures/delta_spectra_jockie.jpg" alt="delta spectra jockie"/>
-  <h3>Delta waveform, Ugoku: (Lower is better)</h3>
-  <img src="benchmarks/measures/delta_waveform_ugoku.jpg" alt="delta waveform ugoku"/>
-  <h3>Delta waveform, Jockie:</h3>
+  <h2>Delta of spectra (Lower absolute value is better)</h2>
+  <h3>Ugoku, Hifi quality:</h3>
+  <img src="benchmarks/measures/delta_spectra_hifi.jpg" alt="delta of spectra ugoku, hifi quality"/>
+  <h3>Ugoku, High quality:</h3>
+  <img src="benchmarks/measures/delta_spectra_high.jpg" alt="delta of spectra ugoku, high quality"/>
+  <h3>Jockie:</h3>
+  <img src="benchmarks/measures/delta_spectra_jockie.jpg" alt="delta of spectra jockie"/>
+  <h2>Delta waveform (Lower is better)</h2>
+  <h3>Ugoku, Hifi quality:</h3>
+  <img src="benchmarks/measures/delta_waveform_hifi.jpg" alt="delta waveform ugoku, hifi quality"/>
+  <h3>Ugoku, High quality:</h3>
+  <img src="benchmarks/measures/delta_waveform_high.jpg" alt="delta waveform ugoku, high quality"/>
+  <h3>Jockie:</h3>
   <img src="benchmarks/measures/delta_waveform_jockie.jpg" alt="delta waveform jockie"/>
-  <h3>Spectrogram, Reference:</h3>
-  <img src="benchmarks/measures/spectrogram_reference.jpg" alt="spectrogram reference"/>
-  <h3>Spectrogram, Ugoku:</h3>
-  <img src="benchmarks/measures/spectrogram_ugoku.jpg" alt="spectrogram ugoku"/>
-  <h3>Spectrogram, Jockie:</h3>
-  <img src="benchmarks/measures/spectrogram_jockie.jpg" alt="spectrogram jockie"/>
+  <h2>Spectrum of delta (Lower is better)</h2>
+  <h3>Ugoku, Hifi quality:</h3>
+  <img src="benchmarks/measures/spectrum_delta_hifi.jpg" alt="spectrum of delta ugoku, hifi quality"/>
+  <h3>Ugoku, High quality:</h3>
+  <img src="benchmarks/measures/spectrum_delta_high.jpg" alt="spectrum of delta ugoku, high quality"/>
+  <h3>Jockie:</h3>
+  <img src="benchmarks/measures/spectrum_delta_jockie.jpg" alt="spectrum of delta jockie"/>
 </div>
