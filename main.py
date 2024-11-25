@@ -1,8 +1,7 @@
+from bot.vocal.spotify import SpotifySessions, Spotify
 from bot.vocal.youtube import Youtube
-import api.api as api
 from config import (
     COMMANDS_FOLDER,
-    SPOTIFY_ENABLED,
     SPOTIFY_API_ENABLED,
     CHATBOT_ENABLED,
     PINECONE_INDEX_NAME,
@@ -16,8 +15,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
-from bot.vocal.spotify import SpotifySessions, Spotify
 
 if CHATBOT_ENABLED:
     from bot.chatbot.vector_recall import memory
@@ -35,8 +32,6 @@ intents = discord.Intents.default()
 intents.message_content = True
 loop = asyncio.get_event_loop()
 bot = discord.Bot(intents=intents, loop=loop)
-server = api.server
-api.bot = bot
 
 
 @bot.event
@@ -66,12 +61,10 @@ for filepath in COMMANDS_FOLDER.rglob('*.py'):
 
 
 async def start() -> None:
-    await asyncio.gather(bot.start(DEV_TOKEN), server.serve())
+    await bot.start(DEV_TOKEN)
 
 try:
     loop.run_until_complete(start())
 finally:
     if not bot.is_closed():
         loop.run_until_complete(bot.close())
-    if server.started:
-        loop.run_until_complete(server.shutdown())

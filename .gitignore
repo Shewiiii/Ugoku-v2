@@ -5,10 +5,3 @@ credentials.json
 logs.log
 .cache
 temp
-chinono/
-pyrightconfig.json
-.DS_Store
-sessions.json
-config.py
-.idea
-.github/workflows

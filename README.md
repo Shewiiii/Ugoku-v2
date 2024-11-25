@@ -27,7 +27,7 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   - [X] Cache audio from custom sources.
   - [X] Embed info messages with metadata.
   - [X] Show the lyrics of a song using musixmatch API.
-  - [ ] (outdated) Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !
+  - [ ] ~~(outdated) Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !~~
 
 
 - [X] Chat using Gemini 1.5 Pro. (WIP)

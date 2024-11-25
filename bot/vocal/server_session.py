@@ -9,7 +9,6 @@ import discord
 from librespot.audio import AbsChunkedInputStream
 from deezer.errors import DataException
 
-from api.update_active_servers import update_active_servers
 from bot.vocal.queue_view import QueueView
 from bot.vocal.control_view import controlView
 from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
@@ -203,7 +202,7 @@ class ServerSession:
         deezer = self.bot.deezer
         track = track_info.get('track')
 
-        # Create stream directly if Track class in track infos
+        # Create stream directly if track dict in track infos
         if track:
             track_info['source'] = await asyncio.to_thread(deezer.stream, track)
             return True
@@ -242,11 +241,9 @@ class ServerSession:
         self.last_context = ctx
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
-            await update_active_servers(
-                self.bot,
-                self.session_manager.server_sessions
-            )
             return  # No songs to play
+
+        track_info = self.queue[0]['track_info']
 
         # If Deezer enabled, inject lossless stream in a spotify track
         if DEEZER_ENABLED and self.queue[0]['source'] == 'Deezer':
@@ -254,14 +251,14 @@ class ServerSession:
                 self.queue[0]['source'] = 'Spotify'
                 if not SPOTIFY_ENABLED:
                     await ctx.send(
-                        content=f"{self.queue[0]['track_info']['display_name']}"
+                        content=f"{track_info['display_name']}"
                         " is not available !",
                         silent=True
                     )
                     self.queue.pop(0)
 
         # Audio source to play
-        source = self.queue[0]['track_info']['source']
+        source = track_info['source']
 
         # If source is a stream generator, generate a fresh stream
         if isinstance(source, Callable):
@@ -298,12 +295,6 @@ class ServerSession:
         self.time_elapsed = start_position
         self.last_played_time = now
         self.playback_start_time = now.isoformat()
-
-        # Refresh API
-        await update_active_servers(
-            self.bot,
-            self.session_manager.server_sessions
-        )
 
         # Send "Now playing" at the end to slightly reduce audio latency
         if (
@@ -503,54 +494,6 @@ class ServerSession:
             self.queue, self.to_loop = self.to_loop, []
 
         await self.start_playing(ctx)
-
-    def get_history(self) -> List[SimplifiedTrackInfo]:
-        """Returns a simplified version of the play history.
-
-        Returns:
-            List[SimplifiedTrackInfo]: A list of simplified track information dictionaries.
-        """
-        return [
-            {
-                "title": track['track_info']['title'],
-                "artist": track['track_info'].get('artist'),
-                "album": track['track_info'].get('album'),
-                "cover": track['track_info'].get('cover'),
-                "duration": track['track_info'].get('duration'),
-                "url": track['track_info']['url']
-            }
-            for track in self.stack_previous
-        ]
-
-    async def toggle_loop(self, mode: LoopMode) -> bool:
-        """Toggles the loop mode for the current track or entire queue.
-
-        Args:
-            mode: The loop mode to set ('noLoop', 'loopAll', or 'loopOne').
-
-        Returns:
-            bool: True if the loop mode was successfully changed, False otherwise.
-        """
-        if mode == 'noLoop':
-            self.loop_current = False
-            self.loop_queue = False
-            response = 'You are not looping anymore.'
-        elif mode == 'loopAll':
-            self.loop_current = False
-            self.loop_queue = True
-            response = 'You are now looping the queue!'
-        elif mode == 'loopOne':
-            self.loop_current = True
-            self.loop_queue = False
-            response = 'You are now looping the current song!'
-        else:
-            return False
-
-        # Send message to the server
-        channel = self.bot.get_channel(self.channel_id)
-        if channel and isinstance(channel, discord.TextChannel):
-            await channel.send(response)
-        return True
 
     async def check_auto_leave(self) -> None:
         """Checks for inactivity and automatically disconnects from the voice channel if inactive for too long."""
