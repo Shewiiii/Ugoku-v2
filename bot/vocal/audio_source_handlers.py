@@ -19,7 +19,8 @@ async def play_spotify(
     query: str,
     session: ServerSession,
     interaction: Optional[discord.Interaction] = None,
-    requested_source: str = 'Spotify'
+    requested_source: str = 'Spotify',
+    offset: int = 0
 ) -> None:
     """
     Handles playback of Spotify tracks.
@@ -34,7 +35,7 @@ async def play_spotify(
         interaction: A discord interaction if that method has been triggered by one.
         requested_source: The streaming service that should be used (Spotify or Deezer).
     """
-    tracks_info = await ctx.bot.spotify.get_tracks(query)
+    tracks_info = await ctx.bot.spotify.get_tracks(query, offset=offset)
 
     if not tracks_info:
         if interaction:

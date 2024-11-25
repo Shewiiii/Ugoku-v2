@@ -20,7 +20,8 @@ class Play(commands.Cog):
         ctx: discord.ApplicationContext,
         query: str,
         source: str,
-        interaction: Optional[discord.Interaction] = None
+        interaction: Optional[discord.Interaction] = None,
+        offset: int = 0,
     ) -> None:
         if interaction:
             respond = interaction.response.send_message
@@ -64,7 +65,7 @@ class Play(commands.Cog):
                 )
                 return
 
-            await play_spotify(ctx, query, session, interaction, 'Spotify')
+            await play_spotify(ctx, query, session, interaction, 'Spotify', offset)
 
         # If deezer is chosen as a source, a lossless audio stream source 
         # will be injected before playing the track 
@@ -76,7 +77,7 @@ class Play(commands.Cog):
                 )
                 return
 
-            await play_spotify(ctx, query, session, interaction, 'Deezer')
+            await play_spotify(ctx, query, session, interaction, 'Deezer', offset)
 
         else:
             await edit(content='wut duh')
@@ -91,11 +92,17 @@ class Play(commands.Cog):
         query: str,
         source: discord.Option(
             str,
+            description="The streaming service you want to use.",
             choices=['Deezer', 'Spotify', 'Youtube', 'Custom', 'Onsei'],
             default=DEFAULT_STREAMING_SERVICE
+        ),  # type: ignore
+        playlist_offset: discord.Option(
+            int,
+            description="If the query is a playlist, choose from what song index to start, defaults to 0.",
+            default=0
         )  # type: ignore
     ) -> None:
-        await self.execute_play(ctx, query, source)
+        await self.execute_play(ctx, query, source, offset=playlist_offset)
 
 
 def setup(bot):

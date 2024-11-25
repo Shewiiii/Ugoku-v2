@@ -389,7 +389,8 @@ class Spotify:
             AudioQuality.VERY_HIGH,
             AudioQuality.HIGH,
             AudioQuality.NORMAL
-        ] = AudioQuality.VERY_HIGH
+        ] = AudioQuality.VERY_HIGH,
+        offset: int = 0
     ) -> List[TrackInfo]:
         """Fetch tracks from a URL or search query.
 
@@ -432,9 +433,11 @@ class Spotify:
 
         # PLAYLIST
         elif type_ == 'playlist':
+            print(offset)
             playlist_API: SpotifyPlaylistAPI = await asyncio.to_thread(
                 self.sessions.sp.playlist_tracks,
-                playlist_id=id
+                playlist_id=id,
+                offset=offset
             )
             return [self.get_track_info(track['track'], aq=aq)
                     for track in playlist_API['items']]
@@ -473,6 +476,3 @@ async def main() -> None:
     sessions = SpotifySessions()
     await sessions.init_spotify()
     spotify = Spotify(sessions)
-
-if __name__ == '__main__':
-    asyncio.run(main())
