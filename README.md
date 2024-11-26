@@ -37,9 +37,9 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   - [X] Have a permanent memory!
 - [ ] And maybe more in the future~
 
-<h2>Plublic playground bot.</h2>
+<h2>Plublic playground bot</h2>
 
-Chatbot an Spotify streaming are disabled, but you can still play with the bot !
+Chatbot and Spotify streaming features are disabled, but you can still play with the bot !
  [Invite link](https://discord.com/oauth2/authorize?client_id=1260656795974897695)
 
 <h2>Random screenshots</h2>
