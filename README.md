@@ -14,7 +14,8 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
 - [X] Ping.
 - [X] Echo messages (make the bot say any message).
 - [X] Download stickers from LINE.
-- [X] Download songs, albums or playlists from Spotify. (WIP)
+- [X] Download songs from Spotify.
+- [ ] Download lossless songs from Deezer. (WIP)
 - [X] Play songs in a voice channel.
   - [X] Skip, Show queue, Autodetect and add songs/albums, or playlists.
   - [X] Loop song, Loop queue, pause, resume...
@@ -35,6 +36,11 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   - [X] Make its messages more human-like.
   - [X] Have a permanent memory!
 - [ ] And maybe more in the future~
+
+<h2>Plublic playground bot.</h2>
+
+Chatbot an Spotify streaming are disabled, but you can still play with the bot !
+ [Invite link](https://discord.com/oauth2/authorize?client_id=1260656795974897695)
 
 <h2>Random screenshots</h2>
 
