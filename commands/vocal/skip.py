@@ -51,8 +51,7 @@ class Skip(commands.Cog):
             session.voice_client.stop()
         else:
             session.last_played_time = datetime.now()
-            session.voice_client.pause()
-            await session.play_next(ctx)
+            session.voice_client.stop()
 
     @commands.slash_command(
         name='skip',

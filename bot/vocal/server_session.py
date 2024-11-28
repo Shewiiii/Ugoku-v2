@@ -4,6 +4,7 @@ import random
 from datetime import datetime, timedelta
 from typing import Optional, Callable, List, Literal
 from deemix.types.Track import Track
+from copy import deepcopy
 
 import discord
 from librespot.audio import AbsChunkedInputStream
@@ -14,7 +15,6 @@ from bot.vocal.control_view import controlView
 from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
 from config import AUTO_LEAVE_DURATION, DEFAULT_AUDIO_VOLUME, DEEZER_ENABLED, SPOTIFY_ENABLED
 from bot.vocal.deezer import DeezerChunkedInputStream
-from bot.search import is_url
 from deemix.errors import GenerationError
 
 from typing import TYPE_CHECKING
@@ -124,7 +124,10 @@ class ServerSession:
             # In case it requires additional api calls,
             # The embed is generated when needed only
             if isinstance(embed, Callable):
-                embed = await embed()
+                sent_embed = await embed()
+            else:
+                sent_embed = deepcopy(embed)
+
             if len(self.queue) > 1:
                 next_track_info = self.queue[1]['track_info']
                 next_track = (
@@ -132,12 +135,12 @@ class ServerSession:
             else:
                 next_track = 'End of queue!'
             # Update the embed with remaining tracks
-            embed.add_field(
+            sent_embed.add_field(
                 name="Remaining",
                 value=str(len(self.queue) - 1),
                 inline=True
             )
-            embed.add_field(
+            sent_embed.add_field(
                 name="Next",
                 value=next_track, inline=True
             )
@@ -145,7 +148,7 @@ class ServerSession:
             aq_dict = {'Youtube': 'Low', 'Spotify': 'High', 'Deezer': 'Hifi'}
             audio_quality = aq_dict.get(self.queue[0]['source'], None)
             if audio_quality:
-                embed.add_field(
+                sent_embed.add_field(
                     name="Audio quality",
                     value=audio_quality,
                     inline=True
@@ -164,7 +167,7 @@ class ServerSession:
         # Send the message or edit the previous message based on the context
         await ctx.send(
             content=message,
-            embed=embed,
+            embed=sent_embed,
             view=view,
             silent=True
         )
@@ -209,8 +212,8 @@ class ServerSession:
         source = track_info['source']
         deezer = self.bot.deezer
 
-        # Already a Deezer stream:
-        if isinstance(source, DeezerChunkedInputStream):
+        # Already a fresh Deezer stream:
+        if isinstance(source, DeezerChunkedInputStream) and not source.finished and not self.is_seeking:
             return True
 
         # Create stream directly if track dict in track infos
@@ -313,7 +316,7 @@ class ServerSession:
         should_send_now_playing = (
             not self.is_seeking
             and (self.skipped or not self.loop_current)
-            and not (len(self.queue) == 1 and self.loop_queue)
+            and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
         )
         if should_send_now_playing:
             await self.send_now_playing(ctx)
@@ -326,11 +329,11 @@ class ServerSession:
 
         # Tasks for the next track to improve reactivity
         await self.prepare_next_track()
-    
+
     async def prepare_next_track(self, index: int = 1) -> None:
         if len(self.queue) <= index:
             return
-        
+
         # Prepare lossless stream if needed
         await self.inject_lossless_stream(index=index)
 
@@ -412,6 +415,7 @@ class ServerSession:
             ctx: The Discord application context.
         """
         self.previous = True
+        self.finish_deezer_stream()
         self.queue.insert(0, self.stack_previous.pop())
         if self.voice_client.is_playing():
             self.voice_client.pause()
@@ -489,12 +493,19 @@ class ServerSession:
             error: Any error that occurred during playback, or None.
         """
         self.last_played_time = datetime.now()
+
         if error:
             raise error
 
         if self.is_seeking:
             # If we're seeking, don't do anything
             return
+
+        # Flag the stream as finished if Deezer stream
+        if len(self.queue) > 0:
+            source = self.queue[0]['track_info']['source']
+            if isinstance(source, DeezerChunkedInputStream):
+                self.queue[0]['track_info']['source'].finished = True
 
         if self.queue and self.voice_client.is_connected():
             asyncio.run_coroutine_threadsafe(
@@ -553,3 +564,10 @@ class ServerSession:
                     break
 
             await asyncio.sleep(17)
+
+    def finish_deezer_stream(self, index: int = 0) -> None:
+        if len(self.queue) <= index:
+            return
+        source = self.queue[index]['track_info']['source']
+        if isinstance(source, DeezerChunkedInputStream):
+            self.queue[index]['track_info']['source'].finished = True
