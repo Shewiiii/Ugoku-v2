@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from spotipy import Spotify, SpotifyClientCredentials
 from deezer import Deezer
+from deezer.errors import DataException
 from deemix import parseLink
 from deemix.utils.crypto import generateBlowfishKey, decryptChunk
 from deemix.decryption import streamTrack
@@ -39,6 +40,8 @@ class DeezerChunkedInputStream:
         self.current_position = 0
 
     def get_encrypted_stream(self) -> None:
+        if not self.stream_url:
+            raise DataException
         self.encrypted_stream: Response = get(
             self.stream_url,
             headers=self.headers,
@@ -70,6 +73,7 @@ class DeezerChunkedInputStream:
                 return decrypted_chunk
             else:
                 self.finished = True
+                return b''
         except StopIteration:
             self.finished = True
             return b''

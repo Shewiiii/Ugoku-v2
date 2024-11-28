@@ -36,6 +36,7 @@ class Shuffle(commands.Cog):
             response_message = "Original queue order restored."
 
         await send_response(respond, response_message, guild_id)
+        await session.prepare_next_track()
 
     @commands.slash_command(
         name='shuffle',

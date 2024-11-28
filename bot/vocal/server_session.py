@@ -203,44 +203,33 @@ class ServerSession:
         return True
 
     async def inject_lossless_stream(self, index: int = 0) -> bool:
+        if not await self.check_deezer_availability(index=index):
+            return False
+        # Create stream directly from the track dict in track_info
+        track_info = self.queue[index]['track_info']
+        deezer = self.bot.deezer
+        track = track_info.get('track')
+        track_info['source'] = await asyncio.to_thread(deezer.stream, track)
+        return True
+
+    async def check_deezer_availability(self, index: int = 0) -> bool:
+        """Returns true if a track in queue is available on Deezer. 
+        Adds a track dict to the track_info dict in this case:
+        {'stream_url': stream_url, 'track_id': id}."""
         if index >= len(self.queue):
             return False
         if not DEEZER_ENABLED or not self.queue[index]['source'] == 'Deezer':
             return False
 
         track_info = self.queue[index]['track_info']
-        source = track_info['source']
         deezer = self.bot.deezer
-
-        # Already a fresh Deezer stream:
-        if isinstance(source, DeezerChunkedInputStream) and not source.finished and not self.is_seeking:
-            return True
-
-        # Create stream directly if track dict in track infos
-        track = track_info.get('track')
-        if track:
-            track_info['source'] = await asyncio.to_thread(deezer.stream, track)
-            return True
-
         try:
             track = await deezer.get_stream_url(track_info['url'])
-            if track:
-                track_info['source'] = await asyncio.to_thread(deezer.stream, track)
-                logging.info("Lossless stream injected in "
-                             f"{track_info['display_name']}")
-
-        except (DataException, GenerationError):
-            logging.info(
-                f"Track not found on deezer: {track_info['display_name']}")
+            self.queue[index]['track_info']['track'] = track
+            return True
+        except:
+            self.queue[index]['source'] = 'Spotify'
             return False
-        except Exception as e:
-            logging.error(f"Error when injecting lossless stream: {e}")
-            return False
-
-        # Put the track dict in the track info dict
-        # Contains: {'stream_url': stream_url, 'track_id': id}
-        self.queue[index]['track_info']['track'] = track
-        return True
 
     async def start_playing(
         self,
@@ -257,6 +246,23 @@ class ServerSession:
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
             return  # No songs to play
+
+        # Now playing embed info
+        should_send_now_playing = (
+            not self.is_seeking
+            and (self.skipped or not self.loop_current)
+            and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
+        )
+        if should_send_now_playing:
+            try:
+                await self.send_now_playing(ctx)
+            except discord.errors.Forbidden:
+                logging.error(
+                    "Now playing embed sent in a "
+                    f"fobidden channel in {self.guild_id}"
+                )
+            # Reset the skip flag
+            self.skipped = False
 
         track_info = self.queue[0]['track_info']
 
@@ -312,17 +318,6 @@ class ServerSession:
         self.last_played_time = now
         self.playback_start_time = now.isoformat()
 
-        # Now playing embed info
-        should_send_now_playing = (
-            not self.is_seeking
-            and (self.skipped or not self.loop_current)
-            and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
-        )
-        if should_send_now_playing:
-            await self.send_now_playing(ctx)
-            # Reset the skip flag
-            self.skipped = False
-
         # Reset flags
         self.is_seeking = False
         self.previous = False
@@ -333,14 +328,15 @@ class ServerSession:
     async def prepare_next_track(self, index: int = 1) -> None:
         if len(self.queue) <= index:
             return
+        track_info = self.queue[index]['track_info']
 
-        # Prepare lossless stream if needed
-        await self.inject_lossless_stream(index=index)
+        # Deezer
+        await self.check_deezer_availability(index=1)
 
         # Generate the embed
-        embed = self.queue[index]['track_info'].get('embed', None)
+        embed = track_info.get('embed', None)
         if embed and isinstance(embed, Callable):
-            self.queue[index]['track_info']['embed'] = await embed()
+            track_info['embed'] = await embed()
 
     async def add_to_queue(
         self,
@@ -415,7 +411,6 @@ class ServerSession:
             ctx: The Discord application context.
         """
         self.previous = True
-        self.finish_deezer_stream()
         self.queue.insert(0, self.stack_previous.pop())
         if self.voice_client.is_playing():
             self.voice_client.pause()
@@ -564,10 +559,3 @@ class ServerSession:
                     break
 
             await asyncio.sleep(17)
-
-    def finish_deezer_stream(self, index: int = 0) -> None:
-        if len(self.queue) <= index:
-            return
-        source = self.queue[index]['track_info']['source']
-        if isinstance(source, DeezerChunkedInputStream):
-            self.queue[index]['track_info']['source'].finished = True
