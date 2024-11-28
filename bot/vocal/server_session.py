@@ -14,6 +14,7 @@ from bot.vocal.control_view import controlView
 from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
 from config import AUTO_LEAVE_DURATION, DEFAULT_AUDIO_VOLUME, DEEZER_ENABLED, SPOTIFY_ENABLED
 from bot.vocal.deezer import DeezerChunkedInputStream
+from bot.search import is_url
 from deemix.errors import GenerationError
 
 from typing import TYPE_CHECKING
@@ -122,7 +123,8 @@ class ServerSession:
         if embed:
             # In case it requires additional api calls,
             # The embed is generated when needed only
-            embed = await embed()
+            if isinstance(embed, Callable):
+                embed = await embed()
             if len(self.queue) > 1:
                 next_track_info = self.queue[1]['track_info']
                 next_track = (
@@ -197,12 +199,22 @@ class ServerSession:
         await self.start_playing(self.last_context, start_position=position)
         return True
 
-    async def inject_lossless_stream(self) -> bool:
-        track_info = self.queue[0]['track_info']
+    async def inject_lossless_stream(self, index: int = 0) -> bool:
+        if index >= len(self.queue):
+            return False
+        if not DEEZER_ENABLED or not self.queue[index]['source'] == 'Deezer':
+            return False
+
+        track_info = self.queue[index]['track_info']
+        source = track_info['source']
         deezer = self.bot.deezer
-        track = track_info.get('track')
+
+        # Already a Deezer stream:
+        if isinstance(source, DeezerChunkedInputStream):
+            return True
 
         # Create stream directly if track dict in track infos
+        track = track_info.get('track')
         if track:
             track_info['source'] = await asyncio.to_thread(deezer.stream, track)
             return True
@@ -224,7 +236,7 @@ class ServerSession:
 
         # Put the track dict in the track info dict
         # Contains: {'stream_url': stream_url, 'track_id': id}
-        self.queue[0]['track_info']['track'] = track
+        self.queue[index]['track_info']['track'] = track
         return True
 
     async def start_playing(
@@ -246,7 +258,7 @@ class ServerSession:
         track_info = self.queue[0]['track_info']
 
         # If Deezer enabled, inject lossless stream in a spotify track
-        if DEEZER_ENABLED and self.queue[0]['source'] == 'Deezer':
+        if self.queue[0]['source'] == 'Deezer':
             if not await self.inject_lossless_stream():
                 self.queue[0]['source'] = 'Spotify'
                 if not SPOTIFY_ENABLED:
@@ -255,7 +267,8 @@ class ServerSession:
                         " is not available !",
                         silent=True
                     )
-                    self.queue.pop(0)
+                    self.after_playing(ctx, error=None)
+                    return
 
         # Audio source to play
         source = track_info['source']
@@ -296,12 +309,13 @@ class ServerSession:
         self.last_played_time = now
         self.playback_start_time = now.isoformat()
 
-        # Send "Now playing" at the end to slightly reduce audio latency
-        if (
+        # Now playing embed info
+        should_send_now_playing = (
             not self.is_seeking
             and (self.skipped or not self.loop_current)
             and not (len(self.queue) == 1 and self.loop_queue)
-        ):
+        )
+        if should_send_now_playing:
             await self.send_now_playing(ctx)
             # Reset the skip flag
             self.skipped = False
@@ -309,6 +323,21 @@ class ServerSession:
         # Reset flags
         self.is_seeking = False
         self.previous = False
+
+        # Tasks for the next track to improve reactivity
+        await self.prepare_next_track()
+    
+    async def prepare_next_track(self, index: int = 1) -> None:
+        if len(self.queue) <= index:
+            return
+        
+        # Prepare lossless stream if needed
+        await self.inject_lossless_stream(index=index)
+
+        # Generate the embed
+        embed = self.queue[index]['track_info'].get('embed', None)
+        if embed and isinstance(embed, Callable):
+            self.queue[index]['track_info']['embed'] = await embed()
 
     async def add_to_queue(
         self,
@@ -490,6 +519,7 @@ class ServerSession:
 
         if not self.loop_current:
             self.queue.pop(0)
+
         if not self.queue and self.loop_queue:
             self.queue, self.to_loop = self.to_loop, []
 

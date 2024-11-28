@@ -433,7 +433,6 @@ class Spotify:
 
         # PLAYLIST
         elif type_ == 'playlist':
-            print(offset)
             playlist_API: SpotifyPlaylistAPI = await asyncio.to_thread(
                 self.sessions.sp.playlist_tracks,
                 playlist_id=id,
