@@ -6,10 +6,7 @@ from discord.ext import commands
 from config import (
     CHATBOT_WHITELIST,
     CHATBOT_ENABLED,
-    GEMINI_UTILS_MODEL
 )
-import google.generativeai as genai
-
 from google.generativeai.types.generation_types import (
     BlockedPromptException,
     StopCandidateException

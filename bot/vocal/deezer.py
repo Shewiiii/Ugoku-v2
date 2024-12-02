@@ -4,15 +4,12 @@ from typing import Optional
 import logging
 from requests import get, Response
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 
 from spotipy import Spotify, SpotifyClientCredentials
 from deezer import Deezer
 from deezer.errors import DataException
 from deemix import parseLink
 from deemix.utils.crypto import generateBlowfishKey, decryptChunk
-from deemix.decryption import streamTrack
-from deemix.types.Track import Track
 from deemix.utils import USER_AGENT_HEADER
 from deemix.plugins.spotify import Spotify as Spplugin
 

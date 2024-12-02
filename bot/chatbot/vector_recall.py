@@ -53,15 +53,19 @@ class Memory:
         self.active = False
 
     async def init_pinecone(self, index_name: str) -> None:
+        if not PINECONE_API_KEY:
+            logging.warning("No valid Pinecone API key has been provided")
+            return
+
         logging.info("Initialization of Pinecone..")
         while not self.active:
             try:
                 self.pc = Pinecone(api_key=PINECONE_API_KEY)
                 self.active = True
             except:
-                await asyncio.sleep(60)
                 await logging.error(
                     "Connection to Pinecone API failed, trying again in 60 seconds.")
+                await asyncio.sleep(60)
         logging.info("Pinecone has been initialized successfully")
 
         self.index = self.pc.Index(index_name)
