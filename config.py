@@ -63,6 +63,12 @@ GEMINI_SAFETY_SETTINGS = [
         "threshold": "BLOCK_NONE",
     },
 ] # See https://ai.google.dev/gemini-api/docs/safety-settings
+GEMINI_MAX_OUTPUT_TOKEN = 500
+GEMINI_MAX_CONTENT_SIZE = {
+    'text': 10000,
+    'audio': 10000000,
+    'image': 7000000
+    } # Max length of an attachment, in bytes
 LANGUAGES = [
     # Put any language you want to support in /translate command.
     # Has to be supported by GPT-4o Mini.

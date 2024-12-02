@@ -1,30 +1,31 @@
 import os
 import re
+import base64
 import pytz
 import logging
 from typing import Optional, List
 from datetime import datetime, timedelta
-import hashlib
-import asyncio
-from aiohttp import ClientSession
+import httpx
+from bs4 import BeautifulSoup
+from httpx import ReadTimeout, ConnectTimeout, HTTPStatusError
 from dotenv import load_dotenv
 from config import (
     GEMINI_MODEL,
     GEMINI_SAFETY_SETTINGS,
-    TEMP_FOLDER,
     GEMINI_HISTORY_SIZE,
     CHATBOT_TIMEOUT,
     CHATBOT_PREFIX,
     CHATBOT_TIMEZONE,
-    CHATBOT_EMOTES
+    CHATBOT_EMOTES,
+    GEMINI_MAX_OUTPUT_TOKEN,
+    GEMINI_MAX_CONTENT_SIZE
 )
 
 import discord
 import google.generativeai as genai
-from google.generativeai.types import file_types
-from google.api_core.exceptions import PermissionDenied
 
 from bot.chatbot.vector_recall import memory
+from bot.search import link_grabber
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
@@ -39,7 +40,7 @@ class Prompts:
     system = (
         '''
 Respect ALL the following:
-You are now roleplaying as Ugoku, 
+You are now roleplaying as Ugoku,
 a very cute nekomimi character with the following traits.
 Stay in character as Ugoku in all responses.
 
@@ -72,10 +73,9 @@ Avoid asking questions; focus on sharing thoughts naturally, as if enjoying the 
 NEVER, never use emotes
 If there are images, there are emotes: react appropriately
 Always use the same language as your interlocutor
-Never, never put the message infos, only output your message without anymore more
+Never, never put the message infos, only output your message without anything more
 Use the provided time and date to make time related answers
 Your interlocutor is indicated by "[someone] says", pay attention to who you're talking with
-
 '''
     )
     # end = (
@@ -121,7 +121,7 @@ class Gembot:
         query: str,
         model: genai.GenerativeModel = global_model,
         temperature: float = 1.5,
-        max_output_tokens: int = 300,
+        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKEN,
         safety_settings=GEMINI_SAFETY_SETTINGS
     ) -> Optional[str]:
         try:
@@ -149,10 +149,10 @@ class Gembot:
         self,
         user_query: str,
         author: str,
-        image_urls: Optional[List[str]] = None,
+        extra_content: Optional[List[str]] = None,
         r_text: str = "",
         temperature: float = 2.0,
-        max_output_tokens: int = 300
+        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKEN
     ) -> Optional[str]:
 
         # Update variables
@@ -177,15 +177,16 @@ class Gembot:
         ]
         message = f"[{', '.join(infos)}] {user_query}"
 
-        # Add images if there are
-        image_files = []
-        if image_urls:
-            for url in image_urls:
-                file = await self.upload_file_from_url(url)
-                image_files.append(file)
+        # Add the extra content (links, images, emotes..) if there are
+        converted_content = []
+        if extra_content:
+            for url in extra_content:
+                file = await self.get_base64_bytes(url)
+                if file:
+                    converted_content.append(file)
 
         response = await self.chat.send_message_async(
-            [message] + image_files,
+            [message] + converted_content,
             generation_config=genai.types.GenerationConfig(
                 candidate_count=1,
                 temperature=temperature,
@@ -204,38 +205,53 @@ class Gembot:
         return response.text
 
     @staticmethod
-    async def upload_file_from_url(url: str) -> file_types.File:
-        # Get the image
-        hash_digest = hashlib.md5(url.encode()).hexdigest()
-        path = TEMP_FOLDER / f"{hash_digest}.cache"
-        try:
-            file = genai.get_file(hash_digest)
-            return file
-        except PermissionDenied:
-            # File expired (404 error)
-            pass
-
-        # Save the image in cache
-        if not path.is_file():
-            async with ClientSession() as session:
-                async with session.get(url) as response:
-                    response.raise_for_status()
-                    image_bytes = await response.read()
-                    mime_type = response.headers.get('Content-Type', None)
-
-            with open(path, 'wb') as file:
-                file.write(image_bytes)
-
-        # Upload the image
-        genai_file: file_types.File = await asyncio.to_thread(
-            genai.upload_file,
-            path,
-            mime_type=mime_type,
-            name=hash_digest
+    async def get_base64_bytes(url: str) -> Optional[bytes]:
+        """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
+        timeouts = httpx.Timeout(
+            connect=5.0,
+            read=3.0,
+            write=5.0,
+            pool=2.0
         )
-        logging.info(f"Image {hash_digest} uploaded and cached.")
+        try:
+            async with httpx.AsyncClient(timeout=timeouts) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                mime_type = response.headers.get('content-type', '')
+                content_type = mime_type.split("/")[0]  # E.g: audio, text..
+                max_size = GEMINI_MAX_CONTENT_SIZE.get(content_type, 0)
 
-        return genai_file
+                if content_type == 'text':
+                    raw = BeautifulSoup(response.text, "html.parser")
+                    to_encode = raw.get_text(strip=True)
+
+                elif content_type in ['image', 'audio']:
+                    to_encode = response.content
+
+                else:
+                    logging.warning(
+                        f"{url} has not been processed: mime_type not allowed")
+                    return
+
+                b64_bytes = base64.b64encode(to_encode).decode('utf-8')
+
+                # Size check
+                if len(b64_bytes) > max_size:
+                    logging.warning(
+                        f"{url} has not been processed: File too big")
+                    return
+
+                content = {'mime_type': mime_type, 'data': b64_bytes}
+                return content
+
+        except (ReadTimeout, ConnectTimeout, HTTPStatusError):
+            logging.warning(
+                f"{url} has not been processed due to timeout or incompatibility")
+            return
+
+        except Exception as e:
+            logging.error(f"Error processing the {url}: {e}")
+            return
 
     async def is_interacting(self, message: discord.Message) -> bool:
         """Determine if the bot should interact based on the message content.
@@ -309,7 +325,7 @@ class Gembot:
 
     async def get_params(self, message: discord.Message) -> tuple:
         """Get Gemini message params from a discord.Message."""
-        image_urls = []
+        extra_content = []
 
         # Remove prefix
         msg_text = message.content
@@ -322,15 +338,20 @@ class Gembot:
         elif message.content.endswith(CHATBOT_PREFIX):
             msg_text = msg_text[:-1]
 
+        # Process URLs in message body
+        extra_content.extend(
+            match[0] for match in re.findall(link_grabber, msg_text)
+        )
+
         # Process attachments
         for attachment in message.attachments:
-            if attachment.content_type and "image" in attachment.content_type:
-                image_urls.append(attachment.url)
+            if attachment.url:
+                extra_content.append(attachment.url)
 
         # Process stickers
         if message.stickers:
             sticker: discord.StickerItem = message.stickers[0]
-            image_urls.append(sticker.url)
+            extra_content.append(sticker.url)
 
         # Process custom emojis
         match = re.search(
@@ -345,31 +366,32 @@ class Gembot:
                 emote_full, f":{name}:")
 
             # Append the first emote to the image list
-            image_urls.append(
+            extra_content.append(
                 f'https://cdn.discordapp.com/emojis/{snowflake}.png')
 
         # Process message reference (if any)
         r_text = ""
-        if message.reference:
+        if message.reference and message.reference.message_id:
             r_id = message.reference.message_id
-            if r_id:
-                r_message = await message.channel.fetch_message(r_id)
-                r_content = r_message.content
-                r_author = r_message.author.global_name
-                for attachment in r_message.attachments:
-                    if attachment.content_type and "image" in attachment.content_type:
-                        image_urls.append(attachment.url)
-                r_text = f"Message referencing {r_author}: {r_content}) "
+            r_message = await message.channel.fetch_message(r_id)
+            r_author = r_message.author.global_name
+            r_content = r_message.content
+            urls = [
+                attachment.url
+                for attachment in r_message.attachments
+                if attachment.url
+            ]
+            extra_content.extend(urls)
+            r_text = f"Message referencing {r_author}: {r_content}"
 
-        # Get Ugoku's response
-        request = (
+        # Wrap parameters
+        params = (
             msg_text,
             message.author.global_name,
-            image_urls,
+            extra_content,
             r_text
         )
-
-        return request
+        return params
 
     @staticmethod
     def convert_emotes(string: str, bot_emotes: dict = CHATBOT_EMOTES) -> str:
