@@ -9,9 +9,6 @@ bs4
 imageio
 PyNaCl
 mutagen
-fastapi
-uvicorn
-sse-starlette
 typing-extensions
 youtube-transcript-api
 yt-dlp[default] --pre
