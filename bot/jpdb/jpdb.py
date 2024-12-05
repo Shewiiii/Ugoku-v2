@@ -401,7 +401,7 @@ class Jpdb:
         pitch_accent = self.get_pitch_accent(word)
         embed = self.create_front_embed(card, sentences)
         view = self.get_front_view(card, sentences, pitch_accent)
-        await self.ctx.send(embed=embed, view=view)
+        await self.ctx.send(embed=embed, view=view, silent=True)
 
 
 class JpdbSessions:
