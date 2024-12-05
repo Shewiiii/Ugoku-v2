@@ -416,6 +416,7 @@ class JpdbSessions:
         user_id = ctx.author.id
         session = self.jpdb_sessions.get(user_id)
         if session:
+            session.ctx = ctx
             return session
         elif not api_key:
             raise ValueError("No API key provided")
