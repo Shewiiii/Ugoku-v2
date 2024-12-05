@@ -17,3 +17,5 @@ setuptools
 pytz
 pinecone[grpc]
 deemix
+pandas
+httpx

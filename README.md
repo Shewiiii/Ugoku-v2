@@ -37,6 +37,8 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   - [X] Have a permanent memory!
 - [ ] And maybe more in the future~
 
+- [X] Review jpdb cards in Discord (sentences from Tatoeba)
+
 <h2>Plublic playground bot</h2>
 
 Chatbot and Spotify streaming features are disabled, but you can still play with the bot !
@@ -63,6 +65,8 @@ Chatbot and Spotify streaming features are disabled, but you can still play with
 
 - Queue not showing when too many characters in the queue/loop section. (mostly the case with onsei)
   ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in length.").
+- Audio indicator not accurate with the first song
+- Example sentences not always well chosen (jpdb)
 
 <h2>Audio benchmarks</h2>
 
