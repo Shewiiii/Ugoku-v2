@@ -5,7 +5,7 @@ import discord
 from discord.ui import View
 
 from bot.vocal.custom import get_cover_data_from_hash
-from bot.utils import get_dominant_rgb_from_url
+from bot.utils import get_dominant_rgb_from_url, split_into_chunks
 from bot.vocal.types import QueueItem
 from config import DEFAULT_EMBED_COLOR
 
@@ -193,8 +193,19 @@ class QueueView(View):
                     f"({self.queue[i]['track_info']['url']})"
                     for i in range(start_index + 1, end_index)
                 )
+                # Split the queue (if too long)
+                splitted: list = split_into_chunks(queue_details)
                 embed.add_field(
-                    name="Queue", value=queue_details, inline=False)
+                    name="Queue",
+                    value=splitted[0],
+                    inline=False
+                )
+                for part in splitted[1:]:
+                    embed.add_field(
+                        name="",
+                        value=part,
+                        inline=False
+                    )
 
         # Songs in loop section
         end_index = min(start_index + self.max_per_page, len(self.to_loop))

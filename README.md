@@ -63,8 +63,6 @@ Chatbot and Spotify streaming features are disabled, but you can still play with
 
 <h2>Known bugs to fix</h2>
 
-- Queue not showing when too many characters in the queue/loop section. (mostly the case with onsei)
-  ("In data.embeds.0.fields.1.value: Must be 1024 or fewer in length.").
 - Audio indicator not accurate with the first song
 - Example sentences not always well chosen (jpdb)
 

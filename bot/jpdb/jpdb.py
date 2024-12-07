@@ -4,8 +4,10 @@ from typing import Optional
 import discord
 import time
 from config import DEFAULT_EMBED_COLOR
+
 from bot.jpdb.pitch_accent import pa
 from bot.jpdb.sentences import sentence
+from bot.utils import get_dominant_rgb_from_url, split_into_chunks
 
 
 class JpdbFrontView(discord.ui.View):
@@ -244,7 +246,7 @@ class Jpdb:
 
         return cards
 
-    def get_new_cards(self, limit = 20) -> list:
+    def get_new_cards(self, limit=20) -> list:
         return self.get_cards('new', limit)
 
     def get_due_cards(self) -> list:
@@ -346,16 +348,28 @@ class Jpdb:
             name='Pitch accent',
             value=pitch_accent,
             inline=True
-        ).add_field(
-            name='Meanings',
-            value='\n'.join(
-                f"{i}. {', '.join(meaning_chunk)}"
-                for i, meaning_chunk in enumerate(card.get('meanings_chunks', []))
-            )
         ).set_author(
             name='jpdb',
             icon_url=self.ctx.author.avatar.url
         )
+        # Split the meanings
+        meanings = '\n'.join(
+            f"{i+1}. {', '.join(meaning_chunk)}"
+            for i, meaning_chunk in enumerate(card.get('meanings_chunks', []))
+        )
+        print(meanings)
+        splitted: list = split_into_chunks(meanings)
+        embed.add_field(
+            name="Meanings",
+            value=splitted[0],
+            inline=False
+        )
+        for part in splitted[1:]:
+            embed.add_field(
+                name="",
+                value=part,
+                inline=False
+            )
         return embed
 
     def get_front_view(
