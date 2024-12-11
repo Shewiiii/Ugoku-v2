@@ -204,8 +204,7 @@ class Gembot:
 
         return response.text
 
-    @staticmethod
-    async def get_base64_bytes(url: str) -> Optional[bytes]:
+    async def get_base64_bytes(self, url: str) -> Optional[bytes]:
         """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
         timeouts = httpx.Timeout(
             connect=5.0,
@@ -225,10 +224,11 @@ class Gembot:
                     raw = BeautifulSoup(response.text, "html.parser")
                     to_encode = raw.get_text(strip=True).encode()
 
-                elif content_type in ['image', 'audio']:
+                elif content_type in ['image', 'audio', 'application']:
                     to_encode = response.content
 
                 else:
+                    self.status = -1
                     logging.warning(
                         f"{url} has not been processed: mime_type not allowed")
                     return
@@ -237,6 +237,7 @@ class Gembot:
 
                 # Size check
                 if len(b64_bytes) > max_size:
+                    self.status = -2
                     logging.warning(
                         f"{url} has not been processed: File too big")
                     return
@@ -245,6 +246,7 @@ class Gembot:
                 return content
 
         except (ReadTimeout, ConnectTimeout, HTTPStatusError):
+            self.status = -3
             logging.warning(
                 f"{url} has not been processed due to timeout or incompatibility")
             return
@@ -302,15 +304,6 @@ class Gembot:
 
     def format_reply(self, reply: str) -> str:
         """Format the reply based on the current status."""
-        status = self.status
-        if status == 1:
-            return (
-                '-# Continuous chat mode enabled ! '
-                f'End it by putting "{CHATBOT_PREFIX}"'
-                f' at the end of your message. \n{reply}'
-            )
-        elif status == 3:
-            return f'{reply}\n-# End of chat.'
 
         # Remove default emoticons (face emojis)
         emoticon_pattern = re.compile(
@@ -321,6 +314,23 @@ class Gembot:
 
         # Add custom emote snowflakes (to properly show up in Discord)
         reply = self.convert_emotes(reply)
+
+        # Add message status
+        status = self.status
+        error_body = "File/url has not been processed:"
+        messages = {
+            1: (
+                '-# Continuous chat mode enabled! '
+                f'End it by putting "{CHATBOT_PREFIX}" '
+                f'at the end of your message.\n{reply}'
+            ),
+            3: f'{reply}\n-# End of chat.',
+            -1: f'-# {error_body} mime_type not allowed.\n{reply}',
+            -2: f'-# {error_body} file too big.\n{reply}',
+            -3: f'-# {error_body} timeout or access forbidden.\n{reply}',
+        }
+
+        reply = messages.get(status, reply)
         return reply
 
     async def get_params(self, message: discord.Message) -> tuple:
