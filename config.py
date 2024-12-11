@@ -38,8 +38,8 @@ CHATBOT_EMOTES = {} # Add here all the discord emotes the chatbot should use !
   # Get the snowflake id by adding a \ before sending the emote. Eg: \:emote:
 PINECONE_RECALL_WINDOW = 20
 PINECONE_INDEX_NAME = 'ugoku'
-GEMINI_MODEL = 'gemini-1.5-pro'
-GEMINI_UTILS_MODEL = 'gemini-1.5-flash' # Used for summaries and lyrics
+GEMINI_MODEL = 'gemini-2.0-flash-exp'
+GEMINI_UTILS_MODEL = 'gemini-2.0-flash-exp' # Used for summaries and lyrics
 GEMINI_HISTORY_SIZE = 20 # How many messages to remember per chat instance
 GEMINI_SAFETY_SETTINGS = [
     {
@@ -65,7 +65,7 @@ GEMINI_SAFETY_SETTINGS = [
 ] # See https://ai.google.dev/gemini-api/docs/safety-settings
 GEMINI_MAX_OUTPUT_TOKEN = 500
 GEMINI_MAX_CONTENT_SIZE = {
-    'text': 10000,
+    'text': 200000,
     'audio': 10000000,
     'image': 7000000
     } # Max length of an attachment, in bytes
