@@ -223,7 +223,7 @@ class Gembot:
 
                 if content_type == 'text':
                     raw = BeautifulSoup(response.text, "html.parser")
-                    to_encode = raw.get_text(strip=True)
+                    to_encode = raw.get_text(strip=True).encode()
 
                 elif content_type in ['image', 'audio']:
                     to_encode = response.content
@@ -250,7 +250,7 @@ class Gembot:
             return
 
         except Exception as e:
-            logging.error(f"Error processing the {url}: {e}")
+            logging.error(f"Error processing {url}: {e}")
             return
 
     async def is_interacting(self, message: discord.Message) -> bool:
