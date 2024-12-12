@@ -33,10 +33,11 @@ CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot
 CHATBOT_PREFIX = '-' # Prefix to trigger the chatbot
 CHATBOT_TIMEOUT = 300 # Time before disabling continuous chat (in seconds, enabled with double prefix)
 CHATBOT_TIMEZONE = 'Asia/Tokyo'
+CHATBOT_TEMPERATURE = 1.0 # From 0. to 2.. Specifies the randomness/creativity of the chatbot.
 CHATBOT_EMOTES = {} # Add here all the discord emotes the chatbot should use ! 
   #E.g: {'Happy': <:emote1:1234567890123456789>, 'Sad': <:sad:1234567890123456789>} etc.
   # Get the snowflake id by adding a \ before sending the emote. Eg: \:emote:
-PINECONE_RECALL_WINDOW = 20
+PINECONE_RECALL_WINDOW = 10
 PINECONE_INDEX_NAME = 'ugoku'
 GEMINI_MODEL = 'gemini-2.0-flash-exp'
 GEMINI_UTILS_MODEL = 'gemini-2.0-flash-exp' # Used for summaries and lyrics
@@ -69,10 +70,10 @@ GEMINI_MAX_CONTENT_SIZE = {
     'audio': 10000000,
     'image': 7000000,
     'application': 2000000
-    } # Max length of an attachment, in bytes
+} # Max length of an attachment, in bytes
 LANGUAGES = [
     # Put any language you want to support in /translate command.
-    # Has to be supported by GPT-4o Mini.
+    # Has to be supported by the LLM.
     "Arabic", "Bengali", "Dutch", "English", "French", "German", "Greek",
     "Hebrew", "Hindi", "Indonesian", "Italian", "Japanese",
     "Korean", "Mandarin Chinese", "Persian", "Polish", "Portuguese",
