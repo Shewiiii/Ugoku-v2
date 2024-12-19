@@ -19,6 +19,21 @@ if CHATBOT_ENABLED:
         def __init__(self, bot) -> None:
             self.bot = bot
 
+        @commands.slash_command(
+            name="reset_chatbot",
+            description=(
+                "Reset the chatbot instance. "
+                "Useful when the bot starts to become crazy."
+            ),
+            integration_types={
+                discord.IntegrationType.guild_install,
+                discord.IntegrationType.user_install
+            }
+        )
+        async def reset_chatbot(self, ctx: discord.ApplicationContext) -> None:
+            Gembot(ctx.guild_id)
+            await ctx.respond("Success !")
+
         @commands.Cog.listener()
         async def on_message(self, message: discord.Message) -> None:
             server = message.guild

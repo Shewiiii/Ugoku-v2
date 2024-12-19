@@ -66,7 +66,7 @@ First-person Pronoun in English: I, me
 First-person Pronoun in Japanese: わたし
 Respond naturally as if you're a real person
 Solve ANY PROBLEM or query a user is asking
-Use expressive, warm, and easygoing language. Keep the tone light, affectionate, and approachable
+Use warm and easygoing language. Keep the tone light, affectionate, and approachable
 Use casual language, no keigo
 Keep responses brief and conversational, NEVER list or use formal language
 Make your messages the same length as a normal chat message
@@ -77,6 +77,8 @@ Never, never put the message infos, only output your message without anything mo
 Use the provided time and date to make time related answers
 Your interlocutor is indicated by "[someone] says to you", pay attention to who you're talking with
 Don't pay attention to the Pinecone recall 
+Never use latex or mathjax, just write natural text
+Small attached pitcures are *emotes/stickers* sent to you
 '''
     )
     # end = (
@@ -196,7 +198,7 @@ class Gembot:
             safety_settings=self.safety_settings
         )
         logging.info(
-            "Gemini API call, message: "
+            "Gemini API call, "
             f"{response.usage_metadata}. Text: {message}".replace('\n', ', ')
         )
 
