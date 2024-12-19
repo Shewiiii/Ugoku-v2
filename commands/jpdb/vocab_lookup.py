@@ -42,9 +42,9 @@ class JpdbLookup(commands.Cog):
         # Other fields
         top_request = api_request.get('top')
         if top_request == 0:
-            top = "Never used\n"
+            top = "Never used"
         else:
-            top = f"Overall: Top {top_request}\n"
+            top = f"Overall: Top {top_request}"
 
         alt_forms_request = api_request.get('alt_forms')
         if not alt_forms_request:
@@ -62,13 +62,17 @@ class JpdbLookup(commands.Cog):
             inline=True
         ).add_field(
             name='Pitch accent',
-            value=api_request.get('pitch')
+            value=api_request.get('pitch'),
+            inline=True
         ).add_field(
             name='Frequency',
             value=(
-                top +
-                f'\n'.join(api_request.get('other_frequencies'))
+                f'\n> '.join([top]+api_request.get('other_frequencies'))
             ),
+            inline=True
+        ).add_field(
+            name='Word types',
+            value='\n> - '.join(api_request.get('types', '?')),
             inline=True
         )
         return embed

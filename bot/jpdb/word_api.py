@@ -16,7 +16,7 @@ class JpdbWordApi:
         pitch_container = pitch_section.find('div', class_='subsection')
         if not pitch_container:
             return ''
-        
+
         # First pitch accent
         first_pitch = pitch_container.find('div').find('div')
 
@@ -89,6 +89,7 @@ class JpdbWordApi:
         word_api['top'], word_api['other_frequencies'] = (
             self.parse_frequencies(first_result)
         )
+        word_api['types'] = self.parse_word_type(first_result)
         return word_api
 
     def parse_word(self, first_result) -> str:
@@ -174,6 +175,15 @@ class JpdbWordApi:
                 number = int(number.replace(',', ''))
                 other_freqs.append(f"{category}: Top {number}")
         return top, other_freqs
+
+    def parse_word_type(self, first_result) -> list:
+        pos = first_result.find_all('div', class_='part-of-speech')
+        types = []
+        for part in pos:
+            types.append(
+                ', '.join(div.text for div in part.find_all('div'))
+            )
+        return types
 
 
 word_api = JpdbWordApi()
