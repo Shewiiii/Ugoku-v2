@@ -4,6 +4,8 @@ from typing import Optional
 import discord
 import time
 from config import DEFAULT_EMBED_COLOR
+from bs4 import BeautifulSoup
+import re
 
 from bot.jpdb.pitch_accent import pa
 from bot.jpdb.sentences import sentence
@@ -357,7 +359,6 @@ class Jpdb:
             f"{i+1}. {', '.join(meaning_chunk)}"
             for i, meaning_chunk in enumerate(card.get('meanings_chunks', []))
         )
-        print(meanings)
         splitted: list = split_into_chunks(meanings)
         embed.add_field(
             name="Meanings",
@@ -386,6 +387,18 @@ class Jpdb:
         view = JpdbFrontView(card, self, back_embed)
         return view
 
+    async def show_card(self) -> None:
+        review_cards = self.update_review_cards()
+        if not review_cards or not self.ctx:
+            return
+        card = review_cards[0]
+        word = card['spelling']
+        sentences = self.get_example_sentence(word)
+        pitch_accent = self.get_pitch_accent(word)
+        embed = self.create_front_embed(card, sentences)
+        view = self.get_front_view(card, sentences, pitch_accent)
+        await self.ctx.send(embed=embed, view=view, silent=True)
+
     @ staticmethod
     def get_example_sentence(word: str) -> dict:
         sentences = sentence.get(word)
@@ -404,18 +417,6 @@ class Jpdb:
         current_timestamp = int(time.time())
         delta = int((current_timestamp - timestamp) / (3600 * 24))
         return delta
-
-    async def show_card(self) -> None:
-        review_cards = self.update_review_cards()
-        if not review_cards or not self.ctx:
-            return
-        card = review_cards[0]
-        word = card['spelling']
-        sentences = self.get_example_sentence(word)
-        pitch_accent = self.get_pitch_accent(word)
-        embed = self.create_front_embed(card, sentences)
-        view = self.get_front_view(card, sentences, pitch_accent)
-        await self.ctx.send(embed=embed, view=view, silent=True)
 
 
 class JpdbSessions:
