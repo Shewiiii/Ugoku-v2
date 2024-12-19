@@ -65,6 +65,8 @@ Chatbot and Spotify streaming features are disabled, but you can still play with
 
 - Audio indicator not accurate with the first song
 - Example sentences not always well chosen (jpdb)
+- The song in vc may stop randomly
+- Audio is slowing down at the beginning of a song
 
 <h2>Audio benchmarks</h2>
 
