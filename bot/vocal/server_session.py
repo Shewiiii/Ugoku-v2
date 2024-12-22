@@ -247,6 +247,21 @@ class ServerSession:
             logging.info(f'Playback stopped in {self.guild_id}')
             return  # No songs to play
 
+        track_info = self.queue[0]['track_info']
+
+        # If Deezer enabled, inject lossless stream in a spotify track
+        if self.queue[0]['source'] == 'Deezer':
+            if not await self.inject_lossless_stream():
+                self.queue[0]['source'] = 'Spotify'
+                if not SPOTIFY_ENABLED:
+                    await ctx.send(
+                        content=f"{track_info['display_name']}"
+                        " is not available !",
+                        silent=True
+                    )
+                    self.after_playing(ctx, error=None)
+                    return
+
         # Now playing embed info
         should_send_now_playing = (
             not self.is_seeking
@@ -263,21 +278,6 @@ class ServerSession:
                 )
             # Reset the skip flag
             self.skipped = False
-
-        track_info = self.queue[0]['track_info']
-
-        # If Deezer enabled, inject lossless stream in a spotify track
-        if self.queue[0]['source'] == 'Deezer':
-            if not await self.inject_lossless_stream():
-                self.queue[0]['source'] = 'Spotify'
-                if not SPOTIFY_ENABLED:
-                    await ctx.send(
-                        content=f"{track_info['display_name']}"
-                        " is not available !",
-                        silent=True
-                    )
-                    self.after_playing(ctx, error=None)
-                    return
 
         # Audio source to play
         source = track_info['source']
