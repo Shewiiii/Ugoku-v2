@@ -40,18 +40,19 @@ class JpdbLookup(commands.Cog):
                 inline=False
             )
         # Other fields
+        # Set variables
         top_request = api_request.get('top')
         if top_request == 0:
             top = "Never used"
         else:
             top = f"Overall: Top {top_request}"
-
         alt_forms_request = api_request.get('alt_forms')
         if not alt_forms_request:
             alt_forms = "None"
         else:
             alt_forms = ', '.join(alt_forms_request)
 
+        # Add extra fields
         embed.add_field(
             name='Alt forms',
             value=alt_forms,

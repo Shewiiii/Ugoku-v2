@@ -1,15 +1,11 @@
 import httpx
-import os
 from typing import Optional
 import discord
 import time
 from config import DEFAULT_EMBED_COLOR
-from bs4 import BeautifulSoup
-import re
 
-from bot.jpdb.pitch_accent import pa
-from bot.jpdb.sentences import sentence
-from bot.utils import get_dominant_rgb_from_url, split_into_chunks
+from bot.jpdb.word_api import word_api
+from bot.utils import split_into_chunks
 
 
 class JpdbFrontView(discord.ui.View):
@@ -33,9 +29,9 @@ class JpdbFrontView(discord.ui.View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        await interaction.response.defer()
         if self.jpdb_session.user_id != interaction.user.id:
             return
+        await interaction.response.defer()
         back_view = JpdbBackView(
             self.card,
             self.jpdb_session,
@@ -65,13 +61,13 @@ class JpdbBackView(discord.ui.View):
         }
 
     async def callback(
-            self,
-            interaction: discord.Interaction,
-            grade: str
+        self,
+        interaction: discord.Interaction,
+        grade: str
     ) -> None:
-        await interaction.response.defer()
         if self.jpdb_session.user_id != interaction.user.id:
             return
+        await interaction.response.defer()
         self.back_embed.colour = self.colors[grade]
         await interaction.edit_original_response(view=None, embed=self.back_embed)
         await self.jpdb_session.grade_card(
@@ -124,6 +120,56 @@ class JpdbBackView(discord.ui.View):
         interaction: discord.Interaction
     ) -> None:
         await self.callback(interaction, 'easy')
+
+    @discord.ui.button(
+        label="Expand",
+        style=discord.ButtonStyle.gray
+    )
+    async def expand_callback(
+        self,
+        button: discord.ui.Button,
+        interaction: discord.Interaction
+    ) -> None:
+        """Add all the info contained in the card dict to the embed."""
+        if self.jpdb_session.user_id != interaction.user.id:
+            return
+        await interaction.response.defer()
+
+        embed = self.back_embed
+        # Set variables
+        top_request = self.card.get('top')
+        if top_request == 0:
+            top = "Never used"
+        else:
+            top = f"Overall: Top {top_request}"
+        alt_forms_request = self.card.get('alt_forms')
+        if not alt_forms_request:
+            alt_forms = "None"
+        else:
+            alt_forms = ', '.join(alt_forms_request)
+
+        # Add extra fields
+        embed.add_field(
+            name='Alt forms',
+            value=alt_forms,
+            inline=True
+        ).add_field(
+            name='Kanji used',
+            value='\n'.join(self.card.get('kanji')),
+            inline=True
+        ).add_field(
+            name='Word types',
+            value='\n> - '.join(self.card.get('types', '?')),
+            inline=True
+        ).add_field(
+            name='Frequency',
+            value=(
+                f'\n> '.join([top]+self.card.get('other_frequencies'))
+            ),
+            inline=True
+        )
+        self.remove_item(button)
+        await interaction.edit_original_response(embed=embed, view=self)
 
 
 class Jpdb:
@@ -307,7 +353,7 @@ class Jpdb:
             color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
         ).add_field(
             name='Top',
-            value=f"{card.get('frequency_rank')}",
+            value=f"{card.get('top')}",
             inline=True
         ).add_field(
             name='Due',
@@ -326,8 +372,7 @@ class Jpdb:
     def create_back_embed(
         self,
         card: dict,
-        sentences: dict,
-        pitch_accent: str
+        sentences: dict
     ) -> discord.Embed:
         jp_sentence = sentences.get('jp', '')
         en_sentence = sentences.get('en', '')
@@ -338,23 +383,8 @@ class Jpdb:
             url=(f"https://jpdb.io/vocabulary/{card.get('vid')}/"
                  f"{card.get('spelling')}/{card.get('reading')}"),
             color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
-        ).add_field(
-            name='Top',
-            value=f"{card.get('frequency_rank', '0')}",
-            inline=True
-        ).add_field(
-            name='Due',
-            value=f"{self.get_day_delta(card.get('due_at'))} days ago",
-            inline=True
-        ).add_field(
-            name='Pitch accent',
-            value=pitch_accent,
-            inline=True
-        ).set_author(
-            name='jpdb',
-            icon_url=self.ctx.author.avatar.url
         )
-        # Split the meanings
+        # Meanings
         meanings = '\n'.join(
             f"{i+1}. {', '.join(meaning_chunk)}"
             for i, meaning_chunk in enumerate(card.get('meanings_chunks', []))
@@ -371,18 +401,33 @@ class Jpdb:
                 value=part,
                 inline=False
             )
+        # Other fields
+        embed.add_field(
+            name='Top',
+            value=f"{card.get('top', '0')}",
+            inline=True
+        ).add_field(
+            name='Due',
+            value=f"{self.get_day_delta(card.get('due_at'))} days ago",
+            inline=True
+        ).add_field(
+            name='Pitch accent',
+            value=card.get('pitch', ''),
+            inline=True
+        ).set_author(
+            name='jpdb',
+            icon_url=self.ctx.author.avatar.url
+        )
         return embed
 
     def get_front_view(
         self,
         card: dict,
-        sentences: dict,
-        pitch_accent: str
+        sentences: dict
     ) -> JpdbFrontView:
         back_embed = self.create_back_embed(
             card,
-            sentences,
-            pitch_accent
+            sentences
         )
         view = JpdbFrontView(card, self, back_embed)
         return view
@@ -391,23 +436,18 @@ class Jpdb:
         review_cards = self.update_review_cards()
         if not review_cards or not self.ctx:
             return
-        card = review_cards[0]
-        word = card['spelling']
-        sentences = self.get_example_sentence(word)
-        pitch_accent = self.get_pitch_accent(word)
+        card: dict = review_cards[0]
+        word = review_cards[0]['spelling']
+        if not 'pitch' in card:
+            # Complete the card dict
+            card.update(await word_api.get(word))
+        sentences = await word_api.generate_example_sentence(
+            word,
+            card['meanings']
+        )
         embed = self.create_front_embed(card, sentences)
-        view = self.get_front_view(card, sentences, pitch_accent)
+        view = self.get_front_view(card, sentences)
         await self.ctx.send(embed=embed, view=view, silent=True)
-
-    @ staticmethod
-    def get_example_sentence(word: str) -> dict:
-        sentences = sentence.get(word)
-        return sentences
-
-    @ staticmethod
-    def get_pitch_accent(word: str) -> str:
-        pitch_accent = pa.get(word)
-        return pitch_accent
 
     @ staticmethod
     def get_day_delta(timestamp: int) -> int:

@@ -2,11 +2,25 @@ from typing import Optional
 import httpx
 import re
 from bs4 import BeautifulSoup
+import typing
+import json
+
+
+from config import CHATBOT_ENABLED
+from bot.chatbot.gemini import Gembot
+import google.generativeai as genai
+from google.generativeai.types.generation_types import AsyncGenerateContentResponse
+
+
+class SentenceLanguage(typing.TypedDict):
+    jp: str
+    en: str
 
 
 class JpdbWordApi:
     def __init__(self):
         self.session = httpx.AsyncClient(follow_redirects=True)
+        self.gembot = Gembot(0) if CHATBOT_ENABLED else None
 
     @ staticmethod
     def extract_pitch_accent(pitch_section: BeautifulSoup) -> str:
@@ -184,6 +198,30 @@ class JpdbWordApi:
                 ', '.join(div.text for div in part.find_all('div'))
             )
         return types
+
+    async def generate_example_sentence(
+        self,
+        word: str,
+        meaning: Optional[list] = [""]
+    ) -> dict:
+        """Generate a sentence example with Gemini."""
+        sentences = {'jp': '', 'en': ''}
+        if self.gembot:
+            request = await self.gembot.model.generate_content_async(
+                "Send simple jp sentence and en translation "
+                f"that includes the word {word} ({meaning[0]})."
+                "Don't send anything else. "
+                "Put the whole word in bold in the correct language.",
+                generation_config=genai.types.GenerationConfig(
+                    response_mime_type="application/json",
+                    response_schema=SentenceLanguage,
+                    candidate_count=1,
+                    temperature=1
+                )
+
+            )
+            sentences = json.loads(request.candidates[0].content.parts[0].text)
+        return sentences
 
 
 word_api = JpdbWordApi()
