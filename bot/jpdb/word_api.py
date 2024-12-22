@@ -2,14 +2,13 @@ from typing import Optional
 import httpx
 import re
 from bs4 import BeautifulSoup
-import typing
+import typing_extensions as typing
 import json
 
 
 from config import CHATBOT_ENABLED
 from bot.chatbot.gemini import Gembot
 import google.generativeai as genai
-from google.generativeai.types.generation_types import AsyncGenerateContentResponse
 
 
 class SentenceLanguage(typing.TypedDict):
