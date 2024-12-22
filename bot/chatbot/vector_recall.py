@@ -34,7 +34,7 @@ PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
 class QueryType(enum.Enum):
     QUESTION = 'question'
     INFO = 'info'
-    FACT = 'fact'
+    IMPORTANT_CARACTERISTIC = 'important_caracteristic'
     OTHER = 'other'
 
 
@@ -48,8 +48,9 @@ class Memory:
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.prompt = (
             "Precise type of query,"
-            "Mark it as a fact if it tells interesting things about "
-            "the world or the person you're talking to."
+            "Mark it as an 'important_caracteristic' "
+            "if it TELLS SOMETHING YOU MUST NOT FORGOT, "
+            "PUT EVERYTHING ELSE AS INFO/QUESTION/OTHER."
             "Extract facts synthetically, "
             "Write English:"
         )
