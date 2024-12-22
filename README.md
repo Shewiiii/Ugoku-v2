@@ -40,6 +40,12 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
 - [X] Review jpdb cards in Discord (sentences generated with Gemini)
 - [X] Search any word in Japanese
 
+<h2>Known bugs to fix</h2>
+
+- Example sentences not always well chosen (Gemini, rare but still)
+- The song in vc may stop randomly
+- Audio is slowing down at the beginning of a song
+
 <h2>Plublic playground bot</h2>
 
 Chatbot and Spotify streaming features are disabled, but you can still play with the bot !
@@ -61,12 +67,6 @@ Chatbot and Spotify streaming features are disabled, but you can still play with
   <img src="img/chat.jpg" alt="chat message"/>
   <p>Random message w</p>
 </div>
-
-<h2>Known bugs to fix</h2>
-
-- Example sentences not always well chosen (Gemini, rare but still)
-- The song in vc may stop randomly
-- Audio is slowing down at the beginning of a song
 
 <h2>Audio benchmarks</h2>
 
