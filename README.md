@@ -31,13 +31,14 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   - [ ] ~~(outdated) Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !~~
 
 
-- [X] Chat using Gemini 1.5 Pro. (WIP)
+- [X] Chat using Gemini 2.0 flash. (WIP)
   - [ ] Optimize token usage.
   - [X] Make its messages more human-like.
   - [X] Have a permanent memory!
 - [ ] And maybe more in the future~
 
-- [X] Review jpdb cards in Discord (sentences from Tatoeba)
+- [X] Review jpdb cards in Discord (sentences generated with Gemini)
+- [X] Search any word in Japanese
 
 <h2>Plublic playground bot</h2>
 
@@ -63,7 +64,7 @@ Chatbot and Spotify streaming features are disabled, but you can still play with
 
 <h2>Known bugs to fix</h2>
 
-- Example sentences not always well chosen (jpdb)
+- Example sentences not always well chosen (Gemini, rare but still)
 - The song in vc may stop randomly
 - Audio is slowing down at the beginning of a song
 
