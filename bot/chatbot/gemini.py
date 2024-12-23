@@ -3,6 +3,7 @@ import re
 import base64
 import pytz
 import logging
+from random import random
 from typing import Optional, List
 from datetime import datetime, timedelta
 import httpx
@@ -19,7 +20,8 @@ from config import (
     CHATBOT_TEMPERATURE,
     CHATBOT_EMOTES,
     GEMINI_MAX_OUTPUT_TOKEN,
-    GEMINI_MAX_CONTENT_SIZE
+    GEMINI_MAX_CONTENT_SIZE,
+    CHATBOT_EMOTE_FREQUENCY
 )
 
 import discord
@@ -407,23 +409,29 @@ class Gembot:
         return params
 
     @staticmethod
-    def convert_emotes(string: str, bot_emotes: dict = CHATBOT_EMOTES) -> str:
-        """Replace the firt custom emote by its snowflake id.
-           Removes it otherwise."""
-        msg_string = string
+    def convert_emotes(
+        string: str,
+        bot_emotes: dict = CHATBOT_EMOTES
+    ) -> str:
+        """Convert and filter emotes in the message."""
+        msg_string = string.strip()
+        # Find all emotes
         emotes = re.findall(r":(\w+):", msg_string)
-        # One conversion is done ?
-        converted = False
-        for emote in emotes:
-            if emote in bot_emotes and not converted:
-                msg_string = msg_string.replace(
-                    f":{emote}:",
-                    CHATBOT_EMOTES.get(emote, '')
-                )
-                converted = True
-            else:
-                msg_string = msg_string.replace(f':{emote}:', '')
+        emote_count = len(emotes)
 
+        for emote in emotes:
+            # Do not remove the emote is the message is only this
+            if emote_count == 1 and msg_string == f":{emote}:":
+                replacement = bot_emotes.get(emote, '')
+            else:
+                if random() < CHATBOT_EMOTE_FREQUENCY:
+                    replacement = bot_emotes.get(emote, '')  
+                else:
+                    replacement = ''
+            msg_string = msg_string.replace(f":{emote}:", replacement)
+        
+        # Remove double spaces
+        msg_string = ' '.join(msg_string.split())
         return msg_string
 
     @staticmethod
@@ -434,7 +442,7 @@ class Gembot:
             return prompt
 
         emote_prompt = (
-            "\n# Emotes\nYou can rarely use the following discord emotes.\n")
+            "\n# Emotes\nYou can use the following discord emotes.\n")
         emote_list = '\n'.join([f":{emote}:" for emote in bot_emotes.keys()])
         final_prompt = prompt + emote_prompt + emote_list
         return final_prompt

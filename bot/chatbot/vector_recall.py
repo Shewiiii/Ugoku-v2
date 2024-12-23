@@ -34,8 +34,8 @@ PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
 class QueryType(enum.Enum):
     QUESTION = 'question'
     INFO = 'info'
-    IMPORTANT_CARACTERISTIC = 'important_caracteristic'
     OTHER = 'other'
+    IMPORTANT_CARACTERISTIC = 'important_caracteristic'
 
 
 class VectorMetadata(typing.TypedDict):
@@ -47,10 +47,11 @@ class Memory:
     def __init__(self) -> None:
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.prompt = (
+            "The user is sending a msg to Ugoku, the chatbot."
             "Precise type of query,"
-            "Mark it as an 'important_caracteristic' "
-            "if it TELLS SOMETHING YOU MUST NOT FORGOT, "
-            "PUT EVERYTHING ELSE AS INFO/QUESTION/OTHER."
+            "Mark it as an 'important_caracteristic' __ONLY__ if  "
+            "it TELLS SOMETHING VERY IMPORTANT YOU MUST NOT FORGET, "
+            "PUT __EVERYTHING__ ELSE AS INFO/QUESTION/OTHER."
             "Extract facts synthetically, "
             "Write English:"
         )
