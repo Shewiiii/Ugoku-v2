@@ -44,9 +44,53 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
 - The song in vc may stop randomly.
 - Audio is slowing down at the beginning of a song.
 
+<h2>Requirements</h2>
+
+- Python >= 3.10.x, <= 3.12.x (It has not been tested on Python 3.9, but it should work as well.)
+- A Discord bot token (get one [here](https://discord.com/developers/applications))
+
+Music bot (Optional but strongly recommended):
+- A Spotify app (get one [here](https://developer.spotify.com/))
+- A Deezer Premium or Spotify Premium account (YouTube will work by default)
+- (Optional) An Imgur API key (get one [here](https://imgur.com/account/settings/apps)), to display the cover art for songs from custom sources.
+
+Chatbot:
+- A Gemini API key (get one [here](https://aistudio.google.com))
+- (Optional) A Pinecone API key for long-term memory
+
+<h2>Quick setup guide</h2>
+
+- Copy the repo.
+- Create a virtual environment.
+```bash
+python -m venv venv
+```
+OR
+```bash
+python3 -m venv venv
+```
+- Install the dependencies
+```bash
+python -m pip install -r requirements.txt
+```
+OR
+```bash
+python3 -m pip install -r requirements.txt
+```
+- [Create a bot and add it to a Discord server](https://guide.pycord.dev/getting-started/creating-your-first-bot), or add it to your apps. You can follow the first 3 sections of the guide.
+- Create an .env file in the root directory.
+- Set the environment variables for the services you want to use, based on the template.
+- Restart the IDE (to update the env variables).
+- Configure and activate the features in the config.py file.
+- Run `main.py`.
+- If Spotify is enabled, log in to Librespot from your Spotify client (it should appear in the device list).
+> [!TIP]
+> This action will create a `credentials.json` file in the root folder. If you are having trouble creating it on a remote machine, try creating it on your local machine and exporting it.
+- Done !
+
 <h2>Public playground bot</h2>
 
-Chatbot and Spotify streaming features are disabled, but you can still play with the bot !
+Chatbot features are disabled, but you can still play with the bot !
  [Invite link](https://discord.com/oauth2/authorize?client_id=1260656795974897695)
 
 <h2>Random screenshots</h2>

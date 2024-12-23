@@ -4,7 +4,6 @@ git+https://github.com/Shewiiii/librespot-python
 requests
 python-dotenv
 yt-dlp
-openai
 bs4
 imageio
 PyNaCl
@@ -13,9 +12,7 @@ typing-extensions
 youtube-transcript-api
 yt-dlp[default] --pre
 google-generativeai
-setuptools
 pytz
 pinecone[grpc]
 deemix
-pandas
 httpx

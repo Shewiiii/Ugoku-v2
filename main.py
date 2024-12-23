@@ -12,19 +12,13 @@ import os
 import logging
 import asyncio
 from dotenv import load_dotenv
-
-load_dotenv()
-
-
 if CHATBOT_ENABLED:
     from bot.chatbot.vector_recall import memory
-
 if DEEZER_ENABLED:
     from bot.vocal.deezer import Deezer_
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-DEV_TOKEN = os.getenv('DEV_TOKEN')
 
 
 # Init bot
@@ -51,7 +45,6 @@ async def on_ready() -> None:
         await memory.init_pinecone(PINECONE_INDEX_NAME)
     bot.youtube = Youtube()
 
-
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')
     module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
@@ -61,7 +54,7 @@ for filepath in COMMANDS_FOLDER.rglob('*.py'):
 
 
 async def start() -> None:
-    await bot.start(DEV_TOKEN)
+    await bot.start(BOT_TOKEN)
 
 try:
     loop.run_until_complete(start())

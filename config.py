@@ -1,15 +1,15 @@
 from pathlib import Path
 import logging
 
-# I strongly recommand to enable Spotify API to basically make the music bot work
-# Be sure to specify the SPOTIPY_CLIENT_ID and the SPOTIPY_CLIENT_SECRET in the .env
+#  ===FEATURES===
+# I strongly recommend enabling the Spotify API to ensure the music bot functions properly.
+# Make sure to specify SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET in the .env file.
+# If the Spotify API is disabled, please check ./commands/lyrics.py for adjustments.
 SPOTIFY_API_ENABLED = True
-
-# If you don't have Spotify Premium, you can disable Spotify features here
-# Please check ./commands/lyrics.py if that's the case
 SPOTIFY_ENABLED = False
-DEEZER_ENABLED = True
-DEFAULT_STREAMING_SERVICE = 'Deezer' # Deezer, Spotify, Youtube.
+DEEZER_ENABLED = False
+DEFAULT_STREAMING_SERVICE = 'Youtube' # Deezer, Spotify, Youtube.
+CHATBOT_ENABLED = False
 
 #  ===SETTINGS===
 # Paths
@@ -21,12 +21,11 @@ CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds) for custom sources and 
 # VC and audio bot behavior
 AUTO_LEAVE_DURATION = 900 # Duration before killing an audio session (in seconds)
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
-LIBRESPOT_REFRESH_INTERVAL = 120 # How often Librespot sessions should be regenerated (in seconds) 
 DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
 DEFAULT_AUDIO_VOLUME = 30 # The recommended value is 30 since the bot can get pretty loud
 # Onsei filters
-ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a foldername containing one of these words, will be choose
-ONSEI_BLACKLIST = ['なし'] # Chosen tracks containing one of these words will be blacklisted
+ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a folder name containing one of these words will be chosen
+ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blacklisted
 # Chatbot settings
 CHATBOT_ENABLED = True
 CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot
@@ -42,7 +41,7 @@ PINECONE_RECALL_WINDOW = 10
 PINECONE_INDEX_NAME = 'ugoku'
 GEMINI_MODEL = 'gemini-2.0-flash-exp'
 GEMINI_UTILS_MODEL = 'gemini-2.0-flash-exp' # Used for summaries and lyrics
-GEMINI_HISTORY_SIZE = 20 # How many messages to remember per chat instance
+GEMINI_HISTORY_SIZE = 20 # How many messages to keep in chat history
 GEMINI_SAFETY_SETTINGS = [
     {
         "category": "HARM_CATEGORY_DANGEROUS",
