@@ -7,8 +7,8 @@
 </div>
 
 **A work in progress rework of [Ugoku !](https://github.com/Shewiiii/Ugoku-bot)**, completely refactored and lightweight~  
-Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that project, much love <3
-
+Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that project, much love <3  
+Help command partially from: https://docs.google.com/spreadsheets/d/1bhPYT3Z-WOlu0x1llrwOXc3lcO9RzXmrbfi08Mbt2rk
 <h2>Features/To do</h2>
 
 - [X] Ping.
@@ -29,22 +29,20 @@ Thank you again [Chinono](https://github.com/ChinHongTan) to help me on that pro
   - [X] Embed info messages with metadata.
   - [X] Show the lyrics of a song using musixmatch API.
   - [ ] ~~(outdated) Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !~~
-
-
 - [X] Chat using Gemini 2.0 flash. (WIP)
   - [ ] Optimize token usage.
   - [X] Make its messages more human-like.
   - [X] Have a permanent memory!
+- [X] Review jpdb cards in Discord (sentences generated with Gemini).
+- [X] Search any word in Japanese.
+- [X] Get a random image from Danbooru (SFW only).
 - [ ] And maybe more in the future~
-
-- [X] Review jpdb cards in Discord (sentences generated with Gemini)
-- [X] Search any word in Japanese
 
 <h2>Known bugs to fix</h2>
 
-- Example sentences not always well chosen (Gemini, rare but still)
-- The song in vc may stop randomly
-- Audio is slowing down at the beginning of a song
+- Example sentences not always well chosen when reviewing jpdb cards (Gemini, rare but still).
+- The song in vc may stop randomly.
+- Audio is slowing down at the beginning of a song.
 
 <h2>Plublic playground bot</h2>
 
