@@ -217,20 +217,20 @@ class Spotify:
         Returns:
             discord.Embed: An embed containing track information.
         """
-        track_API = await asyncio.to_thread(self.sessions.sp.track, track_id)
+        track_api = await asyncio.to_thread(self.sessions.sp.track, track_id)
 
         # Grab all the data needed
-        track_name = track_API['name']
-        album = track_API['album']
+        track_name = track_api['name']
+        album = track_api['album']
         cover_url = album['images'][0]['url']
-        track_url = f"https://open.spotify.com/track/{track_API['id']}"
+        track_url = f"https://open.spotify.com/track/{track_api['id']}"
         album_url = album['external_urls']['spotify']
         dominant_rgb = await get_dominant_rgb_from_url(cover_url)
 
         # Create the artist string for the embed
         artist_string = ', '.join(
             f"[{artist['name']}]({artist['external_urls']['spotify']})"
-            for artist in track_API['artists']
+            for artist in track_api['artists']
         )
 
         # Create the embed
@@ -268,7 +268,7 @@ class Spotify:
 
     def get_track_info(
         self,
-        track_API: SpotifyTrackAPI,
+        track_api: SpotifyTrackAPI,
         album_info: Optional[SpotifyAlbum] = None,
         aq: Literal[
             AudioQuality.VERY_HIGH,
@@ -279,14 +279,15 @@ class Spotify:
         """Extracts and returns track information from Spotify API response.
 
         Args:
-            track_API: The Spotify API response for a track.
+            track_api: The Spotify API response for a track.
             album_info: Optional album information if available.
 
         Returns:
             dict (TrackInfo): A dictionary containing track information.
         """
-        id = track_API['id']
-        album = album_info or track_API.get('album', {})
+        id = track_api['id']
+        album = album_info or track_api.get('album', {})
+        date = album.get('release_date')
 
         def get_album_name() -> Optional[str]:
             """
@@ -329,12 +330,13 @@ class Spotify:
             return album.get('cover')
 
         return {
-            'display_name': f"{track_API['artists'][0]['name']} - {track_API['name']}",
-            'title': track_API['name'],
-            'artist': ', '.join(artist['name'] for artist in track_API['artists']),
+            'display_name': f"{track_api['artists'][0]['name']} - {track_api['name']}",
+            'title': track_api['name'],
+            'artist': ', '.join(artist['name'] for artist in track_api['artists']),
+            'date': date,
             'album': get_album_name(),
             'cover': get_cover_url(),
-            'duration': round(track_API['duration_ms'] / 1000),
+            'duration': round(track_api['duration_ms'] / 1000),
             'url': f"https://open.spotify.com/track/{id}",
             'id': id,
             'source': lambda: self.generate_stream(
@@ -411,11 +413,11 @@ class Spotify:
 
         # TRACK
         if type_ == 'track':
-            track_API: SpotifyTrackAPI = await asyncio.to_thread(
+            track_api: SpotifyTrackAPI = await asyncio.to_thread(
                 self.sessions.sp.track,
                 track_id=id
             )
-            return [self.get_track_info(track_API, aq=aq)]
+            return [self.get_track_info(track_api, aq=aq)]
 
         # ALBUM
         elif type_ == 'album':

@@ -87,6 +87,7 @@ class SpotifyDownload(commands.Cog):
                         file_path=file_path,
                         title=track['title'],
                         artist=track['artist'],
+                        date=track['date'],
                         album_cover_url=track['cover'],
                         album=track['album']
                     )

@@ -146,14 +146,33 @@ class Deezer_:
         # Prepare track object
         if link_id.startswith("isrc"):
             # Spotify
-            track_api = self.dz.api.get_track(link_id)
+            track_api = await asyncio.to_thread(
+                self.dz.api.get_track, link_id
+            )
             track_token = track_api['track_token']
             id = track_api['id']
+            title = track_api['title']
+            artist = track_api['artist']['name']
+            artists = ', '.join([c['name'] for c in track_api['contributors']])
+            album = track_api['album']['title']
+            cover = track_api['album']['cover_xl']
+            date = track_api['release_date']
         else:
             # Deezer
-            track_api = self.dz.gw.get_track_with_fallback(link_id)
+            track_api = await asyncio.to_thread(
+                self.dz.gw.get_track_with_fallback, link_id
+            )
             track_token = track_api['TRACK_TOKEN']
             id = int(track_api['SNG_ID'])
+            title = track_api['SNG_TITLE']
+            artist = track_api['ART_NAME']
+            artists = ', '.join(track_api['SNG_CONTRIBUTORS']['main_artist'])
+            album = track_api['ALB_TITLE']
+            cover = (
+                "https://cdn-images.dzcdn.net/images/cover/"
+                f"{track_api['ART_PICTURE']}/1000x1000-000000-80-0-0.jpg"
+            )
+            date = track_api['PHYSICAL_RELEASE_DATE']
 
         # Track URL
         stream_url = await asyncio.to_thread(
@@ -164,7 +183,13 @@ class Deezer_:
 
         results = {
             'stream_url': stream_url,
-            'track_id': id
+            'track_id': id,
+            'title': title,
+            'artist': artist,
+            'artists': artists,
+            'album': album,
+            'cover': cover,
+            'date': date
         }
 
         return results
@@ -178,41 +203,53 @@ class Deezer_:
 
         # normal query
         search_data = await asyncio.to_thread(
-            self.dz.gw.search,
-            query
+            self.dz.gw.search, query
         )
         if not search_data['TRACK']['data']:
             # Not found!
             return
 
+        # Get data from api
         track_api = search_data['TRACK']['data'][0]
         track_token = track_api['TRACK_TOKEN']
         id = int(track_api['SNG_ID'])
+        title = track_api['SNG_TITLE']
+        artist = track_api['ART_NAME']
+        artists = ', '.join(track_api['SNG_CONTRIBUTORS']['main_artist'])
+        album = track_api['ALB_TITLE']
+        cover = (
+            "https://cdn-images.dzcdn.net/images/cover/"
+            f"{track_api['ART_PICTURE']}/640x640-000000-80-0-0.jpg"
+        )
+        date = track_api['PHYSICAL_RELEASE_DATE']
 
         # Track URL
         stream_url = await asyncio.to_thread(
-            self.dz.get_track_url,
-            track_token,
-            'FLAC'
+            self.dz.get_track_url, track_token, 'FLAC'
         )
 
         results = {
             'stream_url': stream_url,
-            'track_id': id
+            'track_id': id,
+            'title': title,
+            'artist': artist,
+            'artists': artists,
+            'album': album,
+            'cover': cover,
+            'date': date
         }
-
         return results
 
-    @staticmethod
+    @ staticmethod
     def stream(track: dict) -> DeezerChunkedInputStream:
         stream = DeezerChunkedInputStream(track)
         stream.get_encrypted_stream()
         return stream
 
-    @staticmethod
+    @ staticmethod
     def download(track: dict) -> Optional[Path]:
         """Download a track from Deezer from a track dict.
-        Params: 
+        Params:
             track (dict): Dict containint the "stream_url" and "track_id"
 
         Returns:
@@ -226,7 +263,7 @@ class Deezer_:
 
         # Write the content to file cache
         with open(file_path, 'wb') as file:
-            while True: 
+            while True:
                 try:
                     chunk = next(chunks)
                 except StopIteration:

@@ -13,7 +13,7 @@ from pathlib import Path
 from time import time
 from urllib.parse import urlparse, parse_qs
 
-import aiohttp
+import httpx
 import mutagen
 from PIL import Image
 from mutagen.flac import FLAC
@@ -40,7 +40,7 @@ def extract_number(string: str) -> Optional[str]:
     Returns:
         Optional[str]: The extracted number as a string, or None if no number is found.
     """
-    search = re.search(r'\d+', string)
+    search = re.search(r'/d+', string)
     if not search:
         return
 
@@ -62,7 +62,7 @@ def is_onsei(string: str) -> bool:
     if string.startswith(('RJ', 'VJ')):
         return True
 
-    if re.fullmatch(r'\d{6}|\d{8}', string):
+    if re.fullmatch(r'/d{6}|/d{8}', string):
         return True
 
     return False
@@ -185,11 +185,11 @@ async def get_dominant_rgb_from_url(
     Raises:
         aiohttp.ClientResponseError: If the image fetch fails.
     """
-    async with aiohttp.ClientSession() as session:
-        async with session.get(image_url) as response:
-            response.raise_for_status()
-            cover_bytes = await response.read()
-            dominant_rgb = get_accent_color(cover_bytes)
+    async with httpx.AsyncClient(follow_redirects=True) as session:
+        response = await session.get(image_url)
+        response.raise_for_status()
+        cover_bytes = response.content
+        dominant_rgb = get_accent_color(cover_bytes)
 
     return dominant_rgb
 
@@ -303,11 +303,14 @@ def get_metadata(file_path) -> Dict[str, List[str]]:
 
 async def tag_ogg_file(
     file_path: Union[Path, str],
-    title: Optional[str],
-    artist: Optional[str],
-    album_cover_url: Optional[str],
-    album: Optional[str],
-):
+    title: str = '',
+    artist: str = '',
+    album_cover_url: str = '',
+    album: str = '',
+    date: str = '',
+    width: int = 640,
+    height: int = 640,
+) -> None:
     """
     Tags an OGG Vorbis file with title, artist, and an album cover from a URL.
 
@@ -320,44 +323,79 @@ async def tag_ogg_file(
     audio = OggVorbis(file_path)
 
     # Set title and artist tags
-    audio["title"] = title
-    audio["artist"] = artist
-    audio["album"] = album
-
-    # Fetch the album cover
-    async with aiohttp.ClientSession() as session:
-        async with session.get(album_cover_url) as response:
-            response.raise_for_status()
-            cover_bytes = await response.read()
+    audio['title'] = title
+    audio['artist'] = artist
+    audio['album'] = album
+    audio['date'] = date
 
     # Create a Picture object
     picture = Picture()
     picture.type = 3  # Front Cover
-    picture.width = 640
-    picture.height = 640
-    picture.mime = "image/jpeg"
-    picture.desc = "Cover"
-    picture.data = cover_bytes
+    picture.width = width
+    picture.height = height
+    picture.mime = 'image/jpeg'
+    picture.desc = 'Cover'
 
-    # Encode the picture data in base64
-    picture_encoded = base64.b64encode(picture.write()).decode("ascii")
-
-    # Add the picture to the metadata
-    audio["metadata_block_picture"] = [picture_encoded]
+    # Fetch the album cover
+    if album_cover_url:
+        async with httpx.AsyncClient(follow_redirects=True) as session:
+            response = await session.get(album_cover_url)
+            response.raise_for_status()
+            cover_bytes = response.content
+        picture.data = cover_bytes
+        # Encode the picture data in base64
+        picture_encoded = base64.b64encode(picture.write()).decode('ascii')
+        # Add the picture to the metadata
+        audio['metadata_block_picture'] = [picture_encoded]
 
     # Save the tags
     audio.save(file_path)
     logging.info(f"Tagged '{file_path}' successfully.")
 
 
+async def tag_flac_file(
+    file_path: Union[Path, str],
+    title: str = '',
+    artist: str = '',
+    album_cover_url: str = '',
+    album: str = '',
+    date: str = '',
+    width: int = 1000,
+    height: int = 1000,
+) -> None:
+    audio = FLAC(file_path)
+
+    picture = Picture()
+    picture.type = 3  # Front Cover
+    picture.width = width
+    picture.height = height
+    picture.mime = 'image/jpeg'
+    picture.desc = 'Cover'
+    if album_cover_url:
+        async with httpx.AsyncClient(follow_redirects=True) as session:
+            response = await session.get(album_cover_url)
+            response.raise_for_status()
+            cover_bytes = response.content
+        picture.data = cover_bytes
+
+    audio['title'] = title
+    audio['artist'] = artist
+    audio['album'] = album
+    print(date)
+    audio['date'] = date
+
+    audio.add_picture(picture)
+    audio.save(file_path)
+
+
 def split_into_chunks(string: str, max_length=1024) -> list:
     """Convert a string into a list of chunks with an adjustable size."""
-    paragraphs = string.split('\n')  # Split the text into paragraphs
+    paragraphs = string.split('/n')  # Split the text into paragraphs
     chunks = []
     current_chunk = ''
 
     for paragraph in paragraphs:
-        # +1 accounts for the '\n' that was removed by split
+        # +1 accounts for the '/n' that was removed by split
         additional_length = len(paragraph) + 1
 
         if len(current_chunk) + additional_length > max_length:
@@ -370,7 +408,7 @@ def split_into_chunks(string: str, max_length=1024) -> list:
                 # Split the long paragraph into smaller parts
                 start = 0
                 while start < len(paragraph):
-                    end = start + max_length - 1  # -1 to account for '\n'
+                    end = start + max_length - 1  # -1 to account for '/n'
                     chunk_part = paragraph[start:end]
                     chunks.append(chunk_part)
                     start = end
@@ -378,7 +416,7 @@ def split_into_chunks(string: str, max_length=1024) -> list:
 
         # Add the paragraph and a newline to the current chunk
         if current_chunk:
-            current_chunk += '\n' + paragraph
+            current_chunk += '/n' + paragraph
         else:
             current_chunk = paragraph
 
