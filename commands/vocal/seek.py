@@ -11,7 +11,7 @@ class Seek(commands.Cog):
 
     @commands.slash_command(
         name='seek',
-        description='Seek to a certain position in the current song (in seconds).'
+        description='Forward to any position in the song (in seconds).'
     )
     async def seek(
         self,
