@@ -219,7 +219,7 @@ class Deezer_:
         album = track_api['ALB_TITLE']
         cover = (
             "https://cdn-images.dzcdn.net/images/cover/"
-            f"{track_api['ART_PICTURE']}/640x640-000000-80-0-0.jpg"
+            f"{track_api['ART_PICTURE']}/1000x1000-000000-80-0-0.jpg"
         )
         date = track_api['PHYSICAL_RELEASE_DATE']
 
