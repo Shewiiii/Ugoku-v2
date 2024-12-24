@@ -209,7 +209,10 @@ class ServerSession:
         track_info = self.queue[index]['track_info']
         deezer = self.bot.deezer
         track = track_info.get('track')
-        track_info['source'] = await asyncio.to_thread(deezer.stream, track)
+        try:
+            track_info['source'] = await asyncio.to_thread(deezer.stream, track)
+        except DataException:
+            return False
         return True
 
     async def check_deezer_availability(self, index: int = 0) -> bool:
