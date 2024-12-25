@@ -73,7 +73,7 @@ if CHATBOT_ENABLED:
                     except StopCandidateException:
                         await message.channel.send("*filtered*")
                         logging.error(
-                            f"Response blocked by Gemini in {chat.id}")
+                            f"Response blocked by Gemini in {chat.id_}")
                         return
                     except BlockedPromptException:
                         logging.error(
