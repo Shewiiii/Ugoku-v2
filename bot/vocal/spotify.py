@@ -287,7 +287,7 @@ class Spotify:
         """
         id = track_api['id']
         album = album_info or track_api.get('album', {})
-        date = album.get('release_date')
+        date = album.get('release_date', '')
 
         def get_album_name() -> Optional[str]:
             """

@@ -16,6 +16,8 @@ from deemix.plugins.spotify import Spotify as Spplugin
 from config import SPOTIFY_API_ENABLED
 from bot.search import is_url
 from bot.utils import get_cache_path
+from bot.search import get_closest_string
+
 
 SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
 SPOTIPY_CLIENT_SECRET = os.getenv('SPOTIPY_CLIENT_SECRET')
@@ -170,9 +172,9 @@ class Deezer_:
             album = track_api['ALB_TITLE']
             cover = (
                 "https://cdn-images.dzcdn.net/images/cover/"
-                f"{track_api['ART_PICTURE']}/1000x1000-000000-80-0-0.jpg"
+                f"{track_api['ALB_PICTURE']}/1000x1000-000000-80-0-0.jpg"
             )
-            date = track_api['PHYSICAL_RELEASE_DATE']
+            date = track_api.get('ORIGINAL_RELEASE_DATE', '')
 
         # Track URL
         stream_url = await asyncio.to_thread(
@@ -197,7 +199,7 @@ class Deezer_:
     async def get_stream_url_from_query(self, query: str) -> Optional[dict]:
         """Get a track stream URL from a query (text or URL)"""
         # gekiyaba Spotify or Deezer url
-        if is_url(query, ['open.spotify.com', ' deezer.com']):
+        if is_url(query, ['open.spotify.com', ' deezer.com', 'deezer.page.link']):
             results = await self.get_stream_url(query)
             return results
 
@@ -210,7 +212,10 @@ class Deezer_:
             return
 
         # Get data from api
-        track_api = search_data['TRACK']['data'][0]
+        songs = [f"{track['ART_NAME']} {track['SNG_TITLE']}"
+                 for track in search_data['TRACK']['data']]
+        i = get_closest_string(query, songs)
+        track_api = search_data['TRACK']['data'][i]
         track_token = track_api['TRACK_TOKEN']
         id = int(track_api['SNG_ID'])
         title = track_api['SNG_TITLE']
@@ -219,9 +224,9 @@ class Deezer_:
         album = track_api['ALB_TITLE']
         cover = (
             "https://cdn-images.dzcdn.net/images/cover/"
-            f"{track_api['ART_PICTURE']}/1000x1000-000000-80-0-0.jpg"
+            f"{track_api['ALB_PICTURE']}/1000x1000-000000-80-0-0.jpg"
         )
-        date = track_api['PHYSICAL_RELEASE_DATE']
+        date = track_api.get('ORIGINAL_RELEASE_DATE', '')
 
         # Track URL
         stream_url = await asyncio.to_thread(
