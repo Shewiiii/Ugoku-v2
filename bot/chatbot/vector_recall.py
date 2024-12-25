@@ -47,13 +47,17 @@ class Memory:
     def __init__(self) -> None:
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.prompt = (
-            "The user is sending a msg to Ugoku, the chatbot."
-            "Precise type of query,"
-            "Mark it as an 'important_caracteristic' __ONLY__ if  "
-            "it TELLS SOMETHING VERY IMPORTANT YOU MUST NOT FORGET, "
-            "PUT __EVERYTHING__ ELSE AS INFO/QUESTION/OTHER."
-            "Extract facts synthetically, "
-            "Write English:"
+            """
+You are an assistant that classifies each Discord message into exactly one of four categories: 
+“question”, “info”, “other”, or “important_caracteristic”.
+Use these rules:
+• “question”: The message explicitly or implicitly asks something.
+• “info”: It provides information or opinions that are not personal preferences or factual personal details.
+• “other”: It doesn’t fit the other categories (e.g. greetings, jokes, improbable statements, nonsense,vague statements).
+• “important_caracteristic”: It only concerns personal tastes (e.g. favorite food), personal factual data (birthday, age, etc.), or real-world facts (historical events, fun facts).  
+For each message, return only the category name in quotes.
+Add in the text field a summary of the message. It should only be factual.
+"""
         )
         self.active = False
 
