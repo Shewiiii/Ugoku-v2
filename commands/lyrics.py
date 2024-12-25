@@ -42,7 +42,7 @@ class Lyrics(commands.Cog):
             ],
             required=False
         )  # type: ignore
-        # Uncomment the following if Spotify API features are disabled
+        # Uncomment the following if Spotify features are disabled
         # artist: str = Optional[str]
     ) -> None:
         if not query:
@@ -66,7 +66,7 @@ class Lyrics(commands.Cog):
             else:
                 track_info = {
                     'title': query,
-                    # Uncomment the following if Spotify API features are disabled
+                    # Uncomment the following if Spotify features are disabled
                     # 'artist': artist
                 }
 

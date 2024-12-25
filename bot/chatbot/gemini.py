@@ -270,6 +270,7 @@ class Gembot:
         """
         channel_id = message.channel.id
         author = message.author.name
+        dm = isinstance(message.channel, discord.DMChannel)
 
         # Remove interaction flag if inactive for a while
         time_elapsed: timedelta = datetime.now() - self.last_prompt
@@ -278,7 +279,7 @@ class Gembot:
             self.chatters = []
 
         # Check enable continuous chat with ugoku
-        if message.content.startswith(CHATBOT_PREFIX*2):
+        if message.content.startswith(CHATBOT_PREFIX*2) and not dm:
             self.status = 2 if self.interacting else 1
             self.interacting = True
             self.current_channel_id = channel_id
@@ -299,8 +300,8 @@ class Gembot:
                 self.status = 2
                 return True
 
-        # Check if the message starts with the chatbot prefix
-        elif message.content.startswith(CHATBOT_PREFIX):
+        # Check if the message starts with the chatbot prefix or is in dm
+        elif message.content.startswith(CHATBOT_PREFIX) or dm:
             self.status = 2
             self.current_channel_id = channel_id
             return True

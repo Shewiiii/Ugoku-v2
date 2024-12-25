@@ -6,6 +6,7 @@ from discord.ext import commands
 from config import (
     CHATBOT_WHITELIST,
     CHATBOT_ENABLED,
+    ALLOW_CHATBOT_IN_DMS
 )
 from google.generativeai.types.generation_types import (
     BlockedPromptException,
@@ -31,18 +32,22 @@ if CHATBOT_ENABLED:
             }
         )
         async def reset_chatbot(self, ctx: discord.ApplicationContext) -> None:
-            Gembot(ctx.guild_id)
+            channel = ctx.channel
+            dm = isinstance(channel, discord.DMChannel)
+            Gembot(ctx.guild_id if not dm else channel.id)
             await ctx.respond("Success !")
 
         @commands.Cog.listener()
         async def on_message(self, message: discord.Message) -> None:
+            dm = isinstance(message.channel, discord.DMChannel)
             server = message.guild
-            if not server:
+            if not server and not dm:
                 return
-            server_id = server.id
 
-            # Only allow whitelisted servers
-            if not server_id in CHATBOT_WHITELIST:
+            id_ = server.id if server else message.channel.id
+
+            # Only allow whitelisted servers / dms if enabled
+            if (not dm and id_ not in CHATBOT_WHITELIST) or (dm and not ALLOW_CHATBOT_IN_DMS):
                 return
 
             # Ignore if the message is from Ugoku !
@@ -50,18 +55,17 @@ if CHATBOT_ENABLED:
                 return
 
             # Create/Use a chat
-            if server_id not in active_chats:
-                chat = Gembot(server_id)
-            chat = active_chats.get(server_id)
+            if id_ not in active_chats:
+                chat = Gembot(id_)
+            chat = active_chats.get(id_)
 
             # Neko arius
             lowered_msg = message.content.lower()
-            if any(lowered_msg.startswith(neko)
-                   for neko in ['-neko', '- neko']):
+            if any(lowered_msg.startswith(neko) for neko in ['-neko', '- neko']):
                 await message.channel.send('Arius')
                 return
 
-            if await chat.is_interacting(message):
+            if await chat.is_interacting(message) or dm:
                 async with message.channel.typing():
                     params = await chat.get_params(message)
                     try:
@@ -69,7 +73,7 @@ if CHATBOT_ENABLED:
                     except StopCandidateException:
                         await message.channel.send("*filtered*")
                         logging.error(
-                            f"Response blocked by Gemini in {chat.id_}")
+                            f"Response blocked by Gemini in {chat.id}")
                         return
                     except BlockedPromptException:
                         logging.error(
@@ -86,7 +90,7 @@ if CHATBOT_ENABLED:
                 await chat.memory.store(
                     params[0],
                     author=message.author.global_name,
-                    id=server_id,
+                    id=id_,
                 )
 else:
     class Chatbot(commands.Cog):

@@ -16,7 +16,7 @@ class Danbooru_(commands.Cog):
 
     @commands.slash_command(
         name="danbooru",
-        description='Get any image from a tag on danbooru ! (SFW only)',
+        description='Get a random image from a danbooru tag ! (SFW only)',
         integration_types={
             discord.IntegrationType.guild_install,
             discord.IntegrationType.user_install
