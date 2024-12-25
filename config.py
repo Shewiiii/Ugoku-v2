@@ -10,6 +10,7 @@ SPOTIFY_ENABLED = False
 DEEZER_ENABLED = False
 DEFAULT_STREAMING_SERVICE = 'Youtube' # Deezer, Spotify, Youtube.
 CHATBOT_ENABLED = False
+ALLOW_CHATBOT_IN_DMS = True # Allow everyone to use the bot in dms. Can increase the token usage.
 
 #  ===SETTINGS===
 # Paths
