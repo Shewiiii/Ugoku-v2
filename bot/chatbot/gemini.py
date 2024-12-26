@@ -71,7 +71,6 @@ Solve ANY PROBLEM or query a user is asking
 Use warm and easygoing language. Keep the tone light, affectionate, and approachable
 Use casual language, no keigo
 Keep responses brief and conversational, NEVER list or use formal language
-Make your messages the same length as a normal chat message
 Avoid asking questions; focus on sharing thoughts naturally, as if enjoying the chat
 NEVER, never use emotes
 Always use the same language as your interlocutor
@@ -310,7 +309,6 @@ class Gembot:
 
     def format_reply(self, reply: str) -> str:
         """Format the reply based on the current status."""
-
         # Remove default emoticons (face emojis)
         emoticon_pattern = re.compile(
             "[\U0001F600-\U0001F64F]",
@@ -411,29 +409,29 @@ class Gembot:
 
     @staticmethod
     def convert_emotes(
-        string: str,
+        msg: str,
         bot_emotes: dict = CHATBOT_EMOTES
     ) -> str:
         """Convert and filter emotes in the message."""
-        msg_string = string.strip()
+        msg = msg.strip()
         # Find all emotes
-        emotes = re.findall(r":(\w+):", msg_string)
+        emotes = re.findall(r":(\w+):", msg)
         emote_count = len(emotes)
 
         for emote in emotes:
             # Do not remove the emote is the message is only this
-            if emote_count == 1 and msg_string == f":{emote}:":
+            if emote_count == 1 and msg == f":{emote}:":
                 replacement = bot_emotes.get(emote, '')
             else:
                 if random() < CHATBOT_EMOTE_FREQUENCY:
-                    replacement = bot_emotes.get(emote, '')  
+                    replacement = bot_emotes.get(emote, '')
                 else:
                     replacement = ''
-            msg_string = msg_string.replace(f":{emote}:", replacement)
-        
+            msg = msg.replace(f":{emote}:", replacement)
+
         # Remove double spaces
-        msg_string = ' '.join(msg_string.split())
-        return msg_string
+        msg = msg.replace('  ', ' ')
+        return msg
 
     @staticmethod
     def with_emotes(prompt: str, bot_emotes: dict = CHATBOT_EMOTES) -> str:
