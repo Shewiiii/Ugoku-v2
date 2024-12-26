@@ -12,46 +12,9 @@ if CHATBOT_ENABLED:
     from bot.chatbot.gemini import Gembot, active_chats
 
 
-class Test(commands.Cog):
+class Ask(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
-
-    @commands.slash_command(
-        name='translate',
-        description='Translate any sentence to a language.',
-        integration_types={
-            discord.IntegrationType.user_install
-        }
-    )
-    async def translate(
-        self,
-        ctx: discord.ApplicationContext,
-        query: str,
-        language: discord.Option(
-            str,
-            choices=LANGUAGES,
-            required=True,
-            default='English'
-
-        ),  # type: ignore
-        nuance: discord.Option(
-            str,
-            choices=['Neutral', 'Casual', 'Formal'],
-            required=True,
-            default='Neutral'
-
-        ),  # type: ignore
-        ephemeral: bool = True
-    ) -> None:
-        await ctx.defer()
-        await ctx.respond(
-            content=await Gembot.translate(
-                query,
-                language=language,
-                nuance=nuance
-            ),
-            ephemeral=ephemeral
-        )
 
     @commands.slash_command(
         name='ask',
@@ -124,4 +87,4 @@ class Test(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Test(bot))
+    bot.add_cog(Ask(bot))

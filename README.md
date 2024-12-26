@@ -69,7 +69,7 @@ OR
 ```bash
 python3 -m venv venv
 ```
-- Enable the venv
+- Enable the venv.
 
 Windows:
 ```bash
@@ -79,7 +79,7 @@ Linux:
 ```bash
 source venv/bin/activate
 ```
-- Install the dependencies
+- Install the dependencies.
 ```bash
 python -m pip install -r requirements.txt
 ```
