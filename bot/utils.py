@@ -30,7 +30,7 @@ from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
 logger = logging.getLogger(__name__)
 
 
-def extract_number(string: str) -> Optional[str]:
+def extract_number(string: str) -> str:
     """
     Extract a natural number from a string.
 
@@ -40,9 +40,9 @@ def extract_number(string: str) -> Optional[str]:
     Returns:
         Optional[str]: The extracted number as a string, or None if no number is found.
     """
-    search = re.search(r'/d+', string)
+    search = re.search(r'\d+', string)
     if not search:
-        return
+        return ''
 
     return search.group()
 
