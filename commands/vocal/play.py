@@ -48,7 +48,7 @@ class Play(commands.Cog):
             await play_onsei(ctx, query, session)
 
         # If the query is custom or an URL not from Spotify/Youtube
-        elif source == 'custom' or (is_url(query) and not is_url(query, from_=spotify_domains | youtube_domains)):
+        elif source == 'custom' or (is_url(query) and not is_url(query, from_=spotify_domains+youtube_domains)):
             await play_custom(ctx, query, session)
 
         # Else, search Spotify or Youtube
