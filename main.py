@@ -38,8 +38,9 @@ async def on_ready() -> None:
         bot.downloading = False
         bot.spotify = spotify
         if DEEZER_ENABLED:
-            bot.deezer = Deezer_()
-            await bot.deezer.init_deezer()
+            deezer = Deezer_()
+            await deezer.init_deezer()
+            bot.deezer = deezer
 
     if CHATBOT_ENABLED:
         await memory.init_pinecone(PINECONE_INDEX_NAME)
@@ -48,16 +49,8 @@ async def on_ready() -> None:
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')
     module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
-
     logging.info(f'Loading {module_name}')
     bot.load_extension(module_name)
 
 
-async def start() -> None:
-    await bot.start(BOT_TOKEN)
-
-try:
-    loop.run_until_complete(start())
-finally:
-    if not bot.is_closed():
-        loop.run_until_complete(bot.close())
+bot.run(BOT_TOKEN)
