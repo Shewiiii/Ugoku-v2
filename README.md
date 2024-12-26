@@ -48,6 +48,7 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
 
 - Python >= 3.10.x, <= 3.12.x (It has not been tested on Python 3.9, but it should work as well.)
 - A Discord bot token (get one [here](https://discord.com/developers/applications))
+- FFmpeg
 
 Music bot (Optional but strongly recommended):
 - A Spotify app (get one [here](https://developer.spotify.com/))
@@ -60,6 +61,7 @@ Chatbot:
 
 <h2>Quick setup guide</h2>
 
+- Install FFmpeg. You can follow [this guide](https://www.geeksforgeeks.org/how-to-install-ffmpeg-on-windows/) if you are on a Windows machine.
 - Copy the repo.
 - Create a virtual environment.
 ```bash
