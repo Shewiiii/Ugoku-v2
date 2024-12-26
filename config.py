@@ -24,6 +24,7 @@ AUTO_LEAVE_DURATION = 900 # Duration before killing an audio session (in seconds
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
 DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
 DEFAULT_AUDIO_VOLUME = 30 # The recommended value is 30 since the bot can get pretty loud
+DEFAULT_ONSEI_VOLUME = 100 # Audio works are generally quieter for a higher dynamic range
 # Onsei filters
 ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a folder name containing one of these words will be chosen
 ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blacklisted

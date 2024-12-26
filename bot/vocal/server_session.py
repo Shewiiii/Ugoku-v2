@@ -13,7 +13,13 @@ from deezer.errors import DataException
 from bot.vocal.queue_view import QueueView
 from bot.vocal.control_view import controlView
 from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
-from config import AUTO_LEAVE_DURATION, DEFAULT_AUDIO_VOLUME, DEEZER_ENABLED, SPOTIFY_ENABLED
+from config import (
+    AUTO_LEAVE_DURATION,
+    DEFAULT_AUDIO_VOLUME,
+    DEFAULT_ONSEI_VOLUME,
+    DEEZER_ENABLED,
+    SPOTIFY_ENABLED
+)
 from bot.vocal.deezer import DeezerChunkedInputStream
 from deemix.errors import GenerationError
 
@@ -84,6 +90,7 @@ class ServerSession:
         self.playback_start_time = None
         self.last_context = None
         self.volume = DEFAULT_AUDIO_VOLUME
+        self.onsei_volume = DEFAULT_ONSEI_VOLUME
 
     async def display_queue(
         self,
@@ -145,8 +152,8 @@ class ServerSession:
                 value=next_track, inline=True
             )
             # Audio quality indicator
-            aq_dict = {'Youtube': 'Low', 'Spotify': 'High', 'Deezer': 'Hifi'}
-            audio_quality = aq_dict.get(self.queue[0]['source'], None)
+            aq_dict = {'youtube': 'Low', 'spotify': 'High', 'deezer': 'Hifi'}
+            audio_quality = aq_dict.get(self.queue[0]['source'].lower(), None)
             if audio_quality:
                 sent_embed.add_field(
                     name="Audio quality",
@@ -251,11 +258,12 @@ class ServerSession:
             return  # No songs to play
 
         track_info = self.queue[0]['track_info']
+        service = self.queue[0]['source'].lower()
 
         # If Deezer enabled, inject lossless stream in a spotify track
-        if self.queue[0]['source'] == 'Deezer':
+        if service == 'deezer':
             if not await self.inject_lossless_stream():
-                self.queue[0]['source'] = 'Spotify'
+                service = 'spotify'
                 if not SPOTIFY_ENABLED:
                     await ctx.send(
                         content=f"{track_info['display_name']}"
@@ -294,8 +302,11 @@ class ServerSession:
             await asyncio.to_thread(source.seek, 167)
 
         # Set up FFmpeg options for seeking and volume
+        volume = (
+            self.volume if service != 'onsei' else self.onsei_volume) / 100
+        print(service)
         ffmpeg_options = {
-            'options': f'-ss {start_position} -filter:a volume={self.volume / 100}'
+            'options': f'-ss {start_position} -filter:a volume={volume}'
         }
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,

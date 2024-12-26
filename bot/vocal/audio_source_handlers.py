@@ -216,7 +216,7 @@ async def play_onsei(
         }
 
         tracks_info.append(track_info)
-    await session.add_to_queue(ctx, tracks_info, source='Custom')
+    await session.add_to_queue(ctx, tracks_info, source='Onsei')
 
 
 async def play_youtube(
