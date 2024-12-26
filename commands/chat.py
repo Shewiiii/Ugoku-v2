@@ -21,7 +21,7 @@ if CHATBOT_ENABLED:
             self.bot = bot
 
         @commands.slash_command(
-            name="reset_chatbot",
+            name="reset-chatbot",
             description=(
                 "Reset the chatbot instance. "
                 "Useful when the bot starts to become crazy."
