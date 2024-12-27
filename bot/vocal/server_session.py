@@ -18,7 +18,8 @@ from config import (
     DEFAULT_AUDIO_VOLUME,
     DEFAULT_ONSEI_VOLUME,
     DEEZER_ENABLED,
-    SPOTIFY_ENABLED
+    SPOTIFY_ENABLED,
+    IMPULSE_RESPONSE_PARAMS
 )
 from bot.vocal.deezer import DeezerChunkedInputStream
 from deemix.errors import GenerationError
@@ -91,6 +92,7 @@ class ServerSession:
         self.last_context = None
         self.volume = DEFAULT_AUDIO_VOLUME
         self.onsei_volume = DEFAULT_ONSEI_VOLUME
+        self.audio_effect = 'default'
 
     async def display_queue(
         self,
@@ -304,10 +306,27 @@ class ServerSession:
         # Set up FFmpeg options for seeking and volume
         volume = (
             self.volume if service != 'onsei' else self.onsei_volume) / 100
-        print(service)
-        ffmpeg_options = {
-            'options': f'-ss {start_position} -filter:a volume={volume}'
-        }
+        # Check if there is an audio effect
+        p = IMPULSE_RESPONSE_PARAMS.get(self.audio_effect, None)
+        if p:
+            # Audio with effects
+            ffmpeg_options = {
+                'before_options': f'-i "./audio_ir/{p["ir_file"]}"',
+                'options': (
+                    '-filter_complex '
+                    f'"[1:a][0:a]afir=dry={p["dry"]}:wet={p["wet"]}[effect]; '
+                    '[1:a][effect]amix=inputs=2:weights=1 1[mix]; '
+                    f'[mix]volume={volume*p["volume_multiplier"]}[out]" '
+                    '-map "[out]" '
+                    # Options
+                    f'-ac 2 -ar 48000 -vn -ss {start_position}'
+                )
+            }
+        else:
+            # Default output options
+            ffmpeg_options = {
+                'options': f'-ss {start_position} -filter:a volume={volume}'
+            }
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
             pipe=isinstance(

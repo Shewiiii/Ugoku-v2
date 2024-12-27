@@ -25,6 +25,7 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
   - [X] Stream videos from Youtube.
   - [X] Stream audio works (音声作品) in a voice channel (because why not).
   - [X] Play songs from a URL (custom source).
+  - [X] Apply audio effects (bass boost, reverb, ...).
   - [X] Cache audio from custom sources.
   - [X] Embed info messages with metadata.
   - [X] Show the lyrics of a song using the Musixmatch API

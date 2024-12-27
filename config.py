@@ -23,8 +23,40 @@ CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds) for custom sources and 
 AUTO_LEAVE_DURATION = 900 # Duration before killing an audio session (in seconds)
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
 DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
-DEFAULT_AUDIO_VOLUME = 30 # The recommended value is 30 since the bot can get pretty loud
+DEFAULT_AUDIO_VOLUME = 40 # The recommended value is 40 since the bot can get pretty loud
 DEFAULT_ONSEI_VOLUME = 100 # Audio works are generally quieter for a higher dynamic range
+IMPULSE_RESPONSE_PARAMS = {
+    'bass boost': {
+        'ir_file': 'bass.wav',
+        'dry': 2,
+        'wet': 2,
+        'volume_multiplier': 0.5,
+    },
+    'reverb': {
+        'ir_file': 'reverb.wav',
+        'dry': 7,
+        'wet': 9,
+        'volume_multiplier': 1
+    },
+    'north church': {
+        'ir_file': 'north_church.wav',
+        'dry': 7,
+        'wet': 5,
+        'volume_multiplier': 0.8
+    },
+    'cinema': {
+        'ir_file': 'cinema.wav',
+        'dry': 7,
+        'wet': 3,
+        'volume_multiplier': 0.8
+    },
+    'bass XXL': {
+        'ir_file': 'bass_xxl.wav',
+        'dry': 7,
+        'wet': 2,
+        'volume_multiplier': 0.6
+    }
+} # (Advanced) Add your own audio effects to the /audio-effect list with an impulse response file in ./audio-ir
 # Onsei filters
 ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a folder name containing one of these words will be chosen
 ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blacklisted
