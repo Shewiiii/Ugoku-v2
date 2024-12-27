@@ -32,8 +32,12 @@ if TYPE_CHECKING:
 
 class AudioEffect:
     def __init__(self):
-        self.effect = 'default'
+        self.ir_file = ''
+        self.effect: Optional[str] = None
         self.effect_only = True
+        self.dry = 0
+        self.wet = 0
+        self.volume_multiplier = 1
 
 
 class ServerSession:
@@ -313,14 +317,14 @@ class ServerSession:
         volume = (
             self.volume if service != 'onsei' else self.onsei_volume) / 100
         # Check if there is an audio effect
-        p = IMPULSE_RESPONSE_PARAMS.get(self.audio_effect.effect)
-        if p:
-            ir_path = f'-i "./audio_ir/{p["ir_file"]}"'
-            volume_adjust = volume * p["volume_multiplier"]
+        ae = self.audio_effect
+        if self.audio_effect.effect:
+            ir_path = f'-i "./audio_ir/{ae.ir_file}"'
+            volume_adjust = volume * ae.volume_multiplier
             filter_complex = (
-                f'"[1:a][0:a]afir=dry={p["dry"]}:wet={p["wet"]}[effect]; '
-                f'{"[1:a][effect]amix=inputs=2:weights=1 1[mix]; " if not self.audio_effect.effect_only else ""}'
-                f'{"[mix]" if not self.audio_effect.effect_only else "[effect]"}'
+                f'"[1:a][0:a]afir=dry={ae.dry}:wet={ae.wet}[effect]; '
+                f'{"[1:a][effect]amix=inputs=2:weights=1 1[mix]; " if not ae.effect_only else ""}'
+                f'{"[mix]" if not ae.effect_only else "[effect]"}'
                 f'volume={volume_adjust}[out]" '
                 '-map "[out]" '
                 f'-ac 2 -ar 48000 -vn -ss {start_position}'

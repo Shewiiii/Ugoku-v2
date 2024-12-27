@@ -28,9 +28,9 @@ DEFAULT_ONSEI_VOLUME = 100 # Audio works are generally quieter for a higher dyna
 IMPULSE_RESPONSE_PARAMS = {
     'bass boost': {
         'ir_file': 'bass.wav',
-        'dry': 2,
-        'wet': 2,
-        'volume_multiplier': 0.5,
+        'dry': 1,
+        'wet': 7,
+        'volume_multiplier': 0.45,
     },
     'reverb': {
         'ir_file': 'reverb.wav',
@@ -55,6 +55,18 @@ IMPULSE_RESPONSE_PARAMS = {
         'dry': 7,
         'wet': 2,
         'volume_multiplier': 0.6
+    },
+    'Raum default': {
+        'ir_file': 'raum.wav',
+        'dry': 10,
+        'wet': 10,
+        'volume_multiplier': 0.65
+    },
+    'Raum size 100%, decay 2s': {
+        'ir_file': 'raum_max_size.wav',
+        'dry': 5,
+        'wet': 10,
+        'volume_multiplier': 0.45
     }
 } # (Advanced) Add your own audio effects to the /audio-effect list with an impulse response file in ./audio-ir
 # Onsei filters
