@@ -30,6 +30,12 @@ if TYPE_CHECKING:
     from bot.vocal.session_manager import SessionManager
 
 
+class AudioEffect:
+    def __init__(self):
+        self.effect = 'default'
+        self.effect_only = True
+
+
 class ServerSession:
     """Represents an audio session for a Discord server.
 
@@ -92,7 +98,7 @@ class ServerSession:
         self.last_context = None
         self.volume = DEFAULT_AUDIO_VOLUME
         self.onsei_volume = DEFAULT_ONSEI_VOLUME
-        self.audio_effect = 'default'
+        self.audio_effect = AudioEffect()
 
     async def display_queue(
         self,
@@ -307,20 +313,21 @@ class ServerSession:
         volume = (
             self.volume if service != 'onsei' else self.onsei_volume) / 100
         # Check if there is an audio effect
-        p = IMPULSE_RESPONSE_PARAMS.get(self.audio_effect, None)
+        p = IMPULSE_RESPONSE_PARAMS.get(self.audio_effect.effect)
         if p:
-            # Audio with effects
+            ir_path = f'-i "./audio_ir/{p["ir_file"]}"'
+            volume_adjust = volume * p["volume_multiplier"]
+            filter_complex = (
+                f'"[1:a][0:a]afir=dry={p["dry"]}:wet={p["wet"]}[effect]; '
+                f'{"[1:a][effect]amix=inputs=2:weights=1 1[mix]; " if not self.audio_effect.effect_only else ""}'
+                f'{"[mix]" if not self.audio_effect.effect_only else "[effect]"}'
+                f'volume={volume_adjust}[out]" '
+                '-map "[out]" '
+                f'-ac 2 -ar 48000 -vn -ss {start_position}'
+            )
             ffmpeg_options = {
-                'before_options': f'-i "./audio_ir/{p["ir_file"]}"',
-                'options': (
-                    '-filter_complex '
-                    f'"[1:a][0:a]afir=dry={p["dry"]}:wet={p["wet"]}[effect]; '
-                    '[1:a][effect]amix=inputs=2:weights=1 1[mix]; '
-                    f'[mix]volume={volume*p["volume_multiplier"]}[out]" '
-                    '-map "[out]" '
-                    # Options
-                    f'-ac 2 -ar 48000 -vn -ss {start_position}'
-                )
+                'before_options': ir_path,
+                'options': f'-filter_complex {filter_complex}'
             }
         else:
             # Default output options
