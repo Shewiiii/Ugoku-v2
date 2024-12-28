@@ -22,6 +22,7 @@ CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds) for custom sources and 
 # VC and audio bot behavior
 AUTO_LEAVE_DURATION = 900 # Duration before killing an audio session (in seconds)
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
+DEEZER_PRE_BUFFERED_CHUNKS = 300 # The number of chunks to pre-buff before playing. Can redude audio lag but adds latency
 DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
 DEFAULT_AUDIO_VOLUME = 40 # The recommended value is 40 since the bot can get pretty loud
 DEFAULT_ONSEI_VOLUME = 100 # Audio works are generally quieter for a higher dynamic range

@@ -18,6 +18,7 @@ from config import (
     DEFAULT_ONSEI_VOLUME,
     DEEZER_ENABLED,
     SPOTIFY_ENABLED,
+    DEEZER_PRE_BUFFERED_CHUNKS
 )
 from bot.vocal.deezer import DeezerChunkedInputStream
 from deemix.errors import GenerationError
@@ -43,29 +44,6 @@ class ServerSession:
     """Represents an audio session for a Discord server.
 
     This class manages the audio playback, queue, and various controls for a specific server.
-
-    Attributes:
-        bot: The Discord bot instance.
-        guild_id: The unique identifier of the Discord guild (server).
-        voice_client: The voice client connected to the server's voice channel.
-        queue: The current queue of tracks to be played.
-        to_loop: Tracks that are set to be looped.
-        last_played_time: Timestamp of when the last track was played.
-        loop_current: Flag indicating if the current track should be looped.
-        loop_queue: Flag indicating if the entire queue should be looped.
-        skipped: Flag indicating if the current track was skipped.
-        shuffle: Flag indicating if the queue is shuffled.
-        original_queue: The original order of the queue before shuffling.
-        shuffled_queue: The shuffled order of the queue.
-        previous: Flag indicating if the previous track command was used.
-        stack_previous: Stack of previously played tracks.
-        is_seeking: Flag indicating if a seek operation is in progress.
-        channel_id: The ID of the text channel associated with this session.
-        session_manager: The session manager handling this server session.
-        auto_leave_task: Task for automatically leaving the voice channel after inactivity.
-        playback_start_time: Timestamp of when the current track started playing.
-        last_context: The last context used for interaction.
-        volume: The current volume level of the audio playback.
     """
 
     def __init__(
@@ -102,6 +80,7 @@ class ServerSession:
         self.volume = DEFAULT_AUDIO_VOLUME
         self.onsei_volume = DEFAULT_ONSEI_VOLUME
         self.audio_effect = AudioEffect()
+        self.current_stream = None
 
     async def display_queue(
         self,
@@ -312,6 +291,10 @@ class ServerSession:
         if isinstance(source, AbsChunkedInputStream):
             await asyncio.to_thread(source.seek, 167)
 
+        # Pre-buffer chunks to slightly reduce audio lag
+        if isinstance(source, DeezerChunkedInputStream):
+            await asyncio.to_thread(source.pre_buffer, num_chunks=DEEZER_PRE_BUFFERED_CHUNKS)
+
         # Set up FFmpeg options for seeking and volume
         volume = (
             self.volume if service != 'onsei' else self.onsei_volume) / 100
@@ -319,7 +302,9 @@ class ServerSession:
         ae = self.audio_effect
         if self.audio_effect.effect:
             before_options = (
-                '-use_wallclock_as_timestamps 1 -probesize 32 -analyzeduration 0 '
+                '-nostdin '
+                '-probesize 32 '
+                '-analyzeduration 0 '
                 f'-i "./audio_ir/{ae.left_ir_file}" '
                 f'-i "./audio_ir/{ae.right_ir_file}"'
             )
@@ -344,20 +329,21 @@ class ServerSession:
 
             ffmpeg_options = {
                 "before_options": before_options,
-                "options": f'-filter_complex {filter_complex}'
+                "options": f'-filter_complex {filter_complex} -f opus'
             }
         else:
             # Default output options
             ffmpeg_options = {
                 "before_options": (
-                    '-use_wallclock_as_timestamps 1 '
+                    '-nostdin '
                     '-probesize 32 '
                     '-analyzeduration 0'
                 ),
                 'options': (
                     f'-ss {start_position} '
                     f'-filter:a "aresample=async=1:first_pts=0:min_hard_comp=0.100,'
-                    f'volume={volume}"'
+                    f'volume={volume}" '
+                    f'-f opus'
                 )
             }
         ffmpeg_source = discord.FFmpegOpusAudio(
@@ -371,6 +357,9 @@ class ServerSession:
             bitrate=510,
             **ffmpeg_options
         )
+
+        # Add the currently playing source in class variable
+        self.current_stream = source
 
         # Play the song !
         self.voice_client.play(
@@ -482,22 +471,6 @@ class ServerSession:
             self.voice_client.pause()
         await self.start_playing(ctx)
 
-    async def skip_track(self, ctx: discord.ApplicationContext) -> bool:
-        """Skips the current track and plays the next one in the queue.
-
-        Args:
-            ctx: The Discord application context.
-
-        Returns:
-            bool: True if a track was skipped, False otherwise.
-        """
-        if not self.voice_client or not self.voice_client.is_playing():
-            return False
-
-        self.voice_client.pause()
-        await self.play_next(ctx)
-        return True
-
     def get_queue(self) -> List[SimplifiedTrackInfo]:
         """Returns a simplified version of the current queue.
 
@@ -558,15 +531,17 @@ class ServerSession:
         if error:
             raise error
 
+        # Close the current stream if it exists
+        if self.current_stream and isinstance(
+            self.current_stream,
+            (DeezerChunkedInputStream, AbsChunkedInputStream)
+        ):
+            self.current_stream.close()
+            self.current_stream = None
+
         if self.is_seeking:
             # If we're seeking, don't do anything
             return
-
-        # Flag the stream as finished if Deezer stream
-        if len(self.queue) > 0:
-            source = self.queue[0]['track_info']['source']
-            if isinstance(source, DeezerChunkedInputStream):
-                self.queue[0]['track_info']['source'].finished = True
 
         if self.queue and self.voice_client.is_connected():
             asyncio.run_coroutine_threadsafe(

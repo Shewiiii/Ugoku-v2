@@ -4,6 +4,7 @@ from typing import Optional
 import logging
 from requests import get, Response
 from pathlib import Path
+import time
 
 from spotipy import Spotify, SpotifyClientCredentials
 from deezer import Deezer
@@ -95,6 +96,46 @@ class DeezerChunkedInputStream:
                     self.finished = True
                     break
             self.current_position = min(position, len(self.buffer))
+
+    def pre_buffer(self, num_chunks: int = 30) -> None:
+        """Pre-buffer chunks without advancing the read pointer."""
+        start_time = time.perf_counter()
+        for _ in range(num_chunks):
+            if self.finished:
+                break
+            try:
+                chunk = next(self.chunks)
+                if len(chunk) >= 2048:
+                    decrypted_chunk = decryptChunk(
+                        self.blowfish_key,
+                        chunk[0:2048]
+                    ) + chunk[2048:]
+                    self.buffer += decrypted_chunk
+                else:
+                    self.finished = True
+                    break
+            except StopIteration:
+                self.finished = True
+                break
+            except Exception as e:
+                logging.error(f"Error during pre-buffering: {e}")
+                self.finished = True
+                break
+        end_time = time.perf_counter()
+        delta_ms = (end_time - start_time) * 1000
+        buffer_kB = len(self.buffer) / 1024
+        logging.info(
+            f"Pre-buffered {num_chunks} chunks in {delta_ms:.2f} ms, "
+            f"buffer length: {buffer_kB:.1f} kB"
+        )
+
+    def close(self):
+        """Close the stream and mark as finished."""
+        self.finished = True
+        if self.encrypted_stream:
+            self.encrypted_stream.close()
+        self.chunks = None
+        del self.buffer
 
 
 class Deezer_:
