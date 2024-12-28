@@ -42,8 +42,8 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
 <h2>Known bugs to fix</h2>
 
 - Example sentences not always well chosen when reviewing jpdb cards (Gemini, rare but still).
-- The song in vc may stop randomly.
-- Audio is slowing down at the beginning of a song.
+- The song in vc may stop randomly with Spotify.
+- Audio may slow down at the beginning of a song.
 - Audio is lagging when changing the audio effect.
 
 <h2>Requirements</h2>

@@ -3,7 +3,6 @@ import logging
 import random
 from datetime import datetime, timedelta
 from typing import Optional, Callable, List, Literal
-from deemix.types.Track import Track
 from copy import deepcopy
 
 import discord
@@ -12,14 +11,13 @@ from deezer.errors import DataException
 
 from bot.vocal.queue_view import QueueView
 from bot.vocal.control_view import controlView
-from bot.vocal.types import QueueItem, TrackInfo, LoopMode, SimplifiedTrackInfo
+from bot.vocal.types import QueueItem, TrackInfo, SimplifiedTrackInfo
 from config import (
     AUTO_LEAVE_DURATION,
     DEFAULT_AUDIO_VOLUME,
     DEFAULT_ONSEI_VOLUME,
     DEEZER_ENABLED,
     SPOTIFY_ENABLED,
-    IMPULSE_RESPONSE_PARAMS
 )
 from bot.vocal.deezer import DeezerChunkedInputStream
 from deemix.errors import GenerationError
@@ -320,14 +318,15 @@ class ServerSession:
         # Check if there is an audio effect
         ae = self.audio_effect
         if self.audio_effect.effect:
-            ir_path = (
+            before_options = (
+                '-use_wallclock_as_timestamps 1 -probesize 32 -analyzeduration 0 '
                 f'-i "./audio_ir/{ae.left_ir_file}" '
                 f'-i "./audio_ir/{ae.right_ir_file}"'
             )
             volume_adjust = volume * ae.volume_multiplier
             filter_complex = (
                 f'"'
-                ## Split L&R channels
+                # Split L&R channels
                 f'[2:a]channelsplit=channel_layout=stereo[L_in][R_in]; '
                 # Convolve both channels, then rejoin them
                 f'[L_in][0:a]afir=dry={ae.dry}:wet={ae.wet}[L_fx]; '
@@ -337,18 +336,29 @@ class ServerSession:
                 f'{"[2:a][fx_stereo]amix=inputs=2:weights=1 1[mix]; " if not ae.effect_only else ""}'
                 f'{"[mix]" if not ae.effect_only else "[fx_stereo]"}'
                 # Apply the other settings
-                f'volume={volume_adjust}[out]" '
-                f'-map "[out]" -vn -ss {start_position}'
+                f'volume={volume_adjust},'
+                f'aresample=async=1:first_pts=0:min_hard_comp=0.100'
+                f'[out]" '
+                f'-map "[out]" -ss {start_position}'
             )
 
             ffmpeg_options = {
-                "before_options": ir_path,
+                "before_options": before_options,
                 "options": f'-filter_complex {filter_complex}'
             }
         else:
             # Default output options
             ffmpeg_options = {
-                'options': f'-ss {start_position} -filter:a volume={volume}'
+                "before_options": (
+                    '-use_wallclock_as_timestamps 1 '
+                    '-probesize 32 '
+                    '-analyzeduration 0'
+                ),
+                'options': (
+                    f'-ss {start_position} '
+                    f'-filter:a "aresample=async=1:first_pts=0:min_hard_comp=0.100,'
+                    f'volume={volume}"'
+                )
             }
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
