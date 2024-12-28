@@ -26,47 +26,61 @@ DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a c
 DEFAULT_AUDIO_VOLUME = 40 # The recommended value is 40 since the bot can get pretty loud
 DEFAULT_ONSEI_VOLUME = 100 # Audio works are generally quieter for a higher dynamic range
 IMPULSE_RESPONSE_PARAMS = {
-    'bass boost': {
-        'ir_file': 'bass.wav',
+    'bass boost (mono)': {
+        'left_ir_file': 'bass.wav',
+        'right_ir_file': 'bass.wav',
         'dry': 1,
         'wet': 7,
-        'volume_multiplier': 0.45,
+        'volume_multiplier': 0.4,
     },
-    'reverb': {
-        'ir_file': 'reverb.wav',
+    'reverb (mono)': {
+        'left_ir_file': 'reverb.wav',
+        'right_ir_file': 'reverb.wav',
         'dry': 7,
         'wet': 9,
         'volume_multiplier': 1
     },
     'north church': {
-        'ir_file': 'north_church.wav',
+        'left_ir_file': 'north_church_L.wav',
+        'right_ir_file': 'north_church_R.wav',
         'dry': 7,
         'wet': 5,
         'volume_multiplier': 0.8
     },
     'cinema': {
-        'ir_file': 'cinema.wav',
+        'left_ir_file': 'cinema_L.wav',
+        'right_ir_file': 'cinema_R.wav',
         'dry': 7,
         'wet': 3,
         'volume_multiplier': 0.8
     },
     'bass XXL': {
-        'ir_file': 'bass_xxl.wav',
+        'left_ir_file': 'bass_xxl_L.wav',
+        'right_ir_file': 'bass_xxl_R.wav',
         'dry': 7,
         'wet': 2,
         'volume_multiplier': 0.6
     },
-    'Raum default': {
-        'ir_file': 'raum.wav',
+    'Raum airy default': {
+        'left_ir_file': 'raum_default_airy_L.wav',
+        'right_ir_file': 'raum_default_airy_R.wav',
+        'dry': 10,
+        'wet': 10,
+        'volume_multiplier': 0.65
+    },
+        'Raum grounded default': {
+        'left_ir_file': 'raum_default_grounded_L.wav',
+        'right_ir_file': 'raum_default_grounded_R.wav',
         'dry': 10,
         'wet': 10,
         'volume_multiplier': 0.65
     },
     'Raum size 100%, decay 2s': {
-        'ir_file': 'raum_max_size.wav',
-        'dry': 5,
+        'left_ir_file': 'raum_max_size_L.wav',
+        'right_ir_file': 'raum_max_size_R.wav',
+        'dry': 10,
         'wet': 10,
-        'volume_multiplier': 0.45
+        'volume_multiplier': 0.6
     }
 } # (Advanced) Add your own audio effects to the /audio-effect list with an impulse response file in ./audio-ir
 # Onsei filters

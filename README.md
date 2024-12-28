@@ -23,9 +23,9 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
   - [X] Stream songs from Spotify.
   - [X] Inject lossless streams to Spotify songs (when available on Deezer).
   - [X] Stream videos from Youtube.
-  - [X] Stream audio works (音声作品) in a voice channel (because why not).
+  - [X] Stream audio works (音声作品) in a voice channel.
   - [X] Play songs from a URL (custom source).
-  - [X] Apply audio effects (bass boost, reverb, ...).
+  - [X] Apply audio effects (bass boost, reverb, etc), with high quality [Raum](https://www.native-instruments.com/en/products/komplete/effects/raum/)  effects built-in !
   - [X] Cache audio from custom sources.
   - [X] Embed info messages with metadata.
   - [X] Show the lyrics of a song using the Musixmatch API
@@ -44,6 +44,7 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
 - Example sentences not always well chosen when reviewing jpdb cards (Gemini, rare but still).
 - The song in vc may stop randomly.
 - Audio is slowing down at the beginning of a song.
+- Audio is lagging when changing the audio effect.
 
 <h2>Requirements</h2>
 

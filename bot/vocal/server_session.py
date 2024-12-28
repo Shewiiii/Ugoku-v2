@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 class AudioEffect:
     def __init__(self):
-        self.ir_file = ''
+        self.left_ir_file = ''
+        self.right_ir_file = ''
         self.effect: Optional[str] = None
         self.effect_only = True
         self.dry = 0
@@ -319,19 +320,30 @@ class ServerSession:
         # Check if there is an audio effect
         ae = self.audio_effect
         if self.audio_effect.effect:
-            ir_path = f'-i "./audio_ir/{ae.ir_file}"'
+            ir_path = (
+                f'-i "./audio_ir/{ae.left_ir_file}" '
+                f'-i "./audio_ir/{ae.right_ir_file}"'
+            )
             volume_adjust = volume * ae.volume_multiplier
             filter_complex = (
-                f'"[1:a][0:a]afir=dry={ae.dry}:wet={ae.wet}[effect]; '
-                f'{"[1:a][effect]amix=inputs=2:weights=1 1[mix]; " if not ae.effect_only else ""}'
-                f'{"[mix]" if not ae.effect_only else "[effect]"}'
+                f'"'
+                ## Split L&R channels
+                f'[2:a]channelsplit=channel_layout=stereo[L_in][R_in]; '
+                # Convolve both channels, then rejoin them
+                f'[L_in][0:a]afir=dry={ae.dry}:wet={ae.wet}[L_fx]; '
+                f'[R_in][1:a]afir=dry={ae.dry}:wet={ae.wet}[R_fx]; '
+                f'[L_fx][R_fx]join=inputs=2:channel_layout=stereo[fx_stereo]; '
+                # Combine the effect with the original signal
+                f'{"[2:a][fx_stereo]amix=inputs=2:weights=1 1[mix]; " if not ae.effect_only else ""}'
+                f'{"[mix]" if not ae.effect_only else "[fx_stereo]"}'
+                # Apply the other settings
                 f'volume={volume_adjust}[out]" '
-                '-map "[out]" '
-                f'-ac 2 -ar 48000 -vn -ss {start_position}'
+                f'-map "[out]" -vn -ss {start_position}'
             )
+
             ffmpeg_options = {
-                'before_options': ir_path,
-                'options': f'-filter_complex {filter_complex}'
+                "before_options": ir_path,
+                "options": f'-filter_complex {filter_complex}'
             }
         else:
             # Default output options

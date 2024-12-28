@@ -53,13 +53,14 @@ class AudioEffects(commands.Cog):
         p = IMPULSE_RESPONSE_PARAMS.get(effect)
         session.audio_effect.effect = effect if p else None
         wet_value = wet or p.get('wet', 0) if p else 0
-        dry_value = dry or p.get('dry', 0) if p else 0
+        dry_value = dry or p.get('dry', 0) if p else 10
         volume_value = p.get('volume_multiplier', 1) if p else 1
 
         # If not default effect
         if p:
             attrs = {
-                'ir_file': p.get('ir_file', ''),
+                'left_ir_file': p.get('left_ir_file', ''),
+                'right_ir_file': p.get('right_ir_file', ''),
                 'effect_only': effect_only,
                 'wet': wet_value,
                 'dry': dry_value,
