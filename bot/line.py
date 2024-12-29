@@ -1,4 +1,5 @@
 from aiohttp import ClientSession
+import aiofiles
 from pathlib import Path
 from PIL import Image
 import asyncio
@@ -61,8 +62,8 @@ async def fetch_sticker_image(
     async with session.get(link) as response:
         response.raise_for_status()
         sticker_image = await response.read()
-        with open(file_path, 'wb') as png_file:
-            png_file.write(sticker_image)
+        async with aiofiles.open(file_path, 'wb') as png_file:
+            await png_file.write(sticker_image)
 
 
 async def get_stickerpack(

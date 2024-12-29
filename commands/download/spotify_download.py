@@ -1,4 +1,5 @@
 import asyncio
+import aiofiles
 import os
 import logging
 
@@ -69,8 +70,8 @@ class SpotifyDownload(commands.Cog):
 
             # Update cached files
             cleanup_cache()
-            cover_url: str = track['cover']
-            file_path = get_cache_path(cover_url.encode('utf-8'))
+            id: str = track['id']
+            file_path = get_cache_path(id.encode('utf-8'))
 
             if file_path.is_file():
                 size = os.path.getsize(file_path)
@@ -79,8 +80,8 @@ class SpotifyDownload(commands.Cog):
                 stream = await track['source']()
                 data = await asyncio.to_thread(stream.read)
                 # Download
-                with open(file_path, 'wb') as file:
-                    file.write(data)
+                async with aiofiles.open(file_path, 'wb') as file:
+                    await file.write(data)
                 try:
                     # Tag
                     await tag_ogg_file(

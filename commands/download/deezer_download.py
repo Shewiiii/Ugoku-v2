@@ -35,7 +35,7 @@ class DeezerDownload(commands.Cog):
         # Get the track from query
         self.bot.downloading = True
         try:
-            track = await self.bot.deezer.get_stream_url_from_query(query)
+            track = await self.bot.deezer.get_track_from_query(query)
         except DataException:
             await ctx.edit(content="Track not found !")
             return
@@ -45,11 +45,12 @@ class DeezerDownload(commands.Cog):
 
         # Set the cache path
         cleanup_cache()
-        file_path = get_cache_path(str(track['track_id']).encode('utf-8'))
+        file_path = get_cache_path(str(track['id']).encode('utf-8'))
 
         # Download
+        print(file_path.is_file(), file_path)
         if not file_path.is_file():
-            file_path = await asyncio.to_thread(self.bot.deezer.download, track)
+            file_path = await self.bot.deezer.download(track)
 
         # Tag the file
         display_name = f"{track['artist']} - {track['title']}"

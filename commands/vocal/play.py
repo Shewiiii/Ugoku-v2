@@ -8,7 +8,13 @@ from bot.vocal.server_session import ServerSession
 from bot.vocal.audio_source_handlers import play_spotify, play_custom, play_onsei, play_youtube
 from bot.utils import is_onsei, send_response
 from bot.search import is_url
-from config import SPOTIFY_ENABLED, DEFAULT_STREAMING_SERVICE, DEEZER_ENABLED, SPOTIFY_API_ENABLED
+from config import (
+    SPOTIFY_ENABLED,
+    DEFAULT_STREAMING_SERVICE,
+    DEEZER_ENABLED,
+    SPOTIFY_API_ENABLED,
+    CACHE_STREAMS
+)
 
 
 class Play(commands.Cog):
@@ -57,7 +63,7 @@ class Play(commands.Cog):
 
         # If Deezer enabled, inject a lossless stream before playing the track
         elif source in {'spotify', 'deezer'}:
-            service = 'Spotify' if source == 'spotify' else 'Deezer'
+            service = source.capitalize()
             if (source == 'spotify' and not (SPOTIFY_ENABLED and SPOTIFY_API_ENABLED)) or \
                     (source == 'deezer' and not (SPOTIFY_API_ENABLED and DEEZER_ENABLED)):
                 await edit(content=f'{service} API or {service} features are not enabled.')
@@ -66,7 +72,9 @@ class Play(commands.Cog):
                 ctx, query, session, interaction, service,
                 offset if source == 'spotify' else None, artist_mode
             )
-
+            if CACHE_STREAMS:
+                for i in range(0, 2):
+                    await session.cache_stream(index=i)
         else:
             await edit(content='wut duh')
 

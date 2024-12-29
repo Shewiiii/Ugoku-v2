@@ -16,3 +16,4 @@ pytz
 pinecone[grpc]
 deemix
 httpx
+aiofiles

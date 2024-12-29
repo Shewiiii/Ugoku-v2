@@ -1,4 +1,5 @@
 import os
+import aiofiles
 import asyncio
 from typing import Optional
 import logging
@@ -26,10 +27,10 @@ DEEZER_ARL = os.getenv('DEEZER_ARL')
 
 
 class DeezerChunkedInputStream:
-    """track: {'track_id': int, 'stream_url': str}"""
+    """track: {'id': int, 'stream_url': str}"""
 
     def __init__(self, track: dict) -> None:
-        self.id: int = track['track_id']
+        self.id: int = track['id']
         self.stream_url = track['stream_url']
         self.buffer: bytes = b''
         self.blowfish_key: bytes = generateBlowfishKey(str(self.id))
@@ -97,38 +98,6 @@ class DeezerChunkedInputStream:
                     break
             self.current_position = min(position, len(self.buffer))
 
-    def pre_buffer(self, num_chunks: int = 30) -> None:
-        """Pre-buffer chunks without advancing the read pointer."""
-        start_time = time.perf_counter()
-        for _ in range(num_chunks):
-            if self.finished:
-                break
-            try:
-                chunk = next(self.chunks)
-                if len(chunk) >= 2048:
-                    decrypted_chunk = decryptChunk(
-                        self.blowfish_key,
-                        chunk[0:2048]
-                    ) + chunk[2048:]
-                    self.buffer += decrypted_chunk
-                else:
-                    self.finished = True
-                    break
-            except StopIteration:
-                self.finished = True
-                break
-            except Exception as e:
-                logging.error(f"Error during pre-buffering: {e}")
-                self.finished = True
-                break
-        end_time = time.perf_counter()
-        delta_ms = (end_time - start_time) * 1000
-        buffer_kB = len(self.buffer) / 1024
-        logging.info(
-            f"Pre-buffered {num_chunks} chunks in {delta_ms:.2f} ms, "
-            f"buffer length: {buffer_kB:.1f} kB"
-        )
-
     def close(self):
         """Close the stream and mark as finished."""
         self.finished = True
@@ -181,9 +150,13 @@ class Deezer_:
 
         return parsed_url[2]
 
-    async def get_stream_url(self, url: str) -> Optional[dict]:
-        link_id = await self.get_link_id(url)
-        if not link_id:
+    async def get_track(
+        self,
+        url: Optional[str] = None,
+        id: Optional[str] = None
+    ) -> Optional[dict]:
+        link_id = id or await self.get_link_id(url)
+        if not (link_id or url):
             return
 
         # Prepare track object
@@ -226,7 +199,7 @@ class Deezer_:
 
         results = {
             'stream_url': stream_url,
-            'track_id': id,
+            'id': id,
             'title': title,
             'artist': artist,
             'artists': artists,
@@ -237,11 +210,11 @@ class Deezer_:
 
         return results
 
-    async def get_stream_url_from_query(self, query: str) -> Optional[dict]:
+    async def get_track_from_query(self, query: str) -> Optional[dict]:
         """Get a track stream URL from a query (text or URL)"""
         # gekiyaba Spotify or Deezer url
         if is_url(query, ['open.spotify.com', ' deezer.com', 'deezer.page.link']):
-            results = await self.get_stream_url(query)
+            results = await self.get_track(url=query)
             return results
 
         # normal query
@@ -276,7 +249,7 @@ class Deezer_:
 
         results = {
             'stream_url': stream_url,
-            'track_id': id,
+            'id': id,
             'title': title,
             'artist': artist,
             'artists': artists,
@@ -293,31 +266,46 @@ class Deezer_:
         return stream
 
     @ staticmethod
-    def download(track: dict) -> Optional[Path]:
+    async def download(track: dict) -> Optional[Path]:
         """Download a track from Deezer from a track dict.
         Params:
-            track (dict): Dict containint the "stream_url" and "track_id"
+            track (dict): Dict containint the "stream_url" and "id"
 
         Returns:
             Path: The path to the cache file
         """
-        # Setup the download
-        cis = DeezerChunkedInputStream(track)
-        cis.get_encrypted_stream()
-        file_path = get_cache_path(str(track['track_id']).encode('utf-8'))
-        chunks = cis.encrypted_stream.iter_content(2048 * 3)
+        cis = await asyncio.to_thread(DeezerChunkedInputStream, track)
+        await asyncio.to_thread(cis.get_encrypted_stream)
 
-        # Write the content to file cache
-        with open(file_path, 'wb') as file:
+        file_path = get_cache_path(str(track['id']).encode('utf-8'))
+
+        if file_path.is_file():
+            logging.info(f"Track {track['id']} is already cached.")
+            return file_path
+
+        async with aiofiles.open(file_path, 'wb') as file:
             while True:
-                try:
-                    chunk = next(chunks)
-                except StopIteration:
-                    # Done
+                chunk = await asyncio.to_thread(
+                    next,
+                    cis.encrypted_stream.iter_content(2048 * 3),
+                    None
+                )
+
+                if chunk is None:
+                    # No more chunks to process
                     break
+
                 if len(chunk) >= 2048:
-                    decrypted = decryptChunk(cis.blowfish_key, chunk[:2048])
+                    # Offload decryption to a thread
+                    decrypted = await asyncio.to_thread(
+                        decryptChunk,
+                        cis.blowfish_key,
+                        chunk[:2048]
+                    )
                     chunk = decrypted + chunk[2048:]
-                file.write(chunk)
-        logging.info(f"Track {track['track_id']} downloaded successfully")
+
+                # Write the chunk asynchronously
+                await file.write(chunk)
+
+        logging.info(f"Track {track['id']} downloaded successfully.")
         return file_path
