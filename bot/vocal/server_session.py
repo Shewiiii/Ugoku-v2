@@ -255,15 +255,17 @@ class ServerSession:
 
         # Check for a cache file
         cleanup_cache()
+        service = self.queue[0]['source'].lower()
         id: str = self.queue[0]['track_info']['id']
-        file_path = get_cache_path(id.encode('utf-8'))
+        file_path = get_cache_path(f"{service}{id}".encode('utf-8'))
+
         # Cached stream already
         if file_path.is_file():
             self.queue[0]['track_info']['source'] = file_path
 
+        # New track info dict
         track_info = self.queue[0]['track_info']
         cached = isinstance(track_info['source'], (Path, str))
-        service = self.queue[0]['source'].lower()
 
         # If Deezer enabled, inject lossless stream in a spotify track
         if service == 'deezer' and not cached:
@@ -385,9 +387,9 @@ class ServerSession:
         track_info = self.queue[index]['track_info']
 
         # Deezer
-        await self.check_deezer_availability(index=1)
+        await self.check_deezer_availability(index=index)
         if CACHE_STREAMS:
-            await self.cache_stream(index=1)
+            await self.cache_stream(index=index)
 
         # Generate the embed
         embed = track_info.get('embed', None)
@@ -615,15 +617,17 @@ class ServerSession:
             return
 
         cleanup_cache()
-        id: str = str(self.queue[index]['track_info']['id'])
-        file_path = get_cache_path(id.encode('utf-8'))
+        service = self.queue[index]['source'].lower()
+        id = self.queue[index]['track_info']['id']
+        cache_id: str = f"{service}{id}"
+        file_path = get_cache_path(cache_id.encode('utf-8'))
 
         # Cached stream already, nothing to do
         if file_path.is_file():
             self.queue[index]['track_info']['source'] = file_path
             return
 
-        if self.queue[index]['source'].lower() == 'deezer':
+        if service == 'deezer':
             await self.inject_lossless_stream(index=1)
 
         next_element = self.queue[index]

@@ -70,8 +70,8 @@ class SpotifyDownload(commands.Cog):
 
             # Update cached files
             cleanup_cache()
-            id: str = track['id']
-            file_path = get_cache_path(id.encode('utf-8'))
+            cache_id = f"spotify{track['id']}"
+            file_path = get_cache_path(cache_id.encode('utf-8'))
 
             if file_path.is_file():
                 size = os.path.getsize(file_path)

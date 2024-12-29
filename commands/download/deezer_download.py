@@ -45,7 +45,8 @@ class DeezerDownload(commands.Cog):
 
         # Set the cache path
         cleanup_cache()
-        file_path = get_cache_path(str(track['id']).encode('utf-8'))
+        cache_id = f"deezer{track['id']}"
+        file_path = get_cache_path(cache_id.encode('utf-8'))
 
         # Download
         print(file_path.is_file(), file_path)
