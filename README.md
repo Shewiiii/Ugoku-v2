@@ -6,8 +6,7 @@
   <h1>Ugoku-v2 Discord Bot</h1>
 </div>
 
-**A work in progress rework of [Ugoku !](https://github.com/Shewiiii/Ugoku-bot)**, completely refactored and lightweight~  
-Thank you again [Chinono](https://github.com/ChinHongTan) for helping me with that project, much love <3  
+**A work in progress rework of [Ugoku !](https://github.com/Shewiiii/Ugoku-bot)**, completely refactored and lightweight~
 Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPYT3Z-WOlu0x1llrwOXc3lcO9RzXmrbfi08Mbt2rk
 <h2>Features/To do</h2>
 

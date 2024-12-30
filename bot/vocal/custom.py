@@ -206,6 +206,5 @@ async def fetch_audio_stream(url: str) -> Path:
     with cache_path.open('wb') as cache_file:
         cache_file.write(audio_data)
 
-    cleanup_cache()
-
+    await cleanup_cache()
     return cache_path

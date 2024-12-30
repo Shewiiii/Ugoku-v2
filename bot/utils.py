@@ -1,6 +1,8 @@
 import mutagen.ogg
 import mutagen.oggvorbis
+import asyncio
 from typing import Dict, Optional, Tuple, List, Union, Callable
+import aiofiles
 import discord
 import base64
 import hashlib
@@ -210,24 +212,28 @@ def get_cache_path(utf_8: bytes) -> Path:
     return TEMP_FOLDER / f'{hash_digest}.cache'
 
 
-def cleanup_cache() -> None:
+async def cleanup_cache() -> None:
     """
     Clean up the cache directory by removing old and excess files.
 
     This function removes files that exceed the cache size limit and deletes expired files.
     """
-    files = sorted(TEMP_FOLDER.glob('*.cache'), key=os.path.getmtime)
+    files = sorted(
+        TEMP_FOLDER.glob('*.cache'),
+        key=lambda f: f.stat().st_mtime
+    )
 
     # Remove files that exceed the cache size limit
     while len(files) > CACHE_SIZE:
         oldest_file = files.pop(0)
-        oldest_file.unlink()
+        await asyncio.to_thread(os.remove, oldest_file)
 
     # Remove expired files
     current_time = time()
     for file in files:
-        if current_time - file.stat().st_mtime > CACHE_EXPIRY:
-            file.unlink()
+        file_stat = await asyncio.to_thread(os.stat, file)
+        if current_time - file_stat.st_mtime > CACHE_EXPIRY:
+            await asyncio.to_thread(os.remove, file)
 
 
 def extract_cover_art(file_path) -> Optional[bytes]:
@@ -381,7 +387,6 @@ async def tag_flac_file(
     audio['title'] = title
     audio['artist'] = artist
     audio['album'] = album
-    print(date)
     audio['date'] = date
 
     audio.add_picture(picture)

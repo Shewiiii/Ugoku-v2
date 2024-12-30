@@ -13,7 +13,7 @@ from config import (
     DEFAULT_STREAMING_SERVICE,
     DEEZER_ENABLED,
     SPOTIFY_API_ENABLED,
-    CACHE_STREAMS
+    IMPULSE_RESPONSE_PARAMS
 )
 
 
@@ -28,7 +28,8 @@ class Play(commands.Cog):
         source: str,
         interaction: Optional[discord.Interaction] = None,
         offset: int = 0,
-        artist_mode: bool = False
+        artist_mode: bool = False,
+        effect: str = 'default'
     ) -> None:
         if interaction:
             respond = interaction.response.send_message
@@ -43,6 +44,22 @@ class Play(commands.Cog):
             await respond('You are not in a voice channel!')
             return
 
+        # Applying audio effects
+        p = IMPULSE_RESPONSE_PARAMS.get(effect)
+        session.audio_effect.effect = effect if p else None
+        if p:
+            attrs = {
+                'left_ir_file': p.get('left_ir_file', ''),
+                'right_ir_file': p.get('right_ir_file', ''),
+                'effect_only': False,
+                'wet': p.get('wet', 0),
+                'dry': p.get('dry', 0),
+                'volume_multiplier': p.get('volume_multiplier', 1)
+            }
+            for attr, value in attrs.items():
+                setattr(session.audio_effect, attr, value)
+
+        # Message to user
         await send_response(respond, "Give me a second~", session.guild_id)
 
         source = source.lower()
@@ -72,9 +89,6 @@ class Play(commands.Cog):
                 ctx, query, session, interaction, service,
                 offset if source == 'spotify' else None, artist_mode
             )
-            if CACHE_STREAMS:
-                for i in range(0, 2):
-                    await session.cache_stream(index=i)
         else:
             await edit(content='wut duh')
 
@@ -101,6 +115,12 @@ class Play(commands.Cog):
             bool,
             description="Plays the 10 first tracks of the queried artist if enabled.",
             default=0
+        ),  # type: ignore
+        effect: discord.Option(
+            str,
+            description="The audio effect to apply.",
+            choices=['default']+[effect for effect in IMPULSE_RESPONSE_PARAMS],
+            default='default'
         )  # type: ignore
     ) -> None:
         await self.execute_play(
@@ -108,7 +128,8 @@ class Play(commands.Cog):
             query,
             source,
             offset=playlist_offset,
-            artist_mode=artist_mode
+            artist_mode=artist_mode,
+            effect=effect
         )
 
 

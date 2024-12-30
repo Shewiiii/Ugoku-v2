@@ -44,12 +44,11 @@ class DeezerDownload(commands.Cog):
             return
 
         # Set the cache path
-        cleanup_cache()
+        await cleanup_cache()
         cache_id = f"deezer{track['id']}"
         file_path = get_cache_path(cache_id.encode('utf-8'))
 
         # Download
-        print(file_path.is_file(), file_path)
         if not file_path.is_file():
             file_path = await self.bot.deezer.download(track)
 

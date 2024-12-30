@@ -40,7 +40,7 @@ class AudioEffect:
         self.left_ir_file = ''
         self.right_ir_file = ''
         self.effect: Optional[str] = None
-        self.effect_only = True
+        self.effect_only = False
         self.dry = 0
         self.wet = 0
         self.volume_multiplier = 1
@@ -254,7 +254,7 @@ class ServerSession:
             return  # No songs to play
 
         # Check for a cache file
-        cleanup_cache()
+        await cleanup_cache()
         service = self.queue[0]['source'].lower()
         id: str = self.queue[0]['track_info']['id']
         file_path = get_cache_path(f"{service}{id}".encode('utf-8'))
@@ -388,13 +388,21 @@ class ServerSession:
 
         # Deezer
         await self.check_deezer_availability(index=index)
-        if CACHE_STREAMS:
-            await self.cache_stream(index=index)
 
         # Generate the embed
         embed = track_info.get('embed', None)
         if embed and isinstance(embed, Callable):
             track_info['embed'] = await embed()
+
+        # CACHE
+        # If after 7 seconds, the track has not changed,
+        # cache the current (if not done already) and next stream
+        await asyncio.sleep(7)
+        if (CACHE_STREAMS
+            and len(self.queue) > index
+                and track_info['id'] == self.queue[index]['track_info']['id']):
+            for i in [0, index]:
+                await self.cache_stream(index=i)
 
     async def add_to_queue(
         self,
@@ -616,7 +624,7 @@ class ServerSession:
         ):
             return
 
-        cleanup_cache()
+        await cleanup_cache()
         service = self.queue[index]['source'].lower()
         id = self.queue[index]['track_info']['id']
         cache_id: str = f"{service}{id}"

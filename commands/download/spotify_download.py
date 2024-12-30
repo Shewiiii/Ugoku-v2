@@ -69,7 +69,7 @@ class SpotifyDownload(commands.Cog):
             track = tracks[0]
 
             # Update cached files
-            cleanup_cache()
+            await cleanup_cache()
             cache_id = f"spotify{track['id']}"
             file_path = get_cache_path(cache_id.encode('utf-8'))
 
