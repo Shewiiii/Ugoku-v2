@@ -171,6 +171,15 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
+            # /POP
+            embed.add_field(
+                name="/pop",
+                value=(
+                    "Remove songs from the queue\n"
+                    "Example: ``/pop Single Nanatsukaze - もしも``\n"
+                ),
+                inline=False
+            )
 
         elif selected == "Chatbot / LLM":
             embed = discord.Embed(

@@ -443,13 +443,14 @@ class ServerSession:
             self.queue = current_song + remaining_songs
 
         # If only one song is added
-        if len(tracks_info) == 1:
+        count = len(tracks_info)
+        if count == 1:
             title = tracks_info[0]['display_name']
             url = tracks_info[0]['url']
             await edit(content=f'Added to queue: [{title}](<{url}>) !')
 
         # If 2 or 3 songs are added
-        elif len(tracks_info) in [2, 3]:
+        elif count in [2, 3]:
             titles_urls = ', '.join(
                 f'[{track_info["display_name"]}](<{track_info["url"]}>)'
                 for track_info in tracks_info
@@ -457,12 +458,12 @@ class ServerSession:
             await edit(content=f'Added to queue: {titles_urls} !')
 
         # If more than 3 songs are added
-        elif len(tracks_info) > 3:
+        elif count > 3:
             titles_urls = ', '.join(
                 f'[{track_info["display_name"]}](<{track_info["url"]}>)'
                 for track_info in tracks_info[:3]
             )
-            additional_songs = len(tracks_info) - 3
+            additional_songs = count - 3
             await edit(
                 content=(
                     f'Added to queue: {titles_urls}, and '
