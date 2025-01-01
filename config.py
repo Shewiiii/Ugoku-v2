@@ -26,6 +26,7 @@ SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be ch
 DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
 DEFAULT_AUDIO_VOLUME = 40 # The recommended value is 40 since the bot can get pretty loud
 DEFAULT_ONSEI_VOLUME = 100 # Audio works are generally quieter for a higher dynamic range
+DEFAULT_AUDIO_BITRATE = 510 # From 6 to 510 kbps (opus output)
 IMPULSE_RESPONSE_PARAMS = {
     'bass boost (mono)': {
         'left_ir_file': 'bass.wav',

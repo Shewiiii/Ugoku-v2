@@ -41,7 +41,7 @@ class AudioEffects(commands.Cog):
         )  # type: ignore
     ) -> None:
         guild_id = ctx.guild.id
-        session = sm.server_sessions.get(guild_id)
+        session: ServerSession = sm.server_sessions.get(guild_id)
         if not session:
             await ctx.respond("No active session!")
             return

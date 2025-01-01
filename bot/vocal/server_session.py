@@ -21,7 +21,8 @@ from config import (
     DEFAULT_ONSEI_VOLUME,
     DEEZER_ENABLED,
     SPOTIFY_ENABLED,
-    CACHE_STREAMS
+    CACHE_STREAMS,
+    DEFAULT_AUDIO_BITRATE
 )
 from bot.vocal.deezer import DeezerChunkedInputStream
 from bot.utils import cleanup_cache, get_cache_path
@@ -87,6 +88,7 @@ class ServerSession:
         self.onsei_volume = DEFAULT_ONSEI_VOLUME
         self.audio_effect = AudioEffect()
         self.current_stream = None
+        self.bitrate = DEFAULT_AUDIO_BITRATE
 
     async def display_queue(
         self,
@@ -355,7 +357,7 @@ class ServerSession:
                     DeezerChunkedInputStream
                 )
             ),
-            bitrate=510,
+            bitrate=self.bitrate,
             **ffmpeg_options
         )
 

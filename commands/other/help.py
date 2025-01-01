@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 # MADE WITH CHATGPT
-# Taken from
+# Inspired by https://docs.google.com/spreadsheets/d/1bhPYT3Z-WOlu0x1llrwOXc3lcO9RzXmrbfi08Mbt2rk
 
 
 class HelpDropdown(discord.ui.Select):
@@ -149,6 +149,25 @@ class HelpDropdown(discord.ui.Select):
                 value=(
                     "Download a song from Deezer\n"
                     "Example: ``/dzdl 24/7 Shining``\n"
+                ),
+                inline=False
+            )
+            # /audio-effect
+            embed.add_field(
+                name="/audio-effect",
+                value=(
+                    "Modify the audio effect of the currently playing song\n"
+                    "Example: ``/audio-effect bass boost (mono)``\n"
+                ),
+                inline=False
+            )
+            # /audio-bitrate
+            embed.add_field(
+                name="/audio-bitrate",
+                value=(
+                    "Modify the audio bitrate of the currently playing song\n"
+                    "Can be useful for limited internet connections\n"
+                    "Example: ``/audio-bitrate 128``\n"
                 ),
                 inline=False
             )
