@@ -384,26 +384,26 @@ class Gembot:
                 f'https://cdn.discordapp.com/emojis/{snowflake}.png')
 
         # Process message reference (if any)
-        r_text = ""
+        rtext = ""
         if message.reference and message.reference.message_id:
-            r_id = message.reference.message_id
-            r_message = await message.channel.fetch_message(r_id)
-            r_author = r_message.author.global_name
-            r_content = r_message.content
+            rid = message.reference.message_id
+            rmessage = await message.channel.fetch_message(rid)
+            rauthor = rmessage.author.global_name
+            rcontent = rmessage.content
             urls = [
                 attachment.url
-                for attachment in r_message.attachments
+                for attachment in rmessage.attachments
                 if attachment.url
             ]
             extra_content.extend(urls)
-            r_text = f"Message referencing {r_author}: {r_content}"
+            rtext = f"Message referencing {rauthor}: {rcontent}"
 
         # Wrap parameters
         params = (
             msg_text,
             message.author.global_name,
             extra_content,
-            r_text
+            rtext
         )
         return params
 

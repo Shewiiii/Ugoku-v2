@@ -28,7 +28,6 @@ from bot.vocal.deezer import DeezerChunkedInputStream
 from bot.utils import cleanup_cache, get_cache_path
 from deemix.utils.crypto import decryptChunk
 from deemix.utils import USER_AGENT_HEADER
-from deemix.errors import GenerationError
 
 from typing import TYPE_CHECKING
 
