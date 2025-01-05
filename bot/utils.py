@@ -154,7 +154,7 @@ def get_accent_color(
     def color_distance(c1, c2):
         return sum((a - b) ** 2 for a, b in zip(c1, c2)) ** 0.5
 
-    accent_color = None
+    accent_color = dominant_color
     max_priority = -1
 
     for color, count in color_counts.items():
