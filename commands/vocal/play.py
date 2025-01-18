@@ -29,7 +29,7 @@ class Play(commands.Cog):
         interaction: Optional[discord.Interaction] = None,
         offset: int = 0,
         artist_mode: bool = False,
-        effect: Optional[str] = None
+        effect: str = 'default'
     ) -> None:
         if interaction:
             respond = interaction.response.send_message
@@ -45,20 +45,19 @@ class Play(commands.Cog):
             return
 
         # Applying audio effects
-        if effect:
-            p = IMPULSE_RESPONSE_PARAMS.get(effect)
-            session.audio_effect.effect = effect if p else None
-            if p:
-                attrs = {
-                    'left_ir_file': p.get('left_ir_file', ''),
-                    'right_ir_file': p.get('right_ir_file', ''),
-                    'effect_only': False,
-                    'wet': p.get('wet', 0),
-                    'dry': p.get('dry', 0),
-                    'volume_multiplier': p.get('volume_multiplier', 1)
-                }
-                for attr, value in attrs.items():
-                    setattr(session.audio_effect, attr, value)
+        p = IMPULSE_RESPONSE_PARAMS.get(effect)
+        if p:
+            session.audio_effect.effect = effect
+            attrs = {
+                'left_ir_file': p.get('left_ir_file', ''),
+                'right_ir_file': p.get('right_ir_file', ''),
+                'effect_only': False,
+                'wet': p.get('wet', 0),
+                'dry': p.get('dry', 0),
+                'volume_multiplier': p.get('volume_multiplier', 1)
+            }
+            for attr, value in attrs.items():
+                setattr(session.audio_effect, attr, value)
 
         # Message to user
         await send_response(respond, "Give me a second~", session.guild_id)

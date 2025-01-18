@@ -98,16 +98,24 @@ class SpotifyDownload(commands.Cog):
                 size = len(data)
 
             # Upload
-            if size < ctx.guild.filesize_limit:
-                await ctx.edit(
-                    content="Here you go!",
-                    file=discord.File(
-                        file_path,
-                        f"{track['display_name']}.ogg",
+            # Define size limits
+            size = os.path.getsize(file_path)
+            size_limit = ctx.guild.filesize_limit if ctx.guild else 26214400
+            try:
+                if size < size_limit:
+                    await ctx.edit(
+                        content="Here you go!",
+                        file=discord.File(
+                            file_path,
+                            f"{track['display_name']}.ogg",
+                        )
                     )
-                )
-            else:
-                await ctx.edit(content=f"Download failed: file too big.")
+                    return
+            except discord.errors.HTTPException as e:
+                if e.status == 413:
+                    logging.error(
+                        f"File not uploaded: {cache_id} is too big: {size}bytes")
+            await ctx.edit(content=f"Download failed: file too big.")
 
         finally:
             self.bot.downloading = False

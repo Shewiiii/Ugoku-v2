@@ -15,6 +15,7 @@ from google.generativeai.types.generation_types import (
 
 if CHATBOT_ENABLED:
     from bot.chatbot.gemini import Gembot, active_chats
+    from bot.utils import split_into_chunks
 
     class Chatbot(commands.Cog):
         def __init__(self, bot) -> None:
@@ -84,7 +85,10 @@ if CHATBOT_ENABLED:
 
                     # Add chat status, remove default emoticons
                     formatted_reply = chat.format_reply(reply)
-                await message.channel.send(formatted_reply)
+                chunked_message = split_into_chunks(formatted_reply, 2000)
+                # Max the number of successive message to 5
+                for i in range(min(len(chunked_message), 5)):
+                    await message.channel.send(chunked_message[i])
 
                 # Memory
                 await chat.memory.store(

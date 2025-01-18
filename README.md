@@ -44,7 +44,6 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
 - The song in vc may stop randomly with Spotify.
 - Audio may slow down at the beginning of a song.
 - Audio is lagging when changing the audio effect.
-- Audio effect removed when executing /play again without effects
 
 <h2>Requirements</h2>
 
