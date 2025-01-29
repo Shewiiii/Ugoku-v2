@@ -1,6 +1,9 @@
 import discord
 from discord.ext import commands
 
+from config import CHATBOT_PREFIX, GEMINI_MODEL
+
+
 # MADE WITH CHATGPT
 # Inspired by https://docs.google.com/spreadsheets/d/1bhPYT3Z-WOlu0x1llrwOXc3lcO9RzXmrbfi08Mbt2rk
 
@@ -186,6 +189,26 @@ class HelpDropdown(discord.ui.Select):
                 title="Chatbot / LLM Commands",
                 color=discord.Color.green()
             )
+            # Chatbot notes
+            embed.add_field(
+                name="About the chatbot",
+                value=(
+                    "The Ugoku chatbot is based on the "
+                    f"{GEMINI_MODEL} model. It is an AI assistant "
+                    "that can respond to various types of questions "
+                    f"using the bot prefix **{CHATBOT_PREFIX}**, "
+                    "the /ask command in allowed servers, "
+                    "or by chatting directly in DMs.\n\n"
+                    "Please note that **Ugoku can store important "
+                    "information told to the bot on a "
+                    "[Pinecone](https://www.pinecone.io/) index** (birthdate, events, fun facts...), "
+                    "to enhance conversations and provide more relevant responses. "
+                    "However, this information is strictly private "
+                    "and will never be shared across servers or DMs."
+
+                ),
+                inline=False
+            )
             # /ask
             embed.add_field(
                 name="/ask",
@@ -200,7 +223,7 @@ class HelpDropdown(discord.ui.Select):
             embed.add_field(
                 name="/summarize",
                 value=(
-                    "Summarize a text or a YouTube video\n"
+                    "Summarize a text or a YouTube video. **May NOT work on server/VPS hosted bots**\n"
                     "Example: ``/summarize https://www.youtube.com/watch?v=Km2DNLbB-6o``\n"
                     "Works on: Server / Personal"
                 ),
@@ -221,28 +244,28 @@ class HelpDropdown(discord.ui.Select):
                 name="/translate",
                 value=(
                     "Translate anything to any language\n"
-                    "Example: ``/translate イレイナちゃんはかわいい``\n"
+                    "Example: ``/translate めっちゃいい曲だね！``\n"
                     "Works on: Server / Personal"
                 ),
                 inline=False
             )
-            # - (activate the chatbot)
+            # normal prefix (activate the chatbot)
             embed.add_field(
-                name="-",
+                name=CHATBOT_PREFIX,
                 value=(
                     "Activate the chatbot\n"
                     "Example: ``-Hi, who are you ?``\n"
-                    "Works on: Server Only"
+                    "Works on: **Allowed servers Only**"
                 ),
                 inline=False
             )
-            # -- (activate chatbot continuous mode)
+            # double prefix (activate chatbot continuous mode)
             embed.add_field(
-                name="--",
+                name=CHATBOT_PREFIX*2,
                 value=(
                     "Activate the chatbot - Continuous mode\n"
                     "Example: ``--Hi, who are you ?``\n"
-                    "Works on: Server Only"
+                    "Works on: **Allowed servers Only**"
                 ),
                 inline=False
             )
@@ -308,7 +331,7 @@ class Help(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(
+    @ commands.slash_command(
         name="help",
         description="Show help menu.",
         integration_types={
