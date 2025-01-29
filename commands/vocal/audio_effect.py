@@ -43,7 +43,7 @@ class AudioEffects(commands.Cog):
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
         if not session:
-            await ctx.respond("No active session!")
+            await ctx.respond("No active session !")
             return
 
         if wet > 10 or dry > 10:

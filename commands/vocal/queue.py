@@ -16,8 +16,8 @@ class Queue(commands.Cog):
         guild_id = ctx.guild.id
         session = session_manager.server_sessions.get(guild_id)
 
-        if session is None:
-            await ctx.respond('No active sessions!')
+        if not session:
+            await ctx.respond('No active session !')
             return
 
         await session.display_queue(ctx)

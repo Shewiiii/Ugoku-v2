@@ -31,6 +31,15 @@ bot = discord.Bot(intents=intents, loop=loop)
 @bot.event
 async def on_ready() -> None:
     logging.info(f"{bot.user} is running !")
+
+    # Rich presence
+    await bot.change_presence(
+        activity=discord.Activity(
+            type=discord.ActivityType.listening,
+            name="/help for usage !"
+        )
+    )
+    # Music instances
     if SPOTIFY_API_ENABLED:
         spotify_sessions = SpotifySessions()
         spotify = Spotify(spotify_sessions)
@@ -41,10 +50,11 @@ async def on_ready() -> None:
             deezer = Deezer_()
             await deezer.init_deezer()
             bot.deezer = deezer
+    bot.youtube = Youtube()
 
+    # Chatbot instances
     if CHATBOT_ENABLED:
         await memory.init_pinecone(PINECONE_INDEX_NAME)
-    bot.youtube = Youtube()
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')

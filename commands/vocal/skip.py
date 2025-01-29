@@ -22,8 +22,8 @@ class Skip(commands.Cog):
         if guild_id not in sm.server_sessions:
             await send_response(
                 respond,
-                "No songs in queue!",
-                session.guild_id
+                "No active session !",
+                guild_id
             )
             return
 

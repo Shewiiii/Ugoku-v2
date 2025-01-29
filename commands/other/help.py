@@ -51,7 +51,7 @@ class HelpDropdown(discord.ui.Select):
                 name="/play",
                 value=(
                     "Play any song / playlist / album (Spotify, Deezer, YouTube, or Onsei)\n"
-                    "Example: ``/play pikasonic lockdown``\n"
+                    "Example: ``/play Blue Dream Cheel``\n"
                 ),
                 inline=False
             )
@@ -151,7 +151,7 @@ class HelpDropdown(discord.ui.Select):
                 name="/dzdl",
                 value=(
                     "Download a song from Deezer\n"
-                    "Example: ``/dzdl 24/7 Shining``\n"
+                    "Example: ``/dzdl Ma Meilleure Ennemie``\n"
                 ),
                 inline=False
             )

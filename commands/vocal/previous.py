@@ -22,7 +22,7 @@ class Previous(commands.Cog):
         if not session:
             await send_response(
                 respond,
-                "No active sessions!",
+                "No active session !",
                 guild_id
             )
             return

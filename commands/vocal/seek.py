@@ -22,7 +22,7 @@ class Seek(commands.Cog):
         session: ServerSession | None = sm.server_sessions.get(guild_id)
 
         if not session:
-            await ctx.respond("No active session!")
+            await ctx.respond("No active session !")
             return
 
         if not session.queue:

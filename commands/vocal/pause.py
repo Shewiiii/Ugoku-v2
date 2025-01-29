@@ -26,7 +26,7 @@ class Pause(commands.Cog):
         if not session:
             await send_response(
                 respond,
-                "No active session!",
+                "No active session !",
                 guild_id
             )
             return

@@ -24,7 +24,7 @@ class Loop(commands.Cog):
         if not session:
             await send_response(
                 respond,
-                "Ugoku is not connected to any VC!",
+                "No active session !",
                 guild_id
             )
             return

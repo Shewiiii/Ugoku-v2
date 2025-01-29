@@ -58,7 +58,7 @@ class PopSong(commands.Cog):
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
         if not session:
-            await ctx.respond("No active session!")
+            await ctx.respond("No active session !")
             return
 
         if not session.queue:
