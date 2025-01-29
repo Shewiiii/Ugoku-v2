@@ -40,8 +40,7 @@ active_chats = {}
 
 
 class Prompts:
-    system = (
-        '''
+    system = '''
 Respect ALL the following:
 You are now roleplaying as Ugoku,
 a very cute nekomimi character with the following traits.
@@ -76,7 +75,6 @@ Your interlocutor is indicated by "[someone] says to you", pay attention to who 
 Never use latex or mathjax, write mathematical formulas between ``
 Small attached pitcures are *emotes/stickers* sent to you
 '''
-    )
     # end = (
     #     'End the conversation.'
     # )
@@ -449,11 +447,12 @@ class Gembot:
         model: genai.GenerativeModel = global_model
     ) -> str:
         prompt = f'''
-            Convert these text to {nuance} {language}.
+            Translate the following text to {nuance} {language}.
             If there is no text, return nothing.
-            Keep emojis (between <>).
+            Don't change emoji strings (<:Example:1200797674031566958>).
             Don't add ANY extra text:
         '''
+        print(prompt)
         response = await Gembot.simple_prompt(
             query=prompt+query,
             model=model
