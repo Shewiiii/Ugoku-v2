@@ -1,15 +1,27 @@
 import asyncio
+import os
 import re
 from pathlib import Path
 from typing import Union
+from datetime import datetime
 
 import yt_dlp
+from yt_dlp.postprocessor.common import PostProcessor
+
 from typing import Optional
 import aiohttp
 
 from bot.search import is_url
 from bot.utils import get_cache_path, get_dominant_rgb_from_url
 from bot.vocal.custom import generate_info_embed
+
+
+class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
+    def run(self, info):
+        file_path = info['filepath']
+        current_time = datetime.now().timestamp()
+        os.utime(file_path, (current_time, current_time))
+        return [], info
 
 
 yt_dlp.utils.bug_reports_message = lambda: ''  # disable yt_dlp bug report
@@ -70,6 +82,7 @@ class Youtube:
         file_path: Path = get_cache_path(url.encode('utf-8'))
         download = False if file_path.is_file() else True
         ytdl = yt_dlp.YoutubeDL(format_options(file_path))
+        ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
 
         metadata = await self.get_metadata(ytdl, url, download)
         if 'entries' in metadata:
