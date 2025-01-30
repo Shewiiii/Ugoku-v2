@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from config import CHATBOT_PREFIX, GEMINI_MODEL
+from config import CHATBOT_PREFIX, GEMINI_MODEL, DEFAULT_EMBED_COLOR
 
 
 # MADE WITH CHATGPT
@@ -26,6 +26,11 @@ class HelpDropdown(discord.ui.Select):
                 label="Misc",
                 description="Shows miscellaneous commands",
                 emoji="🌀"
+            ),
+            discord.SelectOption(
+                label="Infos",
+                description="Learn more about the bot",
+                emoji="ℹ️"
             )
         ]
 
@@ -193,15 +198,16 @@ class HelpDropdown(discord.ui.Select):
             embed.add_field(
                 name="About the chatbot",
                 value=(
-                    "The Ugoku chatbot is based on the "
-                    f"{GEMINI_MODEL} model. It is an AI assistant "
-                    "that can respond to various types of questions "
+                    f"The Ugoku chatbot is based on the {GEMINI_MODEL} model. "
+                    "It is an AI character that can respond "
+                    "to various types of questions "
                     f"using the bot prefix **{CHATBOT_PREFIX}**, "
                     "the /ask command in allowed servers, "
                     "or by chatting directly in DMs.\n\n"
                     "Please note that **Ugoku can store important "
                     "information told to the bot on a "
-                    "[Pinecone](https://www.pinecone.io/) index** (birthdate, events, fun facts...), "
+                    "[Pinecone](https://www.pinecone.io/) index** "
+                    "(birthdate, events, fun facts...), "
                     "to enhance conversations and provide more relevant responses. "
                     "However, this information is strictly private "
                     "and will never be shared across servers or DMs."
@@ -215,7 +221,7 @@ class HelpDropdown(discord.ui.Select):
                 value=(
                     "Ask Ugoku Anything\n"
                     "Example: ``/ask Write a Python code to display the current time``\n"
-                    "Works on: Server / Personal"
+                    "Works on: **Allowed servers Only**"
                 ),
                 inline=False
             )
@@ -254,7 +260,7 @@ class HelpDropdown(discord.ui.Select):
                 name=CHATBOT_PREFIX,
                 value=(
                     "Activate the chatbot\n"
-                    "Example: ``-Hi, who are you ?``\n"
+                    f"Example: ``{CHATBOT_PREFIX}Hi, who are you ?``\n"
                     "Works on: **Allowed servers Only**"
                 ),
                 inline=False
@@ -264,13 +270,13 @@ class HelpDropdown(discord.ui.Select):
                 name=CHATBOT_PREFIX*2,
                 value=(
                     "Activate the chatbot - Continuous mode\n"
-                    "Example: ``--Hi, who are you ?``\n"
+                    f"Example: ``{CHATBOT_PREFIX*2}Hi, who are you ?``\n"
                     "Works on: **Allowed servers Only**"
                 ),
                 inline=False
             )
 
-        else:  # "Misc"
+        elif selected == "Misc":
             embed = discord.Embed(
                 title="Misc Commands",
                 color=discord.Color.purple()
@@ -312,6 +318,70 @@ class HelpDropdown(discord.ui.Select):
                     "Get any image from a tag on danbooru (SFW only)\n"
                     "Example: ``/danbooru nanashi_mumei``\n"
                     "Works on: Server / Personal"
+                ),
+                inline=False
+            )
+        else:
+            embed = discord.Embed(
+                title="Misc Commands",
+                color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
+            )
+            embed.add_field(
+                name="What is this bot?",
+                value=(
+                    "Shewi here. Ugoku is a simple bot I made in my spare time for fun.\n"
+                    "My initial motivation was to make a music bot that allows "
+                    "everyone to download and share songs easily, directly within Discord. "
+                    "To my knowledge, no Discord music bot offers high-quality audio, "
+                    "and Ugoku's purpose is to fill that niche gap. "
+                    "Turns out, I had more fun than expected when coding it, so here we go!"
+                ),
+                inline=False
+            )
+            embed.add_field(
+                name="Is this legal?",
+                value=(
+                    "It is not, since it breaks DRM restrictions of music streaming platforms."
+                ),
+                inline=False
+            )
+            embed.add_field(
+                name="Why does YouTube not work?",
+                value=(
+                    "YouTube actively tries to block any unauthorized third-party service from its platform. "
+                    "Since Ugoku is not hosted on a local server, "
+                    "it gets blocked within a few days after changing the VPN server."
+                ),
+                inline=False
+            )
+            embed.add_field(
+                name='What the "Audio quality" label actually means ?',
+                value=(
+                    "It is simple as this:\n"
+                    "- **Low**: Audio from Youtube, using AAC 128Kpbs or 160Kbps Opus as a source on not autogenerated videos\n"
+                    "- **High**: Audio from Spotify, using OGG 320 Kbps as a source\n"
+                    "- **Hifi**: Audio from Deezer, using FLAC lossless audio as a source\n"
+                    "Important note !\n In order to provide audio to the Discord API, audio *needs* to be "
+                    "transcoded to Opus format. Even though Ugoku uses a fixed bitrate of 510Kbps, "
+                    "the audio output cannot be bit-perfect."
+                ),
+                inline=False
+            )
+            embed.add_field(
+                name="Will Deepseek be supported anytime soon?",
+                value=(
+                    "While Deepseek R1 is an exciting model, "
+                    "the output token speed is currently way too low "
+                    "to be usable. Deepseek V3 would be more appropriate for a chatbot, "
+                    f"but {GEMINI_MODEL} is still superior "
+                    "and outputs surprisingly good natural Japanese, which is important to me."
+                ),
+                inline=False
+            )
+            embed.add_field(
+                name="The Chatbot is a bit...weird sometimes..",
+                value=(
+                    "I am aware of this issue. Hopefully I will find a good prompt in the future."
                 ),
                 inline=False
             )
