@@ -104,7 +104,7 @@ Add in the text field a summary of the message. It should only be factual.\n
         user_text: str,
         author: str,
         id: int
-    ) -> None:
+    ) -> bool:
         if not self.active:
             return
 
@@ -124,7 +124,7 @@ Add in the text field a summary of the message. It should only be factual.\n
         metadata['text'] = f"{date}-{author}: {metadata['text']}"
 
         if metadata['query_type'] in ['info', 'question', 'other']:
-            return
+            return False
 
         # Create the embeddings/vectors
         vector_values = await self.generate_embeddings(metadata['text'])
@@ -140,7 +140,9 @@ Add in the text field a summary of the message. It should only be factual.\n
             self.index.upsert,
             vectors=vectors
         )
+        
         logging.info(f"Added to Pinecone: {metadata['text']}")
+        return True
 
     async def recall(
         self,

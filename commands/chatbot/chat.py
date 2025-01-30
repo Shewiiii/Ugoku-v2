@@ -88,14 +88,19 @@ if CHATBOT_ENABLED:
                 chunked_message = split_into_chunks(formatted_reply, 2000)
                 # Max the number of successive message to 5
                 for i in range(min(len(chunked_message), 5)):
-                    await message.channel.send(chunked_message[i])
+                    if i == 0:
+                        first_msg = await message.channel.send(chunked_message[i])
 
                 # Memory
-                await chat.memory.store(
+                if await chat.memory.store(
                     params[0],
                     author=message.author.global_name,
                     id=id_,
-                )
+                ):
+                    await first_msg.edit(
+                        "-# Ugoku will remember about this. "
+                        f"\n{chunked_message[-1]}"
+                    )
 else:
     class Chatbot(commands.Cog):
         def __init__(self, bot) -> None:
