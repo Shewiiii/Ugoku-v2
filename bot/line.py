@@ -12,21 +12,9 @@ from discord import ApplicationContext
 from bs4 import BeautifulSoup
 import imageio.v3
 
-from bot.exceptions import IncorrectURL
 from bot.search import link_grabber
 from bot.utils import sanitize_filename
 from config import TEMP_FOLDER
-
-logger = logging.getLogger(__name__)
-
-# Setup the folders
-output_path = Path(TEMP_FOLDER)
-
-sticker_path = output_path / 'stickers'
-sticker_path.mkdir(parents=True, exist_ok=True)
-
-archives_path = output_path / 'archives' / 'stickers'
-archives_path.mkdir(parents=True, exist_ok=True)
 
 
 def get_link(string: str) -> str:
@@ -92,15 +80,14 @@ async def get_stickerpack(
                 ).get_text(strip=True)
 
     except Exception as e:
-        logger.error(f"Error fetching or parsing the page: {e}")
-        raise IncorrectURL from e
+        logging.error(f"Error fetching or parsing the page: {e}")
+        raise e
 
     # Remove unwanted characters from the pack name
     pack_name = sanitize_filename(pack_name)
 
     # Setup the folders
-    folder_path = Path(sticker_path) / pack_name
-    archive_path = Path(archives_path) / pack_name
+    folder_path = TEMP_FOLDER / pack_name
     folder_path.mkdir(parents=True, exist_ok=True)
 
     # Get HTML elements of the stickers
@@ -110,12 +97,12 @@ async def get_stickerpack(
 
     # Get sticker type and count
     sticker_class = stickers[0].get('class', [''])
-    sticker_type = (sticker_class[-1] if len(sticker_class)>= 3 
+    sticker_type = (sticker_class[-1] if len(sticker_class) >= 3
                     else 'emote')
     sticker_count = len(stickers)
 
     # Save the stickers
-    logger.info(f'Downloading {pack_name}, Sticker count: {sticker_count}.')
+    logging.info(f'Downloading {pack_name}, Sticker count: {sticker_count}.')
     if ctx:
         await ctx.edit(content='Saving the stickers...')
 
@@ -137,13 +124,11 @@ async def get_stickerpack(
         await convert_to_gif(sticker_count, folder_path)
 
     # Archive the folder
-    archive_file = archive_path.with_suffix('.zip')
-    if archive_file.is_file():
-        archive_file.unlink()
-
     if ctx:
         await ctx.edit(content='Archiving...')
-    shutil.make_archive(str(archive_path), 'zip', folder_path)
+    archive_file = shutil.make_archive(folder_path, 'zip', folder_path)
+
+    # Remove the original folder
     shutil.rmtree(folder_path)
 
-    return str(archive_file)
+    return archive_file

@@ -4,7 +4,6 @@ from discord.ext import commands
 import os
 
 from bot.line import get_stickerpack
-from bot.exceptions import IncorrectURL
 
 
 class Stickers(commands.Cog):
@@ -31,12 +30,13 @@ class Stickers(commands.Cog):
 
         try:
             zip_file = await get_stickerpack(url, ctx=ctx)
-        except IncorrectURL:
+        except Exception as e:
             await ctx.edit(
-                content="Invalid URL! Please check the URL and try again."
-                "\nExample: "
-                "https://store.line.me/stickershop/product/20347097/en"
-                )
+                content="Oops! Something went wrong. Please check the URL or contact the developer."
+                "\nURL example: "
+                "https://store.line.me/stickershop/product/20347097/en\n"
+                f"-# error: {e}"
+            )
             return
 
         await ctx.edit(
