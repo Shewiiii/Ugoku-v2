@@ -301,6 +301,15 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
+            # /get-emotes
+            embed.add_field(
+                name="/get-emotes",
+                value=(
+                    "Get the direct URL of emotes or a sticker from a message\n"
+                    "Works on: Server"
+                ),
+                inline=False
+            )
             # /echo
             embed.add_field(
                 name="/echo",
