@@ -6,7 +6,8 @@ from discord.ext import commands
 from config import (
     CHATBOT_WHITELIST,
     CHATBOT_ENABLED,
-    ALLOW_CHATBOT_IN_DMS
+    ALLOW_CHATBOT_IN_DMS,
+    CHATBOT_PREFIX
 )
 from google.generativeai.types.generation_types import (
     BlockedPromptException,
@@ -61,8 +62,9 @@ if CHATBOT_ENABLED:
             chat = active_chats.get(id_)
 
             # Neko arius
-            lowered_msg = message.content.lower()
-            if any(lowered_msg.startswith(neko) for neko in ['-neko', '- neko']):
+            p = CHATBOT_PREFIX
+            l = message.content.lower()
+            if any(l.startswith(neko) for neko in [f'{p}neko', f'{p} neko']):
                 await message.channel.send('Arius')
                 return
 
