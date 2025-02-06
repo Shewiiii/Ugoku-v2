@@ -5,7 +5,7 @@ from config import CHATBOT_ENABLED, CHATBOT_WHITELIST
 
 
 if CHATBOT_ENABLED:
-    from bot.summaries import Summaries
+    from bot.misc.summaries import Summaries
 
     class Summarize(commands.Cog):
         def __init__(self, bot) -> None:

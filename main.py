@@ -5,7 +5,8 @@ from config import (
     SPOTIFY_API_ENABLED,
     CHATBOT_ENABLED,
     PINECONE_INDEX_NAME,
-    DEEZER_ENABLED
+    DEEZER_ENABLED,
+    TEMP_FOLDER
 )
 import discord
 import os
@@ -31,6 +32,9 @@ bot = discord.Bot(intents=intents, loop=loop)
 @bot.event
 async def on_ready() -> None:
     logging.info(f"{bot.user} is running !")
+
+    # Temp folder
+    TEMP_FOLDER.mkdir(parents=True, exist_ok=True)
 
     # Rich presence
     await bot.change_presence(

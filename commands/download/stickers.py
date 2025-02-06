@@ -3,7 +3,7 @@ from discord.ext import commands
 
 import os
 
-from bot.line import get_stickerpack
+from bot.misc.line import get_stickerpack
 
 
 class Stickers(commands.Cog):

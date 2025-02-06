@@ -10,7 +10,7 @@ from config import (
 import discord
 from discord.ext import commands
 
-from bot.lyrics import BotLyrics
+from bot.misc.lyrics import BotLyrics
 from bot.vocal.session_manager import session_manager
 from bot.utils import get_dominant_rgb_from_url, split_into_chunks
 from commands.vocal.play import Play

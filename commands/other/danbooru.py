@@ -4,7 +4,7 @@ from httpx._exceptions import HTTPStatusError
 import discord
 from discord.ext import commands
 
-from bot.danbooru import Danbooru
+from bot.misc.danbooru import Danbooru
 from bot.utils import get_dominant_rgb_from_url
 from bot.search import is_url
 
