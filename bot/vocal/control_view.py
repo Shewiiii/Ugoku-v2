@@ -14,6 +14,15 @@ class controlView(discord.ui.View):
         self.ctx = ctx
         self.voice_client = voice_client
 
+    async def in_active_vc(self, interaction: discord.Interaction) -> None:
+        voice = interaction.user.voice
+        if not voice:
+            return False
+        return voice.channel == self.ctx.voice_client.channel
+    
+    def not_in_vc_notice(interaction: discord.Interaction):
+        pass
+
     @discord.ui.button(
         label="Pause/Resume",
         style=discord.ButtonStyle.secondary,
@@ -25,6 +34,8 @@ class controlView(discord.ui.View):
     ) -> None:
         # To avoid "interaction failed message"
         await interaction.response.defer()
+        if not await self.in_active_vc(interaction):
+            return
 
         # Pause if audio is playing
         if self.voice_client.is_playing():
@@ -46,6 +57,8 @@ class controlView(discord.ui.View):
         interaction: discord.Interaction
     ) -> None:
         await interaction.response.defer()
+        if not await self.in_active_vc(interaction):
+            return
 
         previous_cog = self.bot.get_cog('Previous')
         await previous_cog.execute_previous(self.ctx, send=True)
@@ -60,6 +73,8 @@ class controlView(discord.ui.View):
         interaction: discord.Interaction
     ) -> None:
         await interaction.response.defer()
+        if not await self.in_active_vc(interaction):
+            return
 
         skip_cog = self.bot.get_cog('Skip')
         await skip_cog.execute_skip(self.ctx, send=True)
@@ -74,6 +89,8 @@ class controlView(discord.ui.View):
         interaction: discord.Interaction
     ) -> None:
         await interaction.response.defer()
+        if not await self.in_active_vc(interaction):
+            return
 
         loop_cog = self.bot.get_cog('Loop')
         await loop_cog.execute_loop(self.ctx, 'Song', send=True)
@@ -88,6 +105,8 @@ class controlView(discord.ui.View):
         interaction: discord.Interaction
     ) -> None:
         await interaction.response.defer()
+        if not await self.in_active_vc(interaction):
+            return
 
         shuffle_cog = self.bot.get_cog('Shuffle')
         await shuffle_cog.execute_shuffle(self.ctx, send=True)

@@ -40,8 +40,8 @@ class Play(commands.Cog):
 
         # Connect to the voice channel
         session: Optional[ServerSession] = await sm.connect(ctx, self.bot)
-        if not session and ctx.author.voice.channel:
-            await respond('You are not in a voice channel!')
+        if not session or ctx.author.voice.channel != session.voice_client.channel:
+            await respond('You are not in an active voice channel!')
             return
 
         # Applying audio effects
