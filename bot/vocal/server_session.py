@@ -22,7 +22,8 @@ from config import (
     DEEZER_ENABLED,
     SPOTIFY_ENABLED,
     CACHE_STREAMS,
-    DEFAULT_AUDIO_BITRATE
+    DEFAULT_AUDIO_BITRATE,
+    DELAY_BEFORE_CACHING
 )
 from bot.vocal.deezer import DeezerChunkedInputStream
 from bot.utils import cleanup_cache, get_cache_path
@@ -387,31 +388,49 @@ class ServerSession:
         self.is_seeking = False
         self.previous = False
 
-        # Tasks for the next track to improve reactivity
+        # Tasks to improve reactivity
         await self.prepare_next_track()
+        # After a few seconds, cache tracks if they have not changed
+        if CACHE_STREAMS:
+            await asyncio.sleep(DELAY_BEFORE_CACHING)
+            await self.cache_stream(index=0)
+            if len(self.queue) >= 1:
+                await self.cache_stream(index=1)
 
     async def prepare_next_track(self, index: int = 1) -> None:
+        """Check the availability of the next track and load its embed in queue."""
         if len(self.queue) <= index:
+            # No tracks to prepare
             return
         track_info = self.queue[index]['track_info']
+        current_id = track_info['id']
 
         # Deezer
         await self.check_deezer_availability(index=index)
 
+        # Spotify
+        source = track_info['source']
+        if isinstance(source, Callable) and SPOTIFY_ENABLED:
+            try:
+                source = await source()
+            except RuntimeError as e:
+                if str(e) == "Cannot get alternative track":
+                    await self.last_context.send(
+                        f"{track_info['display_name']} "
+                        "will be skipped: Track not available."
+                    )
+                    self.queue.pop(index)
+                    # Recursive call to cache the track after it
+                    await self.prepare_next_track()
+                else:
+                    logging.error(e)
+                    return
+
         # Generate the embed
         embed = track_info.get('embed', None)
         if embed and isinstance(embed, Callable):
-            track_info['embed'] = await embed()
-
-        # CACHE
-        # If after 7 seconds, the track has not changed,
-        # cache the current (if not done already) and next stream
-        await asyncio.sleep(7)
-        if (CACHE_STREAMS
-            and len(self.queue) > index
-                and track_info['id'] == self.queue[index]['track_info']['id']):
-            for i in [0, index]:
-                await self.cache_stream(index=i)
+            if track_info['id'] == current_id:
+                track_info['embed'] = await embed()
 
     async def add_to_queue(
         self,
@@ -624,33 +643,31 @@ class ServerSession:
 
     async def cache_stream(self, index: int) -> None:
         """Cache audio streams from Deezer or Spotify"""
+        await cleanup_cache()
         if len(self.queue) <= index:
             # Nothing to cache
             return
-        # Not a Deezer or Spotify stream / already cached
-        if isinstance(
-            self.queue[index]['track_info']['source'],
-            (Path, str)
-        ):
-            return
 
-        await cleanup_cache()
-        service = self.queue[index]['source'].lower()
-        id = self.queue[index]['track_info']['id']
+        # All the variables
+        next_element = self.queue[index]
+        track_info = next_element['track_info']
+        source = track_info['source']
+        service = next_element['source'].lower()
+        id = track_info['id']
         cache_id: str = f"{service}{id}"
         file_path = get_cache_path(cache_id.encode('utf-8'))
 
+        # Not a Deezer or Spotify stream / already cached
+        if isinstance(source, (Path, str)):
+            return
+
         # Cached stream already, nothing to do
         if file_path.is_file():
-            self.queue[index]['track_info']['source'] = file_path
+            track_info['source'] = file_path
             return
 
         if service == 'deezer':
             await self.inject_lossless_stream(index=1)
-
-        next_element = self.queue[index]
-        track_info = next_element['track_info']
-        source = track_info['source']
 
         # Is a Spotify stream
         if isinstance(source, Callable) and SPOTIFY_ENABLED:
@@ -694,11 +711,9 @@ class ServerSession:
                         encrypted_stream,
                         None
                     )
-
                     if chunk is None:
                         # No more chunks to process
                         break
-
                     if len(chunk) >= 2048:
                         # Offload decryption to a thread
                         decrypted = await asyncio.to_thread(
@@ -712,6 +727,6 @@ class ServerSession:
                     await file.write(chunk)
 
         # Check if it is still the same track
-        if self.queue[index]['track_info']['id'] == id:
+        if track_info['id'] == id:
             logging.info(f"Track {track_info['id']} cached successfully")
-            self.queue[index]['track_info']['source'] = file_path
+            track_info['source'] = file_path
