@@ -257,22 +257,23 @@ class ServerSession:
 
         # Check for a cache file
         await cleanup_cache()
-        service = self.queue[0]['source'].lower()
-        id: str = self.queue[0]['track_info']['id']
+        current_element = self.queue[0]
+        service = current_element['source'].lower()
+        id: str = current_element['track_info']['id']
         file_path = get_cache_path(f"{service}{id}".encode('utf-8'))
 
         # Cached stream already
         if file_path.is_file():
-            self.queue[0]['track_info']['source'] = file_path
+            current_element['track_info']['source'] = file_path
 
         # New track info dict
-        track_info = self.queue[0]['track_info']
+        track_info = current_element['track_info']
         cached = isinstance(track_info['source'], (Path, str))
 
         # If Deezer enabled, inject lossless stream in a spotify track
         if service == 'deezer' and not cached:
             if not await self.inject_lossless_stream():
-                service = 'spotify'
+                current_element['source'] = 'spotify'
                 if not SPOTIFY_ENABLED:
                     await ctx.send(
                         content=f"{track_info['display_name']}"
@@ -667,7 +668,7 @@ class ServerSession:
             return
 
         if service == 'deezer':
-            await self.inject_lossless_stream(index=1)
+            await self.inject_lossless_stream(index)
 
         # Is a Spotify stream
         if isinstance(source, Callable) and SPOTIFY_ENABLED:
