@@ -303,7 +303,15 @@ class ServerSession:
 
         # If source is a stream generator, generate a fresh stream
         if isinstance(source, Callable) and SPOTIFY_ENABLED:
-            source = await source()
+            try:
+                source = await source()
+            except RuntimeError as e:
+                if str(e) == "Cannot get alternative track":
+                    await ctx.send(f"{track_info['display_name']} is not available !")
+                else:
+                    logging.error(e)
+                self.after_playing(ctx, error=None)
+                return
 
         # Skip the non-audio content in spotify streams
         if isinstance(source, AbsChunkedInputStream):
