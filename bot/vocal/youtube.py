@@ -80,7 +80,7 @@ class Youtube:
             return
 
         file_path: Path = get_cache_path(url.encode('utf-8'))
-        download = False if file_path.is_file() else True
+        download = not file_path.is_file()
         ytdl = yt_dlp.YoutubeDL(format_options(file_path))
         ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
 
@@ -93,7 +93,9 @@ class Youtube:
         album = 'Youtube'
         display_name = title
         id = metadata.get('id', 'Unknown ID')
-        artists = [metadata.get('uploader', 'Unknown uploader')]
+        artist = metadata.get('uploader', 'Unknown uploader')
+        artist_url = metadata.get('uploader_url')
+        artist_string = f"[{artist}]({artist_url})" if artist_url else artist
         cover_url = metadata.get('thumbnail', None)
         if cover_url:
             dominant_rgb = await get_dominant_rgb_from_url(cover_url)
@@ -108,7 +110,7 @@ class Youtube:
                 url=url,
                 title=title,
                 album=album,
-                artists=artists,
+                artists=[artist_string],
                 cover_url=cover_url,
                 dominant_rgb=dominant_rgb
             )
@@ -116,7 +118,7 @@ class Youtube:
         track_info = {
             'display_name': display_name,
             'title': title,
-            'artist': artists[0],
+            'artist': artist,
             'album': album,
             'cover': cover_url,
             'duration': duration,
