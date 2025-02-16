@@ -14,7 +14,6 @@ from deezer.errors import DataException
 
 from bot.vocal.queue_view import QueueView
 from bot.vocal.control_view import controlView
-from bot.vocal.types import QueueItem, TrackInfo, SimplifiedTrackInfo
 from config import (
     AUTO_LEAVE_DURATION,
     DEFAULT_AUDIO_VOLUME,
@@ -49,9 +48,7 @@ class AudioEffect:
 
 class ServerSession:
     """Represents an audio session for a Discord server.
-
-    This class manages the audio playback, queue, and various controls for a specific server.
-    """
+    This class manages the audio playback for a specific server."""
 
     def __init__(
         self,
@@ -64,16 +61,16 @@ class ServerSession:
         self.bot = bot
         self.guild_id = guild_id
         self.voice_client = voice_client
-        self.queue: List[QueueItem] = []
-        self.to_loop: List[QueueItem] = []
+        self.queue: List[Optional[dict]] = []
+        self.to_loop: List[Optional[dict]] = []
         self.last_played_time = datetime.now()
         self.time_elapsed = 0
         self.loop_current = False
         self.loop_queue = False
         self.skipped = False
         self.shuffle = False
-        self.original_queue: List[QueueItem] = []
-        self.shuffled_queue: List[QueueItem] = []
+        self.original_queue: List[Optional[dict]] = []
+        self.shuffled_queue: List[Optional[dict]] = []
         self.previous = False
         self.stack_previous = []
         self.is_seeking = False
@@ -94,11 +91,7 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
-        """Displays the current queue.
-
-        Args:
-            ctx: The Discord application context.
-        """
+        """Displays the current queue."""
         view = QueueView(
             self.queue,
             self.to_loop,
@@ -113,11 +106,7 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
-        """Sends an embed with information about the currently playing track.
-
-        Args:
-            ctx: The Discord application context.
-        """
+        """Sends an embed with information about the currently playing track."""
         # Retrieve the current track_info from the queue
         track_info: dict = self.queue[0]['track_info']
         embed: Optional[discord.Embed] = track_info['embed']
@@ -183,13 +172,7 @@ class ServerSession:
         quiet: bool = False
     ) -> bool:
         """Seeks to a specific position in the current track.
-
-        Args:
-            position: The position to seek to in seconds.
-
-        Returns:
-            bool: True if seeking was successful, False otherwise.
-        """
+        Returns True if successful."""
         # No audio is playing
         if not self.voice_client or not self.voice_client.is_playing():
             return False
@@ -222,8 +205,7 @@ class ServerSession:
 
     async def check_deezer_availability(self, index: int = 0) -> bool:
         """Returns true if a track in queue is available on Deezer. 
-        Adds a track dict to the track_info dict in this case:
-        {'stream_url': stream_url, 'id': id}."""
+        Change the track_info dict depending on the availability."""
         if index >= len(self.queue):
             return False
         if not DEEZER_ENABLED or not self.queue[index]['source'] == 'Deezer':
@@ -244,12 +226,7 @@ class ServerSession:
         ctx: discord.ApplicationContext,
         start_position: int = 0
     ) -> None:
-        """Handles the playback of the next track in the queue.
-
-        Args:
-            ctx: The Discord application context.
-            start_position: The position to start playing from in seconds.
-        """
+        """Handles the playback of the next track in the queue."""
         self.last_context = ctx
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
@@ -436,18 +413,11 @@ class ServerSession:
     async def add_to_queue(
         self,
         ctx: discord.ApplicationContext,
-        tracks_info: List[TrackInfo],
+        tracks_info: List[dict],
         source: Literal['Spotify', 'Youtube', 'Custom', 'Onsei'],
         interaction: Optional[discord.Interaction] = None
     ) -> None:
-        """Adds tracks to the queue and starts playback if not already playing.
-
-        Args:
-            ctx: The Discord application context.
-            tracks_info: A list of track information dictionaries.
-            source: The source of the tracks ('Spotify', 'Youtube', 'Custom', or 'Onsei').
-            interaction: A discord interaction if that method has been triggered by one.
-        """
+        """Adds tracks to the queue and starts playback if not already playing."""
         # Check if triggered by an interaction
         if interaction:
             edit = interaction.edit_original_response
@@ -455,7 +425,7 @@ class ServerSession:
             edit = ctx.edit
 
         for track_info in tracks_info:
-            queue_item: QueueItem = {
+            queue_item: dict = {
                 'track_info': track_info,
                 'source': source
             }
@@ -501,23 +471,14 @@ class ServerSession:
             await self.start_playing(ctx)
 
     async def play_previous(self, ctx: discord.ApplicationContext) -> None:
-        """Plays the previous track in the queue.
-
-        Args:
-            ctx: The Discord application context.
-        """
         self.previous = True
         self.queue.insert(0, self.stack_previous.pop())
         if self.voice_client.is_playing():
             self.voice_client.pause()
         await self.start_playing(ctx)
 
-    def get_queue(self) -> List[SimplifiedTrackInfo]:
-        """Returns a simplified version of the current queue.
-
-        Returns:
-            List[SimplifiedTrackInfo]: A list of simplified track information dictionaries.
-        """
+    def get_queue(self) -> List[dict]:
+        """Returns a simplified version of the current queue."""
         return [
             {
                 "title": track['track_info']['title'],
@@ -531,10 +492,7 @@ class ServerSession:
         ]
 
     def shuffle_queue(self) -> bool:
-        """Toggles shuffling of the queue.
-        Returns:
-            bool: True if the operation was successful, False otherwise.
-        """
+        """Toggles shuffling of the queue. Returns True if successful."""
         if len(self.queue) <= 1:
             self.shuffle = not self.shuffle
             # No need to shuffle if queue has 0 or 1 song
@@ -561,12 +519,7 @@ class ServerSession:
         ctx: discord.ApplicationContext,
         error: Optional[Exception]
     ) -> None:
-        """Callback function executed after a track finishes playing.
-
-        Args:
-            ctx: The Discord application context.
-            error: Any error that occurred during playback, or None.
-        """
+        """Callback function executed after a track finishes playing."""
         self.last_played_time = datetime.now()
 
         if error:
@@ -594,11 +547,7 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext
     ) -> None:
-        """Plays the next track in the queue, handling looping and previous track logic.
-
-        Args:
-            ctx: The Discord application context.
-        """
+        """Plays the next track in the queue, handling looping and previous track logic."""
         if self.queue and not self.loop_current and not self.previous:
             self.stack_previous.append(self.queue[0])
 

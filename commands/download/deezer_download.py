@@ -40,9 +40,6 @@ class DeezerDownload(commands.Cog):
         except DataException:
             await ctx.edit(content="Track not found !")
             return
-        if not track:
-            await ctx.edit(content="Track not found !")
-            return
 
         # Set the cache path
         await cleanup_cache()

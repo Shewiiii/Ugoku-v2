@@ -73,7 +73,6 @@ def get_display_name_from_query(query: str) -> str:
     Returns:
         str: The extracted display name or 'Custom track' if extraction fails.
     """
-
     match = re.search(r'(?:.+/)([^#?]+)', query)
     return unquote(match.group(1)) if match else 'Custom track'
 
@@ -191,7 +190,10 @@ async def play_onsei(
 
     # Prepare the tracks
     tracks_info = []
-    for track_title, stream_url in tracks.items():
+    for track_title, track_api in tracks.items():
+        stream_url = track_api['media_stream_url']
+
+        # Explicit parameters are necessary to not give the same embed to all tracks
         def embed(track_title=track_title, stream_url=stream_url):
             return generate_info_embed(
                 url=stream_url,
@@ -209,7 +211,7 @@ async def play_onsei(
             'source': stream_url,
             'album': work_title,
             'cover': cover_url,
-            # 'duration': duration (can get it using aone api)
+            'duration': round(track_api['duration']),
             'url': stream_url,
             'embed': embed,
             'id': work_id

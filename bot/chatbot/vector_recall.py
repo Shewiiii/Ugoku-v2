@@ -113,7 +113,7 @@ Add in the text field a summary of the message. It should only be factual.\n
 
         # Generate metadata using Gemini
         metadata = json.loads((await model.generate_content_async(
-            f"{self.prompt}{author} said {user_text}",
+            f'{self.prompt}{author} said "{user_text}"',
             generation_config=genai.types.GenerationConfig(
                 response_mime_type="application/json",
                 response_schema=VectorMetadata,

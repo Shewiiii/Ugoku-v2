@@ -210,7 +210,7 @@ class Deezer_:
 
         return results
 
-    async def get_track_from_query(self, query: str) -> Optional[dict]:
+    async def get_track_from_query(self, query: str) -> dict:
         """Get a track stream URL from a query (text or URL)"""
         # gekiyaba Spotify or Deezer url
         if is_url(query, ['open.spotify.com', ' deezer.com', 'deezer.page.link']):
@@ -222,8 +222,7 @@ class Deezer_:
             self.dz.gw.search, query
         )
         if not search_data['TRACK']['data']:
-            # Not found!
-            return
+            raise DataException
 
         # Get data from api
         songs = [f"{track['ART_NAME']} {track['SNG_TITLE']}"
@@ -259,21 +258,15 @@ class Deezer_:
         }
         return results
 
-    @ staticmethod
+    @staticmethod
     def stream(track: dict) -> DeezerChunkedInputStream:
         stream = DeezerChunkedInputStream(track)
         stream.get_encrypted_stream()
         return stream
 
-    @ staticmethod
-    async def download(track: dict) -> Optional[Path]:
-        """Download a track from Deezer from a track dict.
-        Params:
-            track (dict): Dict containint the "stream_url" and "id"
-
-        Returns:
-            Path: The path to the cache file
-        """
+    @staticmethod
+    async def download(track: dict) -> Path:
+        """Download a track from Deezer from a track dict."""
         cis = await asyncio.to_thread(DeezerChunkedInputStream, track)
         await asyncio.to_thread(cis.get_encrypted_stream)
 

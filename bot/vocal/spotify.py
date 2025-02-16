@@ -20,16 +20,6 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from bot.search import is_url, token_sort_ratio
 from bot.utils import get_dominant_rgb_from_url
 from bot.vocal.custom import generate_info_embed
-from bot.vocal.types import (
-    TrackInfo,
-    SpotifyID,
-    CoverData,
-    SpotifyAlbum,
-    SpotifyTrackAPI,
-    SpotifyAlbumAPI,
-    SpotifyPlaylistAPI,
-    SpotifyArtistAPI
-)
 from config import SPOTIFY_TOP_COUNTRY, SPOTIFY_ENABLED, SPOTIFY_API_ENABLED
 
 
@@ -194,29 +184,13 @@ class Librespot:
 
 
 class Spotify:
-    """A class to interact with Spotify's API and handle Spotify-related operations.
-
-    This class provides methods to fetch track information, generate streams,
-    and create embeds for Spotify tracks, albums, playlists, and artists.
-
-    Attributes:
-        sessions: A SpotifySessions object containing Spotify API sessions.
-
-    """
 
     def __init__(self, sessions: SpotifySessions) -> None:
         """Initializes the Spotify class with SpotifySessions."""
         self.sessions = sessions
 
     async def generate_info_embed(self, track_id: str) -> discord.Embed:
-        """Generates a Discord embed with information about a Spotify track.
-
-        Args:
-            track_id: The Spotify ID of the track.
-
-        Returns:
-            discord.Embed: An embed containing track information.
-        """
+        """Generates a Discord embed with information about a Spotify track."""
         track_api = await asyncio.to_thread(self.sessions.sp.track, track_id)
 
         # Grab all the data needed
@@ -254,80 +228,45 @@ class Spotify:
             AudioQuality.NORMAL
         ] = AudioQuality.VERY_HIGH
     ) -> AbsChunkedInputStream:
-        """Generates a stream for a given Spotify track ID.
-
-        Args:
-            id: The Spotify ID of the track.
-
-        Returns:
-            AbsChunkedInputStream: An async function that returns the audio stream.
-        """
+        """Generates a stream for a given Spotify track ID."""
         track_id = await asyncio.to_thread(TrackId.from_uri, f"spotify:track:{id}")
         stream = await self.sessions.lp.get_stream(track_id, audio_quality=aq)
         return stream
 
     def get_track_info(
         self,
-        track_api: SpotifyTrackAPI,
-        album_info: Optional[SpotifyAlbum] = None,
+        track_api: dict,
+        album_info: Optional[dict] = None,
         aq: Literal[
             AudioQuality.VERY_HIGH,
             AudioQuality.HIGH,
             AudioQuality.NORMAL
         ] = AudioQuality.VERY_HIGH
-    ) -> TrackInfo:
-        """Extracts and returns track information from Spotify API response.
-
-        Args:
-            track_api: The Spotify API response for a track.
-            album_info: Optional album information if available.
-
-        Returns:
-            dict (TrackInfo): A dictionary containing track information.
-        """
+    ) -> dict:
+        """Extracts and returns track information from Spotify API response."""
         id = track_api['id']
         album = album_info or track_api.get('album', {})
         date = album.get('release_date', '')
 
-        def get_album_name() -> Optional[str]:
-            """
-            Extract the album name from the album information.
-
-            This function handles various possible formats of the album name data:
-            - If it's a string, it returns the string directly.
-            - If it's a dictionary, it attempts to return the 'name' key's value.
-            - If it's a list, it attempts to return the first element if it's a string.
-            - For any other case, it returns None.
-
-            Returns:
-                Optional[str]: The album name if found, 
-                or None if not available or not in a recognized format.
-            """
+        def get_album_name() -> str:
+            """Extract the album name from the album information. 
+            Returns '?' if no name is found."""
             name = album.get('name')
             if isinstance(name, str):
                 return name
             elif isinstance(name, dict):
-                return str(name.get('name', ''))
+                return str(name.get('name', '?'))
             elif isinstance(name, list) and name:
-                return str(name[0]) if isinstance(name[0], str) else ''
-            return None
+                return name[0] if isinstance(name[0], str) else '?'
+            return '?'
 
-        def get_cover_url() -> Optional[str]:
-            """
-            Extract the cover URL from the album information.
-
-            This function first checks for an 'images' list in the album data.
-            If present and containing dictionary items, it returns the 'url' of the first image.
-            If not found, it falls back to checking for a 'cover' field in the album data.
-
-            Returns:
-                Optional[str]: The URL of the album cover if found, 
-                or None if not available.
-            """
+        def get_cover_url() -> str:
+            """Extract the cover URL from the album information.
+            Returns an empty string if no image is found."""
             images = album.get('images', [])
             if images and isinstance(images[0], dict):
-                return images[0].get('url')
-            return album.get('cover')
+                return images[0].get('url', '')
+            return album.get('cover', '')
 
         return {
             'display_name': f"{track_api['artists'][0]['name']} - {track_api['name']}",
@@ -346,16 +285,8 @@ class Spotify:
             'embed': lambda: self.generate_info_embed(id)
         }
 
-    async def fetch_id(self, query: str) -> Optional[SpotifyID]:
-        """Fetch the Spotify ID and type either from a URL or search query.
-
-        Args:
-            query: A Spotify URL or search query.
-
-        Returns:
-            dict (SpotifyID): A dictionary containing the Spotify ID and type,
-            or None if not found.
-        """
+    async def fetch_id(self, query: str) -> dict:
+        """Fetch the Spotify ID and type either from a URL or search query."""
         if is_url(query, ['open.spotify.com']):
             match = re.match(
                 r"https?://open\.spotify\.com/(?:(?:intl-[a-z]{2})/)?"
@@ -363,11 +294,11 @@ class Spotify:
                 query,
                 re.IGNORECASE
             )
-            return {'id': match.group('ID'), 'type': match.group(1)} if match else None
+            return {'id': match.group('ID'), 'type': match.group(1)} if match else {}
 
         search = await asyncio.to_thread(self.sessions.sp.search, q=query, limit=1)
         if not search or not search['tracks']['items']:
-            return None
+            return {}
 
         item = search['tracks']['items'][0]
         track_ratio = token_sort_ratio(
@@ -393,18 +324,9 @@ class Spotify:
             AudioQuality.NORMAL
         ] = AudioQuality.VERY_HIGH,
         offset: int = 0
-    ) -> List[TrackInfo]:
+    ) -> List[Optional[dict]]:
         """Fetch tracks from a URL or search query.
-
-        This method can handle tracks, albums, playlists, and artists.
-
-        Args:
-            query: A Spotify URL or search query.
-            aq: The audio quality chosen.
-
-        Returns:
-            List[dict]: A list of dictionaries containing track information.
-        """
+        This method can handle tracks, albums, playlists, and artists."""
         result = await self.fetch_id(query)
         if not result:
             return []
@@ -413,7 +335,7 @@ class Spotify:
 
         # TRACK
         if type_ == 'track':
-            track_api: SpotifyTrackAPI = await asyncio.to_thread(
+            track_api: dict = await asyncio.to_thread(
                 self.sessions.sp.track,
                 track_id=id
             )
@@ -421,7 +343,7 @@ class Spotify:
 
         # ALBUM
         elif type_ == 'album':
-            album_API: SpotifyAlbumAPI = await asyncio.to_thread(
+            album_API: dict = await asyncio.to_thread(
                 self.sessions.sp.album,
                 album_id=id
             )
@@ -435,7 +357,7 @@ class Spotify:
 
         # PLAYLIST
         elif type_ == 'playlist':
-            playlist_API: SpotifyPlaylistAPI = await asyncio.to_thread(
+            playlist_API: dict = await asyncio.to_thread(
                 self.sessions.sp.playlist_tracks,
                 playlist_id=id,
                 offset=offset
@@ -445,7 +367,7 @@ class Spotify:
 
         # ARTIST
         elif type_ == 'artist':
-            artist_API: SpotifyArtistAPI = await asyncio.to_thread(
+            artist_API: dict = await asyncio.to_thread(
                 self.sessions.sp.artist_top_tracks,
                 artist_id=id,
                 country=SPOTIFY_TOP_COUNTRY
@@ -455,15 +377,8 @@ class Spotify:
 
         return []
 
-    async def get_cover_data(self, track_id: str) -> CoverData:
-        """Fetches cover art data for a Spotify track.
-
-        Args:
-            track_id: The Spotify ID of the track.
-
-        Returns:
-            dict (CoverData): A dictionary containing the cover URL and dominant RGB color.
-        """
+    async def get_cover_data(self, track_id: str) -> dict:
+        """Fetches cover art data for a Spotify track."""
         track = await asyncio.to_thread(self.sessions.sp.track, track_id)
         cover_url = track['album']['images'][0]['url']
         dominant_rgb = await get_dominant_rgb_from_url(cover_url)

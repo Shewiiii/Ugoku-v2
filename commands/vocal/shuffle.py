@@ -29,11 +29,7 @@ class Shuffle(commands.Cog):
             return
 
         session.shuffle_queue()
-
-        if session.shuffle:
-            response_message = "Queue shuffled!"
-        else:
-            response_message = "Original queue order restored."
+        response_message = "Queue shuffled!" if session.shuffle else "Original queue order restored."
 
         await send_response(respond, response_message, guild_id)
         await session.prepare_next_track()

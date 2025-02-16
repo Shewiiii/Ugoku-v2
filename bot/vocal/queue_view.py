@@ -6,30 +6,20 @@ from discord.ui import View
 
 from bot.vocal.custom import get_cover_data_from_hash
 from bot.utils import get_dominant_rgb_from_url, split_into_chunks
-from bot.vocal.types import QueueItem
 from config import DEFAULT_EMBED_COLOR
 
 
 class QueueView(View):
     def __init__(
         self,
-        queue: List[QueueItem],
-        to_loop: List[QueueItem],
+        queue: List[dict],
+        to_loop: List[dict],
         bot: discord.Bot,
         last_played_time: datetime,
         time_elapsed: int,
         is_playing: bool,
         page: int = 1
     ) -> None:
-        """
-        Initialize the QueueView.
-
-        Args:
-            queue (List[QueueItem]): The current queue of tracks.
-            to_loop (List[QueueItem]): Tracks that are set to be looped.
-            bot (discord.Bot): The Discord bot instance.
-            page (int, optional): The current page number. Defaults to 1.
-        """
         super().__init__()
         self.queue = queue
         self.to_loop = to_loop
@@ -42,14 +32,7 @@ class QueueView(View):
         self.update_buttons()
 
     def update_buttons(self) -> None:
-        """
-        Update the state of navigation buttons based on the current page and queue length.
-
-        This method disables or enables the 'Previous' and 'Next' buttons depending on
-        the current page number and the number of items in the queue.
-        """
-        # Hide or show buttons based on the current page
-        # and the number of queue items
+        """Disable or enable 'next' and 'previous' buttons based on the current page."""
         self.children[0].disabled = self.page <= 1
         self.children[1].disabled = len(
             self.queue) < self.page * self.max_per_page
@@ -63,13 +46,7 @@ class QueueView(View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        """
-        Handle the 'Previous' button click event.
-
-        Args:
-            button (discord.ui.Button): The button that was clicked.
-            interaction (discord.Interaction): The interaction object representing the button click.
-        """
+        """Update the page on 'previous' click."""
         self.page -= 1
         await self.update_view(interaction)
 
@@ -82,13 +59,7 @@ class QueueView(View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        """
-        Handle the 'Next' button click event.
-
-        Args:
-            button (discord.ui.Button): The button that was clicked.
-            interaction (discord.Interaction): The interaction object representing the button click.
-        """
+        """Update the page on 'Next' click."""
         self.page += 1
         await self.update_view(interaction)
 
@@ -96,15 +67,7 @@ class QueueView(View):
         self,
         interaction: discord.Interaction
     ) -> None:
-        """
-        Handle button click events and update the view accordingly.
-
-        This method updates the page number based on which button was clicked,
-        updates the buttons' state, and edits the message with the new embed and view.
-
-        Args:
-            interaction (discord.Interaction): The interaction object representing the button click.
-        """
+        """Change the page of the embed."""
         if interaction.custom_id == 'prev_page':
             self.page -= 1
         elif interaction.custom_id == 'next_page':
@@ -117,15 +80,6 @@ class QueueView(View):
         )
 
     async def create_embed(self) -> discord.Embed:
-        """
-        Create and return an embed displaying the current queue information.
-
-        This method generates an embed containing information about the currently playing track,
-        the queue, and any tracks set to loop.
-
-        Returns:
-            discord.Embed: An embed object containing the formatted queue information.
-        """
         if not self.queue:
             embed = discord.Embed(
                 title='Queue Overview',
@@ -138,11 +92,6 @@ class QueueView(View):
         source: str = self.queue[0]['source']
         track_info: dict = self.queue[0]['track_info']
         if source == 'Spotify':
-            # Cover data is not stored in the track info,
-            # but only got when requested like here.
-            # It allows the bot to bulk add songs (e.g from a playlist),
-            # with way few API requests
-            # TODO: cache the cover data
             cover_data = await self.bot.spotify.get_cover_data(track_info['id'])
         elif source == 'Custom':
             cover_data = await get_cover_data_from_hash(track_info['id'])
@@ -228,14 +177,7 @@ class QueueView(View):
         self,
         ctx: discord.ApplicationContext
     ) -> None:
-        """
-        Display the queue view in response to a command.
-
-        This method creates the initial embed and sends it as a response to the command invocation.
-
-        Args:
-            ctx (discord.ApplicationContext): The context of the command invocation.
-        """
+        """Display the queue view in response to a command."""
         embed = await self.create_embed()
         await ctx.respond(embed=embed, view=self)
 
@@ -243,14 +185,7 @@ class QueueView(View):
         self,
         interaction: discord.Interaction
     ) -> None:
-        """
-        Update the queue view in response to a button interaction.
-
-        This method updates the buttons' state and edits the message with the new embed and view.
-
-        Args:
-            interaction (discord.Interaction): The interaction object representing the button click.
-        """
+        """Update the queue view in response to a button interaction."""
         self.update_buttons()
         await interaction.response.edit_message(
             embed=await self.create_embed(),
