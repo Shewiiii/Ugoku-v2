@@ -110,12 +110,11 @@ class SpotifyDownload(commands.Cog):
                             f"{track['display_name']}.ogg",
                         )
                     )
-                    return
             except discord.errors.HTTPException as e:
                 if e.status == 413:
                     logging.error(
                         f"File not uploaded: {cache_id} is too big: {size}bytes")
-            await ctx.edit(content=f"Download failed: file too big.")
+            await ctx.edit(content=f"Upload failed: file too big.")
 
         finally:
             self.bot.downloading = False

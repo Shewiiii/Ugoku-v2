@@ -1,4 +1,4 @@
-import asyncio
+import httpx
 import os
 import logging
 
@@ -40,6 +40,8 @@ class DeezerDownload(commands.Cog):
         except DataException:
             await ctx.edit(content="Track not found !")
             return
+        except httpx.HTTPError as e:
+            await ctx.edit(content=f"Error when generating a crypted stream URL.\n-# error: {e}")
 
         # Set the cache path
         await cleanup_cache()
@@ -74,7 +76,6 @@ class DeezerDownload(commands.Cog):
                         filename=f"{display_name}.flac"
                     )
                 )
-                return
         except discord.errors.HTTPException as e:
             if e.status == 413:
                 logging.error(

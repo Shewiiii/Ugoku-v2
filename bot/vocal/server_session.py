@@ -199,13 +199,13 @@ class ServerSession:
         track = track_info.get('track')
         try:
             track_info['source'] = await asyncio.to_thread(deezer.stream, track)
+            return True
         except DataException:
             return False
-        return True
 
     async def check_deezer_availability(self, index: int = 0) -> bool:
         """Returns true if a track in queue is available on Deezer. 
-        Change the track_info dict depending on the availability."""
+        Change a "track" field to the track_info dict depending on the availability."""
         if index >= len(self.queue):
             return False
         if not DEEZER_ENABLED or not self.queue[index]['source'] == 'Deezer':
@@ -214,10 +214,13 @@ class ServerSession:
         track_info = self.queue[index]['track_info']
         deezer = self.bot.deezer
         try:
-            track = await deezer.get_track(track_info['url'])
-            self.queue[index]['track_info']['track'] = track
+            track = await deezer.get_track(url=track_info['url'])
+            if not track:
+                return False
+            track_info['track'] = track
             return True
-        except:
+        except Exception as e:
+            logging.error(e)
             self.queue[index]['source'] = 'Spotify'
             return False
 
@@ -248,17 +251,17 @@ class ServerSession:
         cached = isinstance(track_info['source'], (Path, str))
 
         # If Deezer enabled, inject lossless stream in a spotify track
-        if service == 'deezer' and not cached:
-            if not await self.inject_lossless_stream():
-                current_element['source'] = 'spotify'
-                if not SPOTIFY_ENABLED:
-                    await ctx.send(
-                        content=f"{track_info['display_name']}"
-                        " is not available !",
-                        silent=True
-                    )
-                    self.after_playing(ctx, error=None)
-                    return
+        if service == 'deezer' and not cached and not await self.inject_lossless_stream():
+            current_element['source'] = "spotify"
+
+        if current_element['source'] == "spotify" and not SPOTIFY_ENABLED:
+            await ctx.send(
+                content=f"{track_info['display_name']}"
+                " is not available !",
+                silent=True
+            )
+            self.after_playing(ctx, error=None)
+            return
 
         # Now playing embed info
         should_send_now_playing = (
@@ -337,12 +340,8 @@ class ServerSession:
             }
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
-            pipe=isinstance(
-                source, (
-                    AbsChunkedInputStream,
-                    DeezerChunkedInputStream
-                )
-            ),
+            pipe=isinstance(source, (AbsChunkedInputStream,
+                            DeezerChunkedInputStream)),
             bitrate=self.bitrate,
             **ffmpeg_options
         )
@@ -508,10 +507,7 @@ class ServerSession:
             raise error
 
         # Close the current stream if it exists
-        if self.current_stream and isinstance(
-            self.current_stream,
-            (DeezerChunkedInputStream, AbsChunkedInputStream)
-        ):
+        if self.current_stream and isinstance(self.current_stream, (DeezerChunkedInputStream, AbsChunkedInputStream)):
             self.current_stream.close()
             self.current_stream = None
 
@@ -575,6 +571,7 @@ class ServerSession:
 
     async def cache_stream(self, index: int) -> None:
         """Cache audio streams from Deezer or Spotify"""
+        cached = False
         await cleanup_cache()
         if len(self.queue) <= index:
             # Nothing to cache
@@ -598,12 +595,15 @@ class ServerSession:
             track_info['source'] = file_path
             return
 
-        if service == 'deezer':
-            await self.inject_lossless_stream(index)
-
         # Is a Spotify stream
         if isinstance(source, Callable) and SPOTIFY_ENABLED:
             source = await source()
+
+        # Is using Deezer service
+        if service == 'deezer':
+            await self.inject_lossless_stream(index)
+            # Updated source
+            source = next_element['track_info']['source']
 
         # Spotify stream
         if isinstance(source, AbsChunkedInputStream):
@@ -614,13 +614,12 @@ class ServerSession:
             # Download
             with open(file_path, 'wb') as file:
                 file.write(data)
+            cached = True
 
         # Deezer stream (means deezer features are enabled)
         elif isinstance(source, DeezerChunkedInputStream):
             # Generate a separate stream URL
-            track = await self.bot.deezer.get_track(
-                id=str(source.id),
-            )
+            track = await self.bot.deezer.get_track(id_=str(source.id))
             response = await asyncio.to_thread(
                 requests.get,
                 track['stream_url'],
@@ -657,8 +656,9 @@ class ServerSession:
 
                     # Write the chunk asynchronously
                     await file.write(chunk)
+            cached = True
 
         # Check if it is still the same track
-        if track_info['id'] == id:
+        if track_info['id'] == id and cached:
             logging.info(f"Track {track_info['id']} cached successfully")
             track_info['source'] = file_path
