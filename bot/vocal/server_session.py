@@ -386,24 +386,6 @@ class ServerSession:
         # Deezer
         await self.check_deezer_availability(index=index)
 
-        # Spotify
-        source = track_info['source']
-        if isinstance(source, Callable) and SPOTIFY_ENABLED:
-            try:
-                source = await source()
-            except RuntimeError as e:
-                if str(e) == "Cannot get alternative track":
-                    await self.last_context.send(
-                        f"{track_info['display_name']} "
-                        "will be skipped: Track not available."
-                    )
-                    self.queue.pop(index)
-                    # Recursive call to cache the track after it
-                    await self.prepare_next_track()
-                else:
-                    logging.error(e)
-                    return
-
         # Generate the embed
         embed = track_info.get('embed', None)
         if embed and isinstance(embed, Callable):
