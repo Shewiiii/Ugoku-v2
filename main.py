@@ -31,8 +31,6 @@ bot = discord.Bot(intents=intents, loop=loop)
 
 @bot.event
 async def on_ready() -> None:
-    logging.info(f"{bot.user} is running !")
-
     # Temp folder
     TEMP_FOLDER.mkdir(parents=True, exist_ok=True)
 
@@ -59,6 +57,10 @@ async def on_ready() -> None:
     # Chatbot instances
     if CHATBOT_ENABLED:
         await memory.init_pinecone(PINECONE_INDEX_NAME)
+
+    # Party !
+    logging.info(f"{bot.user} is running !")
+
 
 for filepath in COMMANDS_FOLDER.rglob('*.py'):
     relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')

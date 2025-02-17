@@ -4,6 +4,7 @@ from datetime import datetime
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
+from bot.utils import vocal_action_check
 
 
 class AudioBitrate(commands.Cog):
@@ -24,8 +25,7 @@ class AudioBitrate(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
-        if not session:
-            await ctx.respond("No active session !")
+        if not vocal_action_check(session, ctx, ctx.respond):
             return
 
         if not 6 <= bitrate <= 510:

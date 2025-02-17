@@ -4,7 +4,7 @@ import discord
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
-from bot.utils import send_response
+from bot.utils import send_response, vocal_action_check
 
 
 class Skip(commands.Cog):
@@ -17,24 +17,9 @@ class Skip(commands.Cog):
         send=False
     ) -> None:
         guild_id = ctx.guild.id
+        session: ServerSession = sm.server_sessions.get(guild_id)
         respond = (ctx.send if send else ctx.respond)
-
-        if guild_id not in sm.server_sessions:
-            await send_response(
-                respond,
-                "No active session !",
-                guild_id
-            )
-            return
-
-        session: ServerSession = sm.server_sessions[guild_id]
-
-        if not session.queue:
-            await send_response(
-                respond,
-                "No songs in queue!",
-                session.guild_id
-            )
+        if not await vocal_action_check(session, ctx, respond):
             return
 
         await send_response(respond, "Skipping!", session.guild_id)

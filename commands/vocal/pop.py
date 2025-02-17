@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from bot.vocal.server_session import ServerSession
+from bot.utils import vocal_action_check
 from bot.vocal.session_manager import session_manager as sm
 
 
@@ -57,12 +58,7 @@ class PopSong(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
-        if not session:
-            await ctx.respond("No active session !")
-            return
-
-        if not session.queue:
-            await ctx.respond("No song in queue !")
+        if not await vocal_action_check(session, ctx, ctx.respond):
             return
 
         removed_tracks = []

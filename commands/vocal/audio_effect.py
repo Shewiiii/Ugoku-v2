@@ -5,6 +5,7 @@ from datetime import datetime
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
 from config import IMPULSE_RESPONSE_PARAMS
+from bot.utils import vocal_action_check
 
 
 class AudioEffects(commands.Cog):
@@ -32,28 +33,27 @@ class AudioEffects(commands.Cog):
         dry: discord.Option(
             int,
             description="[VOLUME WARNING] Amount of signal before processing (from 1 to 10).",
-            default=0
+            default=None
         ),  # type: ignore
         wet: discord.Option(
             int,
             description="[VOLUME WARNING] Amount of signal after processing (from 1 to 10).",
-            default=0
+            default=None
         )  # type: ignore
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
-        if not session:
-            await ctx.respond("No active session !")
+        if not await vocal_action_check(session, ctx, ctx.respond):
             return
 
-        if wet > 10 or dry > 10:
+        if (wet and wet > 10) or (dry and dry > 10):
             await ctx.respond("Incorrect wet or dry values !")
             return
 
         p = IMPULSE_RESPONSE_PARAMS.get(effect)
         session.audio_effect.effect = effect if p else None
-        wet_value = wet or p.get('wet', 0) if p else 0
-        dry_value = dry or p.get('dry', 0) if p else 10
+        wet_value = wet if wet is not None else (p.get('wet', 0) if p else 0)
+        dry_value = dry if dry is not None else (p.get('dry', 10) if p else 10)
         volume_value = p.get('volume_multiplier', 1) if p else 1
 
         # If not default effect

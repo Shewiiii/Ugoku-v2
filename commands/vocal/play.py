@@ -6,7 +6,7 @@ import discord
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
 from bot.vocal.audio_source_handlers import play_spotify, play_custom, play_onsei, play_youtube
-from bot.utils import is_onsei, send_response
+from bot.utils import is_onsei, send_response, vocal_action_check
 from bot.search import is_url
 from config import (
     SPOTIFY_ENABLED,
@@ -40,8 +40,7 @@ class Play(commands.Cog):
 
         # Connect to the voice channel
         session: Optional[ServerSession] = await sm.connect(ctx, self.bot)
-        if not session or ctx.author.voice.channel != session.voice_client.channel:
-            await respond('You are not in an active voice channel!')
+        if not await vocal_action_check(session, ctx, respond, check_queue=False):
             return
 
         # Applying audio effects

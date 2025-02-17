@@ -2,7 +2,6 @@ import mutagen.ogg
 import mutagen.oggvorbis
 import asyncio
 from typing import Dict, Optional, Tuple, List, Union, Callable
-import aiofiles
 import discord
 import base64
 import hashlib
@@ -29,7 +28,6 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
 
 from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE, PREMIUM_CHANNEL_ID
-logger = logging.getLogger(__name__)
 
 
 def extract_number(string: str) -> str:
@@ -52,7 +50,7 @@ def extract_number(string: str) -> str:
 def is_onsei(string: str) -> bool:
     """
     Determines if a string refers to an audio work/onsei.
-    Checks if it is starting by'RJ' or 'VJ', 
+    Checks if it is starting by'RJ' or 'VJ',
     or contains exactly 6 or 8 digits.
 
     Args:
@@ -472,7 +470,12 @@ async def send_response(
         )
 
 
-async def upload(bot: discord.Bot, ctx: discord.ApplicationContext, file_path: Path, filename: str) -> None:
+async def upload(
+    bot: discord.Bot,
+    ctx: discord.ApplicationContext,
+    file_path: Path,
+    filename: str
+) -> None:
     size = os.path.getsize(file_path)
     size_limit = ctx.guild.filesize_limit if ctx.guild else 26214400
     try:
@@ -493,10 +496,32 @@ async def upload(bot: discord.Bot, ctx: discord.ApplicationContext, file_path: P
     try:
         channel = await bot.fetch_channel(PREMIUM_CHANNEL_ID)
         message = await channel.send(
-            content="-# File requested by an user",
+            content="-# File requested by a user",
             file=discord.File(file_path, filename=filename)
         )
     except (discord.errors.Forbidden, discord.errors.HTTPException):
         await ctx.edit(content=f"Upload failed: file too big and invalid premium channel.")
         return
     await ctx.edit(content=f"Here you go ! [Direct URL]({message.attachments[0].url})")
+
+
+async def vocal_action_check(
+    session,
+    ctx: discord.ApplicationContext,
+    respond_function,
+    check_queue: bool = True
+) -> bool:
+    """Checks if a user is allowed to execute an operation in vc."""
+    if not session or ctx.author.voice.channel != session.voice_client.channel:
+        await respond_function('You are not in an active voice channel!')
+        return False
+
+    if not session:
+        await respond_function("No active session !")
+        return False
+
+    if check_queue and not session.queue:
+        await respond_function("No song in queue !")
+        return False
+
+    return True

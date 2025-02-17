@@ -3,7 +3,7 @@ from datetime import datetime
 import discord
 from discord.ext import commands
 from bot.vocal.session_manager import session_manager
-from bot.utils import send_response
+from bot.utils import send_response, vocal_action_check
 
 
 class Resume(commands.Cog):
@@ -18,13 +18,10 @@ class Resume(commands.Cog):
         guild_id = ctx.guild.id
         session = session_manager.server_sessions.get(ctx.guild.id)
         respond = (ctx.send if send else ctx.respond)
-
-        if not session:
-            await send_response(respond, 'Nothing to resume!', guild_id)
+        if not await vocal_action_check(session, ctx, respond):
             return
 
         voice_client = session.voice_client
-
         if voice_client.is_paused():
             voice_client.resume()
             session.last_played_time = datetime.now()

@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
-from bot.utils import send_response
+from bot.utils import send_response, vocal_action_check
 
 
 class Pause(commands.Cog):
@@ -20,37 +20,12 @@ class Pause(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
-
         respond = (ctx.send if send else ctx.respond)
-
-        if not session:
-            await send_response(
-                respond,
-                "No active session !",
-                guild_id
-            )
-            return
-
-        voice_client = session.voice_client
-
-        if not voice_client or not voice_client.is_connected():
-            await send_response(
-                respond,
-                "Ugoku is not connected to a voice channel.",
-                guild_id
-            )
-            return
-
-        if not voice_client.is_playing():
-            await send_response(
-                respond,
-                "No audio is playing!",
-                guild_id
-            )
+        if not await vocal_action_check(session, ctx, respond):
             return
 
         # Pause
-        voice_client.pause()
+        session.voice_client.pause()
         current_time = datetime.now()
         elapsed_time = (current_time - session.last_played_time).seconds
         session.time_elapsed += elapsed_time

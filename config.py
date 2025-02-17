@@ -19,7 +19,7 @@ TEMP_FOLDER = Path('.') / 'temp'
 # Cache control
 CACHE_STREAMS = True # Greatly improves streams playback, but requires a great internet connection
 PREMIUM_CHANNEL_ID = None # Upload files too big to a channel in a boosted server instead
-DELAY_BEFORE_CACHING = 5 # Seconds to wait before caching the current and next track in queue
+DELAY_BEFORE_CACHING = 10 # Seconds to wait before caching the current and next track in queue
 CACHE_SIZE = 100  # Cache size limit (in number of files)
 CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds). Default is one month
 # VC and audio bot behavior
@@ -35,21 +35,21 @@ IMPULSE_RESPONSE_PARAMS = {
         'right_ir_file': 'bass.wav',
         'dry': 1,
         'wet': 7,
-        'volume_multiplier': 0.4,
+        'volume_multiplier': 0.3,
     },
     'reverb (mono)': {
         'left_ir_file': 'reverb.wav',
         'right_ir_file': 'reverb.wav',
         'dry': 7,
         'wet': 9,
-        'volume_multiplier': 1
+        'volume_multiplier': 1.3
     },
     'north church': {
         'left_ir_file': 'north_church_L.wav',
         'right_ir_file': 'north_church_R.wav',
         'dry': 7,
         'wet': 5,
-        'volume_multiplier': 0.8
+        'volume_multiplier': 1.3
     },
     'cinema': {
         'left_ir_file': 'cinema_L.wav',
@@ -70,14 +70,14 @@ IMPULSE_RESPONSE_PARAMS = {
         'right_ir_file': 'raum_default_airy_R.wav',
         'dry': 10,
         'wet': 10,
-        'volume_multiplier': 0.65
+        'volume_multiplier': 0.9
     },
-        'Raum grounded default': {
+    'Raum grounded default': {
         'left_ir_file': 'raum_default_grounded_L.wav',
         'right_ir_file': 'raum_default_grounded_R.wav',
         'dry': 10,
         'wet': 10,
-        'volume_multiplier': 0.65
+        'volume_multiplier': 0.75
     },
     'Raum size 100%, decay 2s': {
         'left_ir_file': 'raum_max_size_L.wav',

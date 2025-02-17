@@ -208,7 +208,7 @@ class Deezer_:
                 timeout=5
             )
             request.raise_for_status()
-        logging.info(f"Crypted stream url generated successfully for {id_}")
+        logging.info(f"Crypted stream url generated successfully: {id_}")
         return stream_url
 
     async def prepare_track_object(self, track_api: dict) -> Optional[None]:
@@ -264,7 +264,7 @@ class Deezer_:
         file_path = get_cache_path(str(track['id']).encode('utf-8'))
 
         if file_path.is_file():
-            logging.info(f"Track {track['id']} is already cached.")
+            logging.info(f"Already cached: {track['id']}")
             return file_path
 
         async with aiofiles.open(file_path, 'wb') as file:
@@ -291,5 +291,5 @@ class Deezer_:
                 # Write the chunk asynchronously
                 await file.write(chunk)
 
-        logging.info(f"Track {track['id']} downloaded successfully.")
+        logging.info(f"Downloaded successfully: {track['id']}")
         return file_path

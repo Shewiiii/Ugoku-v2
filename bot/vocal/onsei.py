@@ -2,8 +2,7 @@ import json
 import os
 from pathlib import Path
 import logging
-from typing import Literal
-
+from typing import Literal, Optional
 import aiohttp
 
 from config import ONSEI_BLACKLIST, ONSEI_WHITELIST
@@ -80,10 +79,13 @@ class Onsei:
         self,
         tracks_api: list,
         path: Path = Path('.'),
-        final_tracks: dict = {},
+        final_tracks: Optional[dict] = None,
         ignore_whitelist: bool = False
     ) -> list:
         """Recursively retrieve tracks from API data."""
+        if final_tracks is None:
+            final_tracks = {}
+
         if 'error' in tracks_api:
             logging.error(tracks_api['error'])
             return final_tracks
@@ -124,17 +126,15 @@ class Onsei:
 
         return '?'
 
-    def get_all_tracks(
-        self,
-        tracks_api: list
-    ) -> dict[str, str]:
-        tracks = self.get_tracks(tracks_api, final_tracks={})
+    def get_all_tracks(self, tracks_api: list) -> dict[str, str]:
+        tracks = self.get_tracks(tracks_api)
 
         if not tracks:
             logging.info(
                 "No tracks found with whitelist filters. "
                 "Retrying without whitelist."
             )
-            tracks = self.get_tracks(tracks_api, ignore_whitelist=True, final_tracks={})
+            tracks = self.get_tracks(
+                tracks_api, ignore_whitelist=True)
 
         return tracks

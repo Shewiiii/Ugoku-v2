@@ -5,6 +5,7 @@ from typing import Optional
 import discord
 from discord.ext import commands
 from bot.vocal.session_manager import session_manager as sm
+from bot.utils import vocal_action_check
 
 
 class Loop(commands.Cog):
@@ -20,13 +21,7 @@ class Loop(commands.Cog):
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
         respond = (ctx.send if send else ctx.respond)
-
-        if not session:
-            await send_response(
-                respond,
-                "No active session !",
-                guild_id
-            )
+        if not await vocal_action_check(session, ctx, respond):
             return
 
         mode = mode.lower()

@@ -1,10 +1,13 @@
 from typing import Optional
+import asyncio
+
+from discord.ext import commands
+import discord
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
-from bot.utils import send_response
-from discord.ext import commands
-import discord
+from bot.utils import send_response, vocal_action_check
+from config import CACHE_STREAMS, DELAY_BEFORE_CACHING
 
 
 class Shuffle(commands.Cog):
@@ -19,13 +22,7 @@ class Shuffle(commands.Cog):
         guild_id: int = ctx.guild.id
         session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
         respond = (ctx.send if send else ctx.respond)
-
-        if not session:
-            await send_response(
-                respond,
-                "You are not in a voice channel!",
-                guild_id
-            )
+        if not await vocal_action_check(session, ctx, respond):
             return
 
         session.shuffle_queue()
@@ -33,6 +30,9 @@ class Shuffle(commands.Cog):
 
         await send_response(respond, response_message, guild_id)
         await session.prepare_next_track()
+        if CACHE_STREAMS:
+            await asyncio.sleep(DELAY_BEFORE_CACHING)
+            await session.cache_stream(index=0)
 
     @commands.slash_command(
         name='shuffle',
