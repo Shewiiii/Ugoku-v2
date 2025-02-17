@@ -43,12 +43,12 @@ async def on_ready() -> None:
             name="/help for usage !"
         )
     )
+
     # Music instances
     if SPOTIFY_API_ENABLED:
         spotify_sessions = SpotifySessions()
         spotify = Spotify(spotify_sessions)
         await spotify_sessions.init_spotify()
-        bot.downloading = False
         bot.spotify = spotify
         if DEEZER_ENABLED:
             deezer = Deezer_()

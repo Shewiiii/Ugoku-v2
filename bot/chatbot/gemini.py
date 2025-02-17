@@ -456,7 +456,6 @@ class Gembot:
             Don't change emoji strings (<:Example:1200797674031566958>).
             Don't add ANY extra text:
         '''
-        print(prompt)
         response = await Gembot.simple_prompt(
             query=prompt+query,
             model=model
