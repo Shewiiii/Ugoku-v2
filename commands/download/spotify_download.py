@@ -8,7 +8,7 @@ from discord.ext import commands
 from librespot.audio.decoders import AudioQuality
 
 from config import SPOTIFY_ENABLED
-from bot.utils import cleanup_cache, tag_ogg_file, get_cache_path
+from bot.utils import cleanup_cache, tag_ogg_file, get_cache_path, upload
 from mutagen.oggvorbis import OggVorbisHeaderError
 
 
@@ -56,68 +56,46 @@ class SpotifyDownload(commands.Cog):
             'Low (OGG 96kbps)': AudioQuality.NORMAL
         }
 
-        self.bot.downloading = True
-        try:
-            # Get the tracks, pick the first one
-            tracks = await ctx.bot.spotify.get_tracks(
-                query=query,
-                aq=quality_dict[quality]
-            )
-            if not tracks:
-                await ctx.edit(content="No track has been found!")
-                return
-            track = tracks[0]
+        # Get the tracks, pick the first one
+        tracks = await ctx.bot.spotify.get_tracks(
+            query=query,
+            aq=quality_dict[quality]
+        )
+        if not tracks:
+            await ctx.edit(content="No track has been found!")
+            return
+        track = tracks[0]
 
-            # Update cached files
-            await cleanup_cache()
-            cache_id = f"spotify{track['id']}"
-            file_path = get_cache_path(cache_id.encode('utf-8'))
+        # Update cached files
+        await cleanup_cache()
+        cache_id = f"spotify{track['id']}"
+        file_path = get_cache_path(cache_id.encode('utf-8'))
 
-            if file_path.is_file():
-                size = os.path.getsize(file_path)
-            else:
-                # Get track data
-                stream = await track['source']()
-                data = await asyncio.to_thread(stream.read)
-                # Download
-                async with aiofiles.open(file_path, 'wb') as file:
-                    await file.write(data)
-                try:
-                    # Tag
-                    await tag_ogg_file(
-                        file_path=file_path,
-                        title=track['title'],
-                        artist=track['artist'],
-                        date=track['date'],
-                        album_cover_url=track['cover'],
-                        album=track['album']
-                    )
-                except OggVorbisHeaderError:
-                    logging.warning(
-                        f"Unable to read the full header of {file_path}")
-                size = len(data)
-
-            # Upload
-            # Define size limits
+        if file_path.is_file():
             size = os.path.getsize(file_path)
-            size_limit = ctx.guild.filesize_limit if ctx.guild else 26214400
+        else:
+            # Get track data
+            stream = await track['source']()
+            data = await asyncio.to_thread(stream.read)
+            # Download
+            async with aiofiles.open(file_path, 'wb') as file:
+                await file.write(data)
             try:
-                if size < size_limit:
-                    await ctx.edit(
-                        content="Here you go!",
-                        file=discord.File(
-                            file_path,
-                            f"{track['display_name']}.ogg",
-                        )
-                    )
-            except discord.errors.HTTPException as e:
-                if e.status == 413:
-                    logging.error(
-                        f"File not uploaded: {cache_id} is too big: {size}bytes")
-            await ctx.edit(content=f"Upload failed: file too big.")
+                # Tag
+                await tag_ogg_file(
+                    file_path=file_path,
+                    title=track['title'],
+                    artist=track['artist'],
+                    date=track['date'],
+                    album_cover_url=track['cover'],
+                    album=track['album']
+                )
+            except OggVorbisHeaderError:
+                logging.warning(
+                    f"Unable to read the full header of {file_path}")
+            size = len(data)
 
-        finally:
-            self.bot.downloading = False
+        await upload(self.bot, ctx, file_path, f"{track['display_name']}.ogg")
 
 
 def setup(bot):

@@ -28,7 +28,7 @@ from mutagen.oggopus import OggOpus
 from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
 
-from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE
+from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE, PREMIUM_CHANNEL_ID
 logger = logging.getLogger(__name__)
 
 
@@ -470,3 +470,33 @@ async def send_response(
             f"Failed to send response for guild {guild_id}. "
             "Invalid Webhook Token."
         )
+
+
+async def upload(bot: discord.Bot, ctx: discord.ApplicationContext, file_path: Path, filename: str) -> None:
+    size = os.path.getsize(file_path)
+    size_limit = ctx.guild.filesize_limit if ctx.guild else 26214400
+    try:
+        if size < size_limit:
+            await ctx.edit(
+                content="Here you go !",
+                file=discord.File(file_path, filename=filename)
+            )
+            return
+    except discord.errors.HTTPException as e:
+        if e.status == 413:
+            logging.error(
+                f"File not uploaded: {file_path} is too big: {size} bytes")
+
+    # Not uploaded, attempthing to upload in the premium channel
+    if not PREMIUM_CHANNEL_ID:
+        await ctx.edit(content=f"Upload failed: file too big.")
+    try:
+        channel = await bot.fetch_channel(PREMIUM_CHANNEL_ID)
+        message = await channel.send(
+            content="-# File requested by an user",
+            file=discord.File(file_path, filename=filename)
+        )
+    except (discord.errors.Forbidden, discord.errors.HTTPException):
+        await ctx.edit(content=f"Upload failed: file too big and invalid premium channel.")
+        return
+    await ctx.edit(content=f"Here you go ! [Direct URL]({message.attachments[0].url})")

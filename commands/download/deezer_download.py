@@ -7,7 +7,7 @@ from discord.ext import commands
 from deezer.errors import DataException
 
 from config import DEEZER_ENABLED
-from bot.utils import cleanup_cache, tag_flac_file, get_cache_path
+from bot.utils import cleanup_cache, tag_flac_file, get_cache_path, upload
 
 
 class DeezerDownload(commands.Cog):
@@ -34,7 +34,6 @@ class DeezerDownload(commands.Cog):
         await ctx.respond('Give me a second~')
 
         # Get the track from query
-        self.bot.downloading = True
         try:
             track = await self.bot.deezer.get_track_from_query(query)
         except DataException:
@@ -63,24 +62,7 @@ class DeezerDownload(commands.Cog):
             album_cover_url=track['cover']
         )
 
-        # Upload if possible
-        # Define size limits
-        size = os.path.getsize(file_path)
-        size_limit = ctx.guild.filesize_limit if ctx.guild else 26214400
-        try:
-            if size < size_limit:
-                await ctx.edit(
-                    content="Here you go !",
-                    file=discord.File(
-                        file_path,
-                        filename=f"{display_name}.flac"
-                    )
-                )
-        except discord.errors.HTTPException as e:
-            if e.status == 413:
-                logging.error(
-                    f"File not uploaded: {cache_id} is too big: {size}bytes")
-        await ctx.edit(content=f"Download failed: file too big.")
+        await upload(self.bot, ctx, file_path, f"{display_name}.flac")
 
 
 def setup(bot):
