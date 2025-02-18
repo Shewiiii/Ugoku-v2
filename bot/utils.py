@@ -312,6 +312,8 @@ async def tag_ogg_file(
     album_cover_url: str = '',
     album: str = '',
     date: str = '',
+    track_number: Union[int, str] = '',
+    disc_number: Union[int, str] = '',
     width: int = 640,
     height: int = 640,
 ) -> None:
@@ -331,6 +333,8 @@ async def tag_ogg_file(
     audio['artist'] = artist
     audio['album'] = album
     audio['date'] = date
+    audio['tracknumber'] = str(track_number)
+    audio['discnumber'] = str(disc_number)
 
     # Create a Picture object
     picture = Picture()
@@ -364,6 +368,8 @@ async def tag_flac_file(
     album_cover_url: str = '',
     album: str = '',
     date: str = '',
+    track_number: Union[int, str] = '',
+    disc_number: Union[int, str] = '',
     width: int = 1000,
     height: int = 1000,
 ) -> None:
@@ -386,6 +392,8 @@ async def tag_flac_file(
     audio['artist'] = artist
     audio['album'] = album
     audio['date'] = date
+    audio['tracknumber'] = str(track_number)
+    audio['discnumber'] = str(disc_number)
 
     audio.add_picture(picture)
     audio.save(file_path)

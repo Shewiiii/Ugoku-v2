@@ -78,6 +78,7 @@ Never use latex or mathjax, write mathematical formulas between ``
 Small attached pitcures are *emotes/stickers* sent to you
 Speak the same language as your interlocutor
 Don't write double line breaks
+Don't greet in every message
 '''
     # end = (
     #     'End the conversation.'

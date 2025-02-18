@@ -88,7 +88,9 @@ class SpotifyDownload(commands.Cog):
                     artist=track['artist'],
                     date=track['date'],
                     album_cover_url=track['cover'],
-                    album=track['album']
+                    album=track['album'],
+                    track_number=track['track_number'],
+                    disc_number=track['disc_number']
                 )
             except OggVorbisHeaderError:
                 logging.warning(

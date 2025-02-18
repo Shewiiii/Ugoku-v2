@@ -15,7 +15,7 @@ class Emotes(commands.Cog):
         description="Get the direct URL of emotes or stickers."
     )
     async def get_emote(self, ctx: discord.ApplicationContext) -> None:
-        # Wait for an user message
+        # Wait for a user message
         user_id = ctx.user.id
         channel_id = ctx.channel.id
         self.pending[user_id] = channel_id

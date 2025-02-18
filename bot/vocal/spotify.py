@@ -221,7 +221,7 @@ class Spotify:
 
     async def generate_stream(
         self,
-        id: str,
+        id_: str,
         aq: Literal[
             AudioQuality.VERY_HIGH,
             AudioQuality.HIGH,
@@ -229,7 +229,7 @@ class Spotify:
         ] = AudioQuality.VERY_HIGH
     ) -> AbsChunkedInputStream:
         """Generates a stream for a given Spotify track ID."""
-        track_id = await asyncio.to_thread(TrackId.from_uri, f"spotify:track:{id}")
+        track_id = await asyncio.to_thread(TrackId.from_uri, f"spotify:track:{id_}")
         stream = await self.sessions.lp.get_stream(track_id, audio_quality=aq)
         return stream
 
@@ -244,7 +244,7 @@ class Spotify:
         ] = AudioQuality.VERY_HIGH
     ) -> dict:
         """Extracts and returns track information from Spotify API response."""
-        id = track_api['id']
+        id_ = track_api['id']
         album = album_info or track_api.get('album', {})
         date = album.get('release_date', '')
 
@@ -268,7 +268,7 @@ class Spotify:
                 return images[0].get('url', '')
             return album.get('cover', '')
 
-        return {
+        results = {
             'display_name': f"{track_api['artists'][0]['name']} - {track_api['name']}",
             'title': track_api['name'],
             'artist': ', '.join(artist['name'] for artist in track_api['artists']),
@@ -276,14 +276,17 @@ class Spotify:
             'album': get_album_name(),
             'cover': get_cover_url(),
             'duration': round(track_api['duration_ms'] / 1000),
-            'url': f"https://open.spotify.com/track/{id}",
-            'id': id,
+            'track_number': track_api['track_number'],
+            'disc_number': track_api['disc_number'],
+            'url': f"https://open.spotify.com/track/{id_}",
+            'id': id_,
             'source': lambda: self.generate_stream(
-                id,
+                id_,
                 aq=aq
             ),
-            'embed': lambda: self.generate_info_embed(id)
+            'embed': lambda: self.generate_info_embed(id_)
         }
+        return results
 
     async def fetch_id(self, query: str) -> dict:
         """Fetch the Spotify ID and type either from a URL or search query."""
@@ -331,13 +334,13 @@ class Spotify:
         if not result:
             return []
 
-        id, type_ = result['id'], result['type']
+        id_, type_ = result['id'], result['type']
 
         # TRACK
         if type_ == 'track':
             track_api: dict = await asyncio.to_thread(
                 self.sessions.sp.track,
-                track_id=id
+                track_id=id_
             )
             return [self.get_track_info(track_api, aq=aq)]
 
@@ -345,7 +348,7 @@ class Spotify:
         elif type_ == 'album':
             album_API: dict = await asyncio.to_thread(
                 self.sessions.sp.album,
-                album_id=id
+                album_id=id_
             )
             album_info = {
                 'name': album_API['name'],
@@ -359,7 +362,7 @@ class Spotify:
         elif type_ == 'playlist':
             playlist_API: dict = await asyncio.to_thread(
                 self.sessions.sp.playlist_tracks,
-                playlist_id=id,
+                playlist_id=id_,
                 offset=offset
             )
             return [self.get_track_info(track['track'], aq=aq)
@@ -369,7 +372,7 @@ class Spotify:
         elif type_ == 'artist':
             artist_API: dict = await asyncio.to_thread(
                 self.sessions.sp.artist_top_tracks,
-                artist_id=id,
+                artist_id=id_,
                 country=SPOTIFY_TOP_COUNTRY
             )
             return [self.get_track_info(track, aq=aq)

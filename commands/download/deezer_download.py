@@ -59,7 +59,9 @@ class DeezerDownload(commands.Cog):
             date=track['date'],
             artist=track['artists'],
             album=track['album'],
-            album_cover_url=track['cover']
+            album_cover_url=track['cover'],
+            disc_number=track['disc_number'],
+            track_number=track['track_number']
         )
 
         await upload(self.bot, ctx, file_path, f"{display_name}.flac")

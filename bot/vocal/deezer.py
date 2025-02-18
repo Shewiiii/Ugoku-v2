@@ -137,7 +137,7 @@ class Deezer_:
 
         logging.info("Deezer has been initialized successfully")
 
-    async def get_link_id(self, url: str) -> Optional[str]:
+    async def get_native_track_api(self, url: str) -> Optional[dict]:
         from_spotify = is_url(url, ['open.spotify.com'])
         parse_func = self.spotify.parseLink if from_spotify else parseLink
         parsed_url = parse_func(url)
@@ -152,7 +152,7 @@ class Deezer_:
         if not spotify_track_data:
             return
         track_api = await asyncio.to_thread(self.dz.api.get_track_by_ISRC, spotify_track_data['isrc'])
-        return str(track_api['id'])
+        return track_api
 
     async def get_track(
         self,
@@ -160,14 +160,19 @@ class Deezer_:
         id_: Optional[str] = None
     ) -> Optional[dict]:
         try:
-            link_id = id_ or await self.get_link_id(url)
+            if url:
+                native_track_api = await self.get_native_track_api(url)
+            else:
+                native_track_api = await asyncio.to_thread(self.dz.api.get_track, id_)
         except DataException:
+            # Not found
             return
+        link_id = native_track_api.get('id')
         if not link_id or link_id == '0':
             return
         # Prepare track object
-        track_api = await asyncio.to_thread(self.dz.gw.get_track_with_fallback, link_id)
-        results = await self.prepare_track_object(track_api)
+        gw_track_api = await asyncio.to_thread(self.dz.gw.get_track_with_fallback, link_id)
+        results = await self.prepare_track_object(gw_track_api, native_track_api)
         return results
 
     async def get_track_from_query(self, query: str) -> Optional[dict]:
@@ -180,27 +185,29 @@ class Deezer_:
             return results
 
         # normal query
-        search_data = await asyncio.to_thread(
-            self.dz.gw.search, query
-        )
+        search_data = await asyncio.to_thread(self.dz.gw.search, query)
         if not search_data['TRACK']['data']:
             raise DataException
 
-        # Get data from api
+        # Get data from gw api
         songs = [f"{track['ART_NAME']} {track['SNG_TITLE']}"
                  for track in search_data['TRACK']['data']]
         i = get_closest_string(query, songs)
-        track_api = search_data['TRACK']['data'][i]
-        results = await self.prepare_track_object(track_api)
+
+        # Api wrapping
+        gw_track_api: dict = search_data['TRACK']['data'][i]
+        native_track_api = self.dz.api.get_track(gw_track_api.get('SNG_ID', 0))
+        results = await self.prepare_track_object(gw_track_api, native_track_api)
         return results
 
-    async def get_stream_url_fallback(self, track_api: dict) -> str:
-        format_number = 9  # FLAC
-        id_ = int(track_api['SNG_ID'])
-        media_version = track_api['MEDIA_VERSION']
-        md5 = track_api['MD5_ORIGIN']
+    async def get_stream_url_fallback(self, gw_track_api: dict) -> str:
+        id_ = int(gw_track_api['SNG_ID'])
         stream_url = generateCryptedStreamURL(
-            id_, md5, media_version, format_number)
+            sng_id=id_,
+            md5=gw_track_api['MD5_ORIGIN'],
+            media_version=gw_track_api['MEDIA_VERSION'],
+            media_format=9
+        )
         async with httpx.AsyncClient(follow_redirects=True) as session:
             request = await session.head(
                 stream_url,
@@ -211,27 +218,26 @@ class Deezer_:
         logging.info(f"Crypted stream url generated successfully: {id_}")
         return stream_url
 
-    async def prepare_track_object(self, track_api: dict) -> Optional[None]:
-        track_token = track_api['TRACK_TOKEN']
-        id_ = int(track_api['SNG_ID'])
-        title = track_api['SNG_TITLE']
-        artist = track_api['ART_NAME']
+    async def prepare_track_object(
+        self,
+        gw_track_api: dict,
+        native_track_api: dict
+    ) -> Optional[None]:
+        id_ = int(gw_track_api['SNG_ID'])
+        artist = gw_track_api['ART_NAME']
         artists = ', '.join(
-            [artist]+track_api['SNG_CONTRIBUTORS'].get('main_artist', []))
-        album = track_api['ALB_TITLE']
-        cover = f"https://cdn-images.dzcdn.net/images/cover/{track_api['ALB_PICTURE']}/1000x1000-000000-80-0-0.jpg"
-        date = track_api.get('ORIGINAL_RELEASE_DATE', '')
+            [artist]+gw_track_api['SNG_CONTRIBUTORS'].get('main_artist', []))
 
         # Track URL
         try:
-            stream_url = await asyncio.to_thread(self.dz.get_track_url, track_token, 'FLAC')
+            stream_url = await asyncio.to_thread(self.dz.get_track_url, gw_track_api['TRACK_TOKEN'], 'FLAC')
         except DeezerError as e:
             logging.error(
                 f"Error when generating a stream URL for {id_}: {e}. "
                 "Running the fallback method..."
             )
             try:
-                stream_url = await self.get_stream_url_fallback(track_api)
+                stream_url = await self.get_stream_url_fallback(gw_track_api)
             except httpx.HTTPStatusError as e:
                 logging.error(
                     f"Error when generating a crypted stream URL for {id_}: {e}")
@@ -240,12 +246,14 @@ class Deezer_:
         results = {
             'stream_url': stream_url,
             'id': id_,
-            'title': title,
+            'title': gw_track_api['SNG_TITLE'],
             'artist': artist,
             'artists': artists,
-            'album': album,
-            'cover': cover,
-            'date': date
+            'album': gw_track_api['ALB_TITLE'],
+            'cover': f"https://cdn-images.dzcdn.net/images/cover/{gw_track_api['ALB_PICTURE']}/1000x1000-000000-80-0-0.jpg",
+            'date': native_track_api.get('release_date', ''),
+            'disc_number': native_track_api.get('disc_number', 1),
+            'track_number': native_track_api.get('track_position', 1)
         }
         return results
 

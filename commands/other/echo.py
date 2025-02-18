@@ -23,7 +23,7 @@ class Echo(commands.Cog):
     ) -> None:
         logging.info(f'{ctx.author.name} used /echo.')
         if not ctx.guild.me:
-            # If using the bot as an user application
+            # If using the bot as a user application
             # (Bot not in the server)
             await ctx.respond(content=message)
         else:
