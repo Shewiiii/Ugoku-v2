@@ -89,11 +89,9 @@ class QueueView(View):
             return embed
 
         # Get cover and colors of the NOW PLAYING song
-        source: str = self.queue[0]['source']
+        service: str = self.queue[0]['service']
         track_info: dict = self.queue[0]['track_info']
-        if source == 'Spotify':
-            cover_data = await self.bot.spotify.get_cover_data(track_info['id'])
-        elif source == 'Custom':
+        if service == 'custom':
             cover_data = await get_cover_data_from_hash(track_info['id'])
         else:
             cover_data = {

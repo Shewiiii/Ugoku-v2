@@ -378,11 +378,3 @@ class Spotify:
                     for track in artist_API['tracks']]
 
         return []
-
-    async def get_cover_data(self, track_id: str) -> dict:
-        """Fetches cover art data for a Spotify track."""
-        track = await asyncio.to_thread(self.sessions.sp.track, track_id)
-        cover_url = track['album']['images'][0]['url']
-        dominant_rgb = await get_dominant_rgb_from_url(cover_url)
-
-        return {'url': cover_url, 'dominant_rgb': dominant_rgb}

@@ -294,7 +294,6 @@ def get_metadata(file_path) -> Dict[str, List[str]]:
     if not audio_file:
         return {}
 
-    # For files using ID3 tags (e.g. MP3, sometimes WAV)
     if isinstance(audio_file, (MP3, ID3, WAVE)):
         return {
             'title': audio_file.get('TIT2', ['?']),

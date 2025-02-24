@@ -69,14 +69,15 @@ async def play_custom(
         return
 
     # Extract the metadata
-    # Idk why title and album are lists :elaina_huh:
     def first_item(items, default='?'):
         return items[0] if items else default
 
+    # Convert to list to sync with ID3 tags
     metadata = get_metadata(audio_path)
-    titles = metadata.get('title', [])
-    artists = metadata.get('artist', [])
-    albums = metadata.get('album', [])
+    titles = list(metadata.get('title', []))
+    artists = list(metadata.get('artist', []))
+    albums = list(metadata.get('album', []))
+    print(titles, artists, albums)
 
     artist = first_item(artists, default='?')
     album = first_item(albums, default='?')
@@ -98,8 +99,6 @@ async def play_custom(
     else:
         cover_url = id = None
         dominant_rgb = DEFAULT_EMBED_COLOR
-
-    # Prepare the track
 
     def embed():
         return generate_info_embed(

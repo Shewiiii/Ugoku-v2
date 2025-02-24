@@ -73,8 +73,8 @@ class Play(commands.Cog):
             await play_youtube(ctx, query, session, interaction)
 
         elif service == 'spotify/deezer':
-            if not SPOTIFY_API_ENABLED:
-                await edit(content=f'Spotify API is not enabled.')
+            if not SPOTIFY_API_ENABLED or (not SPOTIFY_ENABLED and not DEEZER_ENABLED):
+                await edit(content=f'Spotify API or no audio streaming service is enabled.')
                 return
             await play_spotify(
                 ctx, query, session, interaction,
