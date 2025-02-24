@@ -1,18 +1,19 @@
-import httpx
-import os
-import logging
-
+import asyncio
 import discord
 from discord.ext import commands
-from deezer.errors import DataException
+import httpx
+from spotipy.exceptions import SpotifyException
 
+from bot.search import is_url
+from bot.utils import get_cache_path
 from config import DEEZER_ENABLED
-from bot.utils import cleanup_cache, tag_flac_file, get_cache_path, upload
+from deezer_decryption.download import Download
 
 
 class DeezerDownload(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
+        self.download = Download()
 
     @commands.slash_command(
         name='dzdl',
@@ -30,41 +31,25 @@ class DeezerDownload(commands.Cog):
         if not DEEZER_ENABLED:
             await ctx.respond(content='Deezer features are not enabled.')
             return
-
         await ctx.respond('Give me a second~')
+        is_spotify_url = is_url(query, ['open.spotify.com'])
+        track_not_found_message = 'Track not found !'
 
-        # Get the track from query
+        if is_spotify_url:
+            native_track_api = await self.download.api.parse_spotify_track(query, self.bot.spotify.sessions.sp)
+            if not native_track_api:
+                await ctx.edit(content=track_not_found_message)
+                return
+            query = native_track_api.get('id')
+
         try:
-            track = await self.bot.deezer.get_track_from_query(query)
-        except DataException:
-            await ctx.edit(content="Track not found !")
+            path = await self.download.track_from_query(query, upload_=True, bot=self.bot, ctx=ctx, track_id=is_spotify_url)
+        except httpx.ConnectTimeout:
+            await ctx.edit(content='Connection timed out, please try again !')
             return
-        except httpx.HTTPError as e:
-            await ctx.edit(content=f"Error when generating a crypted stream URL.\n-# error: {e}")
 
-        # Set the cache path
-        await cleanup_cache()
-        cache_id = f"deezer{track['id']}"
-        file_path = get_cache_path(cache_id.encode('utf-8'))
-
-        # Download
-        if not file_path.is_file():
-            file_path = await self.bot.deezer.download(track)
-
-        # Tag the file
-        display_name = f"{track['artist']} - {track['title']}"
-        await tag_flac_file(
-            file_path,
-            title=track['title'],
-            date=track['date'],
-            artist=track['artists'],
-            album=track['album'],
-            album_cover_url=track['cover'],
-            disc_number=track['disc_number'],
-            track_number=track['track_number']
-        )
-
-        await upload(self.bot, ctx, file_path, f"{display_name}.flac")
+        if not path:
+            await ctx.edit(content=track_not_found_message)
 
 
 def setup(bot):

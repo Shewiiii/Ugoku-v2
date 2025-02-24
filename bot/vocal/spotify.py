@@ -147,7 +147,7 @@ class Librespot:
             try:
                 while True:
                     try:
-                        logging.info("Check Librespot session..")
+                        logging.debug("Check Librespot session..")
 
                         # Simulate a track play
                         stream = await self.get_stream(track_id)
@@ -246,7 +246,6 @@ class Spotify:
         """Extracts and returns track information from Spotify API response."""
         id_ = track_api['id']
         album = album_info or track_api.get('album', {})
-        date = album.get('release_date', '')
 
         def get_album_name() -> str:
             """Extract the album name from the album information. 
@@ -272,7 +271,7 @@ class Spotify:
             'display_name': f"{track_api['artists'][0]['name']} - {track_api['name']}",
             'title': track_api['name'],
             'artist': ', '.join(artist['name'] for artist in track_api['artists']),
-            'date': date,
+            'date': album.get('release_date', ''),
             'album': get_album_name(),
             'cover': get_cover_url(),
             'duration': round(track_api['duration_ms'] / 1000),
@@ -387,11 +386,3 @@ class Spotify:
         dominant_rgb = await get_dominant_rgb_from_url(cover_url)
 
         return {'url': cover_url, 'dominant_rgb': dominant_rgb}
-
-
-async def main() -> None:
-    """Main function to initialize Spotify sessions and create a Spotify instance."""
-    logging.basicConfig(level=logging.INFO)
-    sessions = SpotifySessions()
-    await sessions.init_spotify()
-    spotify = Spotify(sessions)

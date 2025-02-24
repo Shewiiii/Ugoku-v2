@@ -1,16 +1,13 @@
-import requests
-import aiofiles
-from pathlib import Path
 import asyncio
+from copy import deepcopy
+from pathlib import Path
 import logging
 import random
 from datetime import datetime, timedelta
 from typing import Optional, Callable, List, Literal
-from copy import deepcopy
 
 import discord
 from librespot.audio import AbsChunkedInputStream
-from deezer.errors import DataException
 
 from bot.vocal.queue_view import QueueView
 from bot.vocal.control_view import controlView
@@ -20,14 +17,12 @@ from config import (
     DEFAULT_ONSEI_VOLUME,
     DEEZER_ENABLED,
     SPOTIFY_ENABLED,
-    CACHE_STREAMS,
     DEFAULT_AUDIO_BITRATE,
-    DELAY_BEFORE_CACHING
 )
-from bot.vocal.deezer import DeezerChunkedInputStream
+from deezer_decryption.chunked_input_stream import DeezerChunkedInputStream
+from deezer_decryption.api import Deezer
+from deezer_decryption.download import Download
 from bot.utils import cleanup_cache, get_cache_path
-from deemix.utils.crypto import decryptChunk
-from deemix.utils import USER_AGENT_HEADER
 
 from typing import TYPE_CHECKING
 
@@ -85,8 +80,8 @@ class ServerSession:
         self.volume = DEFAULT_AUDIO_VOLUME
         self.onsei_volume = DEFAULT_ONSEI_VOLUME
         self.audio_effect = AudioEffect()
-        self.current_stream = None
         self.bitrate = DEFAULT_AUDIO_BITRATE
+        self.deezer_download = Download()
 
     async def display_queue(
         self,
@@ -139,15 +134,6 @@ class ServerSession:
                 name="Next",
                 value=next_track, inline=True
             )
-            # Audio quality indicator
-            aq_dict = {'youtube': 'Low', 'spotify': 'High', 'deezer': 'Hifi'}
-            audio_quality = aq_dict.get(self.queue[0]['source'].lower(), None)
-            if audio_quality:
-                sent_embed.add_field(
-                    name="Audio quality",
-                    value=audio_quality,
-                    inline=True
-                )
 
             # No need for a text message if embed
             message = ''
@@ -191,52 +177,66 @@ class ServerSession:
         await self.start_playing(self.last_context, start_position=position)
         return True
 
-    async def inject_lossless_stream(self, index: int = 0) -> bool:
-        if not await self.check_deezer_availability(index=index):
-            return False
-        # Create stream directly from the track dict in track_info
+    async def load_deezer_stream(self, index: int = 0) -> Optional[DeezerChunkedInputStream]:
+        if (index >= len(self.queue)
+            or not DEEZER_ENABLED or self.queue[index]['service'] != 'spotify/deezer'
+                or isinstance(self.queue[0]['track_info']['source'], (str, Path))):
+            return
+
+        deezer: Deezer = self.bot.deezer
         track_info = self.queue[index]['track_info']
-        deezer = self.bot.deezer
-        track = track_info.get('track')
-        try:
-            track_info['source'] = await asyncio.to_thread(deezer.stream, track)
-            return True
-        except DataException:
-            return False
+        source = track_info['source']
 
-    async def check_deezer_availability(self, index: int = 0) -> bool:
-        """Returns true if a track in queue is available on Deezer. 
-        Change a "track" field to the track_info dict depending on the availability."""
-        track_info = self.queue[index]['track_info']
-        # Already a deezer stream
-        if isinstance(track_info['source'], DeezerChunkedInputStream):
-            logging.info(
-                f"Stream already loaded: {track_info['display_name']}")
-            return True
+        # Already a Deezer stream: reset the position
+        if isinstance(source, DeezerChunkedInputStream):
+            source.current_position = 0
+            return source
 
-        # Already cached
-        if isinstance(track_info['source'], (str, Path)):
-            return True
+        # Try to get native track API (to grab the song from irsc)
+        native_track_api = await deezer.parse_spotify_track(track_info['url'], self.bot.spotify.sessions.sp)
+        if not native_track_api:
+            return
 
-        # Outside the queue
-        if index >= len(self.queue):
-            return False
-        
-        # Not a deezer track
-        if not DEEZER_ENABLED or not self.queue[index]['source'] == 'Deezer':
-            return False
+        # Setup streaming
+        track_id = native_track_api['id']
+        gw_track_api = (await deezer.get_track_page(track_id)).get('DATA')
+        if not gw_track_api:
+            return
 
-        deezer = self.bot.deezer
-        try:
-            track = await deezer.get_track(url=track_info['url'])
-            if not track:
-                return False
-            track_info['track'] = track
-            return True
-        except Exception as e:
-            logging.error(e)
-            self.queue[index]['source'] = 'Spotify'
-            return False
+        # Load the stream
+        track_token = gw_track_api['TRACK_TOKEN']
+        stream_url = (await deezer.get_track_urls([track_token]))[0]
+        if not stream_url:
+            # Track not found at desired bitrate and no alternative found
+            return
+
+        input_stream = DeezerChunkedInputStream(track_id, stream_url)
+        await input_stream.set_chunks()
+
+        track_info.update({
+            'source': input_stream,
+            'id': track_id
+        })
+
+        return input_stream
+
+    async def load_spotify_stream(self, index: int = 0) -> Optional[AbsChunkedInputStream]:
+        if index >= len(self.queue) or not SPOTIFY_ENABLED:
+            return
+        source = self.queue[index]['track_info']['source']
+
+        # Handle Spotify stream generators
+        if isinstance(source, Callable):
+            try:
+                input_stream = await source()
+            except Exception as e:
+                logging.error(e)
+                return
+
+        # Skip non-audio content in Spotify streams
+        if isinstance(input_stream, AbsChunkedInputStream):
+            await asyncio.to_thread(input_stream.seek, 167)
+            return input_stream
 
     async def start_playing(
         self,
@@ -244,40 +244,23 @@ class ServerSession:
         start_position: int = 0
     ) -> None:
         """Handles the playback of the next track in the queue."""
+        start = datetime.now()
         self.last_context = ctx
+
         if not self.queue:
             logging.info(f'Playback stopped in {self.guild_id}')
-            return  # No songs to play
+            return
 
-        # Check for a cache file
+        # Cache
         await cleanup_cache()
         current_element = self.queue[0]
-        service = current_element['source'].lower()
-        id: str = current_element['track_info']['id']
-        file_path = get_cache_path(f"{service}{id}".encode('utf-8'))
-
-        # Cached stream already
+        service = current_element['service']
+        track_id: str = current_element['track_info']['id']
+        file_path = get_cache_path(f"{service}{track_id}".encode('utf-8'))
         if file_path.is_file():
             current_element['track_info']['source'] = file_path
 
-        # New track info dict
-        track_info = current_element['track_info']
-        cached = isinstance(track_info['source'], (Path, str))
-
-        # If Deezer enabled, inject lossless stream in a spotify track
-        if service == 'deezer' and not cached and not await self.inject_lossless_stream():
-            current_element['source'] = "spotify"
-
-        if current_element['source'] == "spotify" and not SPOTIFY_ENABLED:
-            await ctx.send(
-                content=f"{track_info['display_name']}"
-                " is not available !",
-                silent=True
-            )
-            self.after_playing(ctx, error=None)
-            return
-
-        # Now playing embed info
+        # Send now playing
         should_send_now_playing = (
             not self.is_seeking
             and (self.skipped or not self.loop_current)
@@ -288,71 +271,56 @@ class ServerSession:
                 await self.send_now_playing(ctx)
             except discord.errors.Forbidden:
                 logging.error(
-                    "Now playing embed sent in a "
-                    f"fobidden channel in {self.guild_id}"
-                )
-            # Reset the skip flag
+                    f"Now playing embed sent in forbidden channel in {self.guild_id}")
             self.skipped = False
 
-        # Audio source to play
-        source = track_info['source']
-
-        # If source is a stream generator, generate a fresh stream
-        if isinstance(source, Callable) and SPOTIFY_ENABLED:
-            try:
-                source = await source()
-            except RuntimeError as e:
-                if str(e) == "Cannot get alternative track":
-                    await ctx.send(f"{track_info['display_name']} is not available !")
-                else:
-                    logging.error(e)
+        # Audio source setup
+        track_info = current_element['track_info']
+        unloaded_source = track_info['source']
+        if service == 'spotify/deezer' and not isinstance(unloaded_source, (Path, str)):
+            source = await self.load_deezer_stream() or await self.load_spotify_stream()
+            if source is None:
+                await ctx.send(f"{track_info['display_name']} is not available!")
                 self.after_playing(ctx, error=None)
                 return
+        else:
+            source = unloaded_source
+        logging.info(f"Stream source: {source}")
 
-        # Skip the non-audio content in spotify streams
-        if isinstance(source, AbsChunkedInputStream):
-            await asyncio.to_thread(source.seek, 167)
-
-        # Set up FFmpeg options for seeking and volume
-        volume = (
-            self.volume if service != 'onsei' else self.onsei_volume) / 100
-
-        # Check if there is an audio effect
+        # FFmpeg config
+        volume = (self.volume if service !=
+                  'onsei' else self.onsei_volume) / 100
         ae = self.audio_effect
-        if self.audio_effect.effect:
+        ffmpeg_options = {}
+
+        if ae.effect:
+            # Audio convolution
             before_options = (
                 f'-i "./audio_ir/{ae.left_ir_file}" '
                 f'-i "./audio_ir/{ae.right_ir_file}"'
             )
             volume_adjust = volume * ae.volume_multiplier
+            mix_condition = "" if ae.effect_only else "[2:a][fx_stereo]amix=inputs=2:weights=1 1[mix]; "
+            output_source = "[mix]" if not ae.effect_only else "[fx_stereo]"
             filter_complex = (
-                f'"'
-                # Split L&R channels
-                f'[2:a]channelsplit=channel_layout=stereo[L_in][R_in]; '
-                # Convolve both channels, then rejoin them
+                f'"[2:a]channelsplit=channel_layout=stereo[L_in][R_in]; '
                 f'[L_in][0:a]afir=dry={ae.dry}:wet={ae.wet}[L_fx]; '
                 f'[R_in][1:a]afir=dry={ae.dry}:wet={ae.wet}[R_fx]; '
                 f'[L_fx][R_fx]join=inputs=2:channel_layout=stereo[fx_stereo]; '
-                # Combine the effect with the original signal
-                f'{"[2:a][fx_stereo]amix=inputs=2:weights=1 1[mix]; " if not ae.effect_only else ""}'
-                f'{"[mix]" if not ae.effect_only else "[fx_stereo]"}'
-                # Apply the other settings
-                f'volume={volume_adjust}[out]" '
-                f'-map "[out]" -ss {start_position}'
+                f'{mix_condition}'
+                f'{output_source}volume={volume_adjust}[out]"'
             )
-
             ffmpeg_options = {
                 "before_options": before_options,
-                "options": f'-filter_complex {filter_complex}'
+                "options": f'-filter_complex {filter_complex} -map "[out]" -ss {start_position}'
             }
         else:
-            # Default output options
+            # Basic volume adjustment
             ffmpeg_options = {
-                'options': (
-                    f'-ss {start_position} '
-                    f'-filter:a "volume={volume}" '
-                )
+                'options': f'-ss {start_position} -filter:a "volume={volume}"'
             }
+
+        # Play !
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
             pipe=isinstance(source, (AbsChunkedInputStream,
@@ -360,34 +328,27 @@ class ServerSession:
             bitrate=self.bitrate,
             **ffmpeg_options
         )
-
-        # Add the currently playing source in class variable
-        self.current_stream = source
-
-        # Play the song !
         self.voice_client.play(
             ffmpeg_source,
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
-        # Update dates
+        # Playback State Management
         now = datetime.now()
         self.time_elapsed = start_position
         self.last_played_time = now
         self.playback_start_time = now.isoformat()
 
-        # Reset flags
+        # Reset control flags
         self.is_seeking = False
         self.previous = False
 
-        # Tasks to improve reactivity
+        # Process the next track
         await self.prepare_next_track()
-        # After a few seconds, cache tracks if they have not changed
-        if CACHE_STREAMS:
-            await asyncio.sleep(DELAY_BEFORE_CACHING)
-            await self.cache_stream(index=0)
-            if len(self.queue) >= 1:
-                await self.cache_stream(index=1)
+
+        # Log total processing time
+        logging.info(
+            f"Start playing processing time: {(datetime.now() - start).total_seconds()}s")
 
     async def prepare_next_track(self, index: int = 1) -> None:
         """Check the availability of the next track and load its embed in queue."""
@@ -398,24 +359,21 @@ class ServerSession:
         current_id = track_info['id']
 
         # Deezer
-        if not await self.check_deezer_availability(index=index):
-            logging.info(
-                f"Track not available on Deezer: {track_info['display_name']}")
-            self.queue[index]['source'] = 'spotify'
+        await self.load_deezer_stream(index=index)
 
         # Generate the embed
         embed = track_info.get('embed', None)
         if embed and isinstance(embed, Callable):
             if track_info['id'] == current_id:
                 track_info['embed'] = await embed()
-            logging.info(
-                f"Preloaded the embed of {track_info['display_name']}")
+
+        logging.info(f"Preloaded {track_info['display_name']}")
 
     async def add_to_queue(
         self,
         ctx: discord.ApplicationContext,
         tracks_info: List[dict],
-        source: Literal['Spotify', 'Youtube', 'Custom', 'Onsei'],
+        service: Literal['spotify', 'youtube', 'custom', 'onsei'],
         interaction: Optional[discord.Interaction] = None
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing."""
@@ -439,7 +397,7 @@ class ServerSession:
         for track_info in tracks_info:
             queue_item: dict = {
                 'track_info': track_info,
-                'source': source
+                'service': service
             }
             self.queue.append(queue_item)
             # Add to original queue for shuffle
@@ -486,8 +444,6 @@ class ServerSession:
         # (prepare_next_track method has not been called before)
         if original_length == 1:
             await self.prepare_next_track()
-            await asyncio.sleep(DELAY_BEFORE_CACHING)
-            await self.cache_stream(index=1)
 
     async def play_previous(self, ctx: discord.ApplicationContext) -> None:
         self.previous = True
@@ -544,13 +500,7 @@ class ServerSession:
         if error:
             raise error
 
-        # Close the current stream if it exists
-        if self.current_stream and isinstance(self.current_stream, (DeezerChunkedInputStream, AbsChunkedInputStream)):
-            self.current_stream.close()
-            self.current_stream = None
-
         if self.is_seeking:
-            # If we're seeking, don't do anything
             return
 
         if self.queue and self.voice_client.is_connected():
@@ -595,10 +545,12 @@ class ServerSession:
 
                 if time_until_disconnect <= timedelta(seconds=0):
                     await self.voice_client.disconnect()
-                    del self.session_manager.server_sessions[self.guild_id]
-                    channel = self.bot.get_channel(self.channel_id)
                     if channel:
                         await channel.send('Baibai~')
+                    await self.voice_client.cleanup()
+                    await self.close_streams()
+                    del self.session_manager.server_sessions[self.guild_id]
+                    channel = self.bot.get_channel(self.channel_id)
                     logging.info(
                         f'Deleted audio session in {self.guild_id} '
                         'due to inactivity.'
@@ -607,102 +559,10 @@ class ServerSession:
 
             await asyncio.sleep(17)
 
-    async def cache_stream(self, index: int) -> None:
-        """Cache audio streams from Deezer or Spotify"""
-        cached = False
-        await cleanup_cache()
-        if len(self.queue) <= index:
-            # Nothing to cache
-            return
-
-        # All the variables
-        next_element = self.queue[index]
-        track_info = next_element['track_info']
-        source = track_info['source']
-        service = next_element['source'].lower()
-        id = track_info['id']
-        cache_id: str = f"{service}{id}"
-        file_path = get_cache_path(cache_id.encode('utf-8'))
-
-        # Not a Deezer or Spotify stream / already cached
-        if isinstance(source, (Path, str)):
-            return
-
-        # Cached stream already, nothing to do
-        is_file = file_path.is_file()
-        if is_file:
-            track_info['source'] = file_path
-        if is_file or id in self.cached_songs:
-            logging.info(
-                f"Already cached/Attempted to cache: {track_info['display_name']}")
-            return
-
-        # Add the stream to the cached songs set before processing
-        # (avoid multiple caching for a single track)
-        self.cached_songs.add(id)
-
-        # Is a Spotify stream
-        if isinstance(source, Callable) and SPOTIFY_ENABLED:
-            source = await source()
-
-            if isinstance(source, AbsChunkedInputStream):
-                if not SPOTIFY_ENABLED:
-                    return
-                # Get track data
-                data = await asyncio.to_thread(source.read)
-                # Download
-                with open(file_path, 'wb') as file:
-                    file.write(data)
-                cached = True
-
-        # Deezer stream (means deezer features are enabled)
-        elif service == 'deezer':
-            await self.inject_lossless_stream(index)
-            # Updated source
-            source = next_element['track_info']['source']
-
-            if isinstance(source, DeezerChunkedInputStream):
-                # Generate a separate stream URL
-                track = await self.bot.deezer.get_track(id_=str(source.id))
-                response = await asyncio.to_thread(
-                    requests.get,
-                    track['stream_url'],
-                    headers={'User-Agent': USER_AGENT_HEADER},
-                    timeout=10
-                )
-                if response.status_code != 200:
-                    logging.error(
-                        f"Failed to fetch stream for track {track_info['id']}")
-                    return
-                encrypted_stream = await asyncio.to_thread(
-                    response.iter_content,
-                    source.chunk_size
-                )
-
-                async with aiofiles.open(file_path, 'wb') as file:
-                    while True:
-                        chunk = await asyncio.to_thread(
-                            next,
-                            encrypted_stream,
-                            None
-                        )
-                        if chunk is None:
-                            # No more chunks to process
-                            break
-                        if len(chunk) >= 2048:
-                            # Offload decryption to a thread
-                            decrypted = await asyncio.to_thread(
-                                decryptChunk,
-                                source.blowfish_key,
-                                chunk[:2048]
-                            )
-                            chunk = decrypted + chunk[2048:]
-
-                        # Write the chunk asynchronously
-                        await file.write(chunk)
-                cached = True
-
-        # Check if it is still the same track
-        if track_info['id'] == id and cached:
-            logging.info(f"Cached successfully: {track_info['display_name']} ")
-            track_info['source'] = file_path
+    async def close_streams(self) -> None:
+        for stream in self.queue+self.stack_previous+self.to_loop:
+            if isinstance(stream, DeezerChunkedInputStream):
+                await self.current_stream.close(),
+            elif isinstance(stream, AbsChunkedInputStream):
+                await asyncio.to_thread(self.current_stream.close)
+            self.stream = None

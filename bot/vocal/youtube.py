@@ -30,7 +30,7 @@ yt_dlp.utils.bug_reports_message = lambda: ''  # disable yt_dlp bug report
 def format_options(file_path: Union[str, Path]) -> dict:
     # See https://github.com/yt-dlp/yt-dlp/wiki/Extractors#po-token-guide
     # If Ugoku is detected as a bot
-    po_token = ''
+    po_token = 'MpQBnn2_i6PvVJOeRQNzhj4c3VpK7zxMdrJIDC15DaQqRV6INzmF6QkvLsrrZCzQsMarPAwFE_4SKjGkwVKyVZc98Icpy5erNuLeZeY630ZtqhutP48Gtg8bxt-eT2dCy0kPIns6ZVn21wYPUqCMTuzs57REadrxW3LGkzX-M-HWhLDibmkJpmFyR8aro5oW7xSM28bJoA=='
     return {
         'format': 'bestaudio',
         'outtmpl': str(file_path),
@@ -47,9 +47,9 @@ def format_options(file_path: Union[str, Path]) -> dict:
         'age_limit': 100,
         'live_from_start': True,
         'quiet': True,
-        
-        # 'extractor-args': 'youtube:player-client=web,default;po_token=web+'+po_token,
-        # 'cookies': './cookies.json'
+
+        'extractor-args': 'youtube:player-client=web,default;po_token=web+'+po_token,
+        'cookies': './cookiebro-cookies.json'
     }
 
 

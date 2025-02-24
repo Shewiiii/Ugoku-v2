@@ -20,10 +20,10 @@ class Leave(commands.Cog):
             return
 
         if session:
+            await session.voice_client.disconnect()
             await ctx.respond('Baibai~')
-            voice_client: discord.VoiceClient = session.voice_client
-            await voice_client.disconnect()
-            voice_client.cleanup()
+            session.voice_client.cleanup()
+            await session.close_streams()
             del sm.server_sessions[guild_id]
 
 

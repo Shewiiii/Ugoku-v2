@@ -20,22 +20,13 @@ async def play_spotify(
     query: str,
     session: ServerSession,
     interaction: Optional[discord.Interaction] = None,
-    requested_source: str = 'Spotify',
     offset: int = 0,
     artist_mode: bool = False
 ) -> None:
     """
     Handles playback of Spotify tracks.
-
     This function searches for Spotify tracks based on the given query,
     adds them to the session's queue, and starts playback if not already playing.
-
-    Args:
-        ctx (discord.ApplicationContext): The Discord application context.
-        query (str): The Spotify track or playlist URL, or search query.
-        session (ServerSession): The current server's audio session.
-        interaction: A discord interaction if that method has been triggered by one.
-        requested_source: The streaming service that should be used (Spotify or Deezer).
     """
     if len(query) >= 250:
         await ctx.respond('Query too long!')
@@ -55,19 +46,11 @@ async def play_spotify(
         await (interaction.edit_original_message(content=content) if interaction else ctx.edit(content=content))
         return
 
-    await session.add_to_queue(ctx, tracks_info, requested_source, interaction)
+    await session.add_to_queue(ctx, tracks_info, 'spotify/deezer', interaction)
 
 
 def get_display_name_from_query(query: str) -> str:
-    """
-    Extracts a display name from the query URL if no title is found.
-
-    Args:
-        query (str): The URL query string.
-
-    Returns:
-        str: The extracted display name or 'Custom track' if extraction fails.
-    """
+    """Extracts a display name from the query URL if no title is found."""
     match = re.search(r'(?:.+/)([^#?]+)', query)
     return unquote(match.group(1)) if match else 'Custom track'
 
@@ -77,17 +60,7 @@ async def play_custom(
     query: str,
     session: ServerSession
 ) -> None:
-    """
-    Handles playback of custom audio sources.
-
-    This function fetches audio from a custom URL, extracts metadata,
-    processes cover art, and adds the track to the session's queue.
-
-    Args:
-        ctx (discord.ApplicationContext): The Discord application context.
-        query (str): The URL of the custom audio source.
-        session (ServerSession): The current server's audio session.
-    """
+    """Handles playback of other URLs."""
     # Request and cache
     try:
         audio_path = await fetch_audio_stream(query)
@@ -96,17 +69,25 @@ async def play_custom(
         return
 
     # Extract the metadata
-    metadata = get_metadata(audio_path)
     # Idk why title and album are lists :elaina_huh:
-    titles = metadata.get('title')
-    artists = metadata.get('artist', ['?'])
-    display_name = (
-        f'{artists[0]} - {titles[0]}' if titles
-        else get_display_name_from_query(query)
-    )
-    title = titles[0] if titles else display_name
-    albums = metadata.get('album')
-    album = albums[0] if albums else '?'
+    def first_item(items, default='?'):
+        return items[0] if items else default
+
+    metadata = get_metadata(audio_path)
+    titles = metadata.get('title', [])
+    artists = metadata.get('artist', [])
+    albums = metadata.get('album', [])
+
+    artist = first_item(artists, default='?')
+    album = first_item(albums, default='?')
+    has_title = len(titles) > 0
+
+    if has_title:
+        title = titles[0]
+        display_name = f'{artist} - {title}'
+    else:
+        display_name = get_display_name_from_query(query)
+        title = display_name
 
     # Extract the cover art
     cover_bytes = extract_cover_art(audio_path)
@@ -143,7 +124,7 @@ async def play_custom(
         'id': id
     }
 
-    await session.add_to_queue(ctx, [track_info], source='Custom')
+    await session.add_to_queue(ctx, [track_info], 'custom')
 
 
 async def play_onsei(
@@ -153,14 +134,8 @@ async def play_onsei(
 ) -> None:
     """
     Handles playback of Onsei audio tracks.
-
     This function fetches track information from Onsei API, processes the data,
     and adds the tracks to the session's queue.
-
-    Args:
-        ctx (discord.ApplicationContext): The Discord application context.
-        query (str): The Onsei work ID or URL.
-        session (ServerSession): The current server's audio session.
     """
     work_id = extract_number(query)
 
@@ -213,7 +188,7 @@ async def play_onsei(
         }
 
         tracks_info.append(track_info)
-    await session.add_to_queue(ctx, tracks_info, source='Onsei')
+    await session.add_to_queue(ctx, tracks_info, 'onsei')
 
 
 async def play_youtube(
@@ -237,4 +212,4 @@ async def play_youtube(
         await edit(content='No video has been found!')
         return
 
-    await session.add_to_queue(ctx, [tracks_info], 'Youtube', interaction)
+    await session.add_to_queue(ctx, [tracks_info], 'youtube', interaction)

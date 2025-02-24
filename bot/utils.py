@@ -361,44 +361,6 @@ async def tag_ogg_file(
     logging.info(f"Tagged '{file_path}' successfully.")
 
 
-async def tag_flac_file(
-    file_path: Union[Path, str],
-    title: str = '',
-    artist: str = '',
-    album_cover_url: str = '',
-    album: str = '',
-    date: str = '',
-    track_number: Union[int, str] = '',
-    disc_number: Union[int, str] = '',
-    width: int = 1000,
-    height: int = 1000,
-) -> None:
-    audio = FLAC(file_path)
-
-    picture = Picture()
-    picture.type = 3  # Front Cover
-    picture.width = width
-    picture.height = height
-    picture.mime = 'image/jpeg'
-    picture.desc = 'Cover'
-    if album_cover_url:
-        async with httpx.AsyncClient(follow_redirects=True) as session:
-            response = await session.get(album_cover_url)
-            response.raise_for_status()
-            cover_bytes = response.content
-        picture.data = cover_bytes
-
-    audio['title'] = title
-    audio['artist'] = artist
-    audio['album'] = album
-    audio['date'] = date
-    audio['tracknumber'] = str(track_number)
-    audio['discnumber'] = str(disc_number)
-
-    audio.add_picture(picture)
-    audio.save(file_path)
-
-
 def split_into_chunks(string: str, max_length=1024) -> list:
     """Convert a string into a list of chunks with an adjustable size."""
     paragraphs = string.split('/n')  # Split the text into paragraphs
@@ -501,6 +463,8 @@ async def upload(
     # Not uploaded, attempthing to upload in the premium channel
     if not PREMIUM_CHANNEL_ID:
         await ctx.edit(content=f"Upload failed: file too big.")
+        return
+
     try:
         channel = await bot.fetch_channel(PREMIUM_CHANNEL_ID)
         message = await channel.send(

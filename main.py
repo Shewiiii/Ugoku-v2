@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 if CHATBOT_ENABLED:
     from bot.chatbot.vector_recall import memory
 if DEEZER_ENABLED:
-    from bot.vocal.deezer import Deezer_
+    from deezer_decryption.api import Deezer
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -49,9 +49,7 @@ async def on_ready() -> None:
         await spotify_sessions.init_spotify()
         bot.spotify = spotify
         if DEEZER_ENABLED:
-            deezer = Deezer_()
-            await deezer.init_deezer()
-            bot.deezer = deezer
+            bot.deezer = Deezer()
     bot.youtube = Youtube()
 
     # Chatbot instances

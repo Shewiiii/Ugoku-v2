@@ -18,7 +18,7 @@ class Clear(commands.Cog):
     async def clear(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
         session: ServerSession | None = sm.server_sessions.get(guild_id)
-        if not vocal_action_check(session, ctx, ctx.respond):
+        if not await vocal_action_check(session, ctx, ctx.respond):
             return
 
         if session:

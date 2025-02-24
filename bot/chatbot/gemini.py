@@ -100,14 +100,15 @@ Don't greet in every message
 class Gembot:
     def __init__(
         self,
-        id_
+        id_,
+        gemini_model=GEMINI_MODEL
     ) -> None:
         self.id_: int = id_
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.last_prompt = datetime.now()
         self.message_count = 0
         self.model = genai.GenerativeModel(
-            model_name=GEMINI_MODEL,
+            model_name=gemini_model,
             system_instruction=self.with_emotes(Prompts.system)
         )
         self.chat = self.model.start_chat()

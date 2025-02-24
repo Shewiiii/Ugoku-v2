@@ -14,6 +14,6 @@ yt-dlp[default] --pre
 google-generativeai
 pytz
 pinecone[grpc]
-deemix
 httpx
 aiofiles
+pycryptodome

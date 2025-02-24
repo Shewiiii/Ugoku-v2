@@ -25,7 +25,7 @@ class AudioBitrate(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
-        if not vocal_action_check(session, ctx, ctx.respond):
+        if not await vocal_action_check(session, ctx, ctx.respond):
             return
 
         if not 6 <= bitrate <= 510:

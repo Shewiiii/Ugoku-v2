@@ -8,7 +8,7 @@ import logging
 SPOTIFY_API_ENABLED = True
 SPOTIFY_ENABLED = False
 DEEZER_ENABLED = False
-DEFAULT_STREAMING_SERVICE = 'Youtube' # Deezer, Spotify, Youtube.
+DEFAULT_STREAMING_SERVICE = 'youtube' # spotify/deezer, youtube.
 CHATBOT_ENABLED = False
 ALLOW_CHATBOT_IN_DMS = True # Allow everyone to use the bot in dms. Can increase the token usage.
 
@@ -17,7 +17,6 @@ ALLOW_CHATBOT_IN_DMS = True # Allow everyone to use the bot in dms. Can increase
 COMMANDS_FOLDER = Path('./commands')
 TEMP_FOLDER = Path('.') / 'temp'
 # Cache control
-CACHE_STREAMS = True # Greatly improves streams playback, but requires a great internet connection
 PREMIUM_CHANNEL_ID = None # Upload files too big to a channel in a boosted server instead
 DELAY_BEFORE_CACHING = 10 # Seconds to wait before caching the current and next track in queue
 CACHE_SIZE = 100  # Cache size limit (in number of files)

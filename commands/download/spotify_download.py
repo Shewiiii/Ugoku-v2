@@ -95,7 +95,6 @@ class SpotifyDownload(commands.Cog):
             except OggVorbisHeaderError:
                 logging.warning(
                     f"Unable to read the full header of {file_path}")
-            size = len(data)
 
         await upload(self.bot, ctx, file_path, f"{track['display_name']}.ogg")
 

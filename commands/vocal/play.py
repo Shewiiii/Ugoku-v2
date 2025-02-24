@@ -5,7 +5,7 @@ import discord
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
-from bot.vocal.audio_source_handlers import play_spotify, play_custom, play_onsei, play_youtube
+from bot.vocal.audio_service_handlers import play_spotify, play_custom, play_onsei, play_youtube
 from bot.utils import is_onsei, send_response, vocal_action_check
 from bot.search import is_url
 from config import (
@@ -25,7 +25,7 @@ class Play(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         query: str,
-        source: str,
+        service: str,
         interaction: Optional[discord.Interaction] = None,
         offset: int = 0,
         artist_mode: bool = False,
@@ -58,35 +58,27 @@ class Play(commands.Cog):
             for attr, value in attrs.items():
                 setattr(session.audio_effect, attr, value)
 
-        # Message to user
         await send_response(respond, "Give me a second~", session.guild_id)
 
-        source = source.lower()
         youtube_domains = ['youtube.com', 'www.youtube.com', 'youtu.be']
         spotify_domains = ['open.spotify.com']
 
-        # Detect if the query refers to an Onsei
-        if source == 'onsei' or is_onsei(query):
+        if service == 'onsei' or is_onsei(query):
             await play_onsei(ctx, query, session)
 
-        # If the query is custom or an URL not from Spotify/Youtube
-        elif source == 'custom' or (is_url(query) and not is_url(query, from_=spotify_domains+youtube_domains)):
+        elif service == 'custom' or (is_url(query) and not is_url(query, from_=spotify_domains+youtube_domains)):
             await play_custom(ctx, query, session)
 
-        # Else, search Spotify or Youtube
-        elif source == 'youtube' or is_url(query, from_=youtube_domains):
+        elif service == 'youtube' or is_url(query, from_=youtube_domains):
             await play_youtube(ctx, query, session, interaction)
 
-        # If Deezer enabled, inject a lossless stream before playing the track
-        elif source in {'spotify', 'deezer'}:
-            service = source.capitalize()
-            if (source == 'spotify' and not (SPOTIFY_ENABLED and SPOTIFY_API_ENABLED)) or \
-                    (source == 'deezer' and not (SPOTIFY_API_ENABLED and DEEZER_ENABLED)):
-                await edit(content=f'{service} API or {service} features are not enabled.')
+        elif service == 'spotify/deezer':
+            if not SPOTIFY_API_ENABLED:
+                await edit(content=f'Spotify API is not enabled.')
                 return
             await play_spotify(
-                ctx, query, session, interaction, service,
-                offset if source == 'spotify' else None, artist_mode
+                ctx, query, session, interaction,
+                offset, artist_mode
             )
         else:
             await edit(content='wut duh')
@@ -99,10 +91,10 @@ class Play(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         query: str,
-        source: discord.Option(
+        service: discord.Option(
             str,
             description="The streaming service you want to use.",
-            choices=['Deezer', 'Spotify', 'Youtube', 'Custom', 'Onsei'],
+            choices=['Spotify/Deezer', 'Youtube', 'Custom', 'Onsei'],
             default=DEFAULT_STREAMING_SERVICE
         ),  # type: ignore
         playlist_offset: discord.Option(
@@ -125,7 +117,7 @@ class Play(commands.Cog):
         await self.execute_play(
             ctx,
             query,
-            source,
+            service.lower(),
             offset=playlist_offset,
             artist_mode=artist_mode,
             effect=effect
