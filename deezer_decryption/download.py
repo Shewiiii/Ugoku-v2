@@ -17,8 +17,10 @@ from bot.utils import upload, cleanup_cache, get_cache_path, upload
 
 
 class Download:
-    def __init__(self):
-        self.api = Deezer()
+    def __init__(self, deezer: Optional[Deezer] = None):
+        if deezer is None:
+            deezer = Deezer()
+        self.api = deezer
 
     async def tracks(
         self,

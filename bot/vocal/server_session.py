@@ -81,7 +81,7 @@ class ServerSession:
         self.onsei_volume = DEFAULT_ONSEI_VOLUME
         self.audio_effect = AudioEffect()
         self.bitrate = DEFAULT_AUDIO_BITRATE
-        self.deezer_download = Download()
+        self.deezer_download = Download(bot.deezer)
 
     async def display_queue(
         self,
@@ -105,25 +105,24 @@ class ServerSession:
         """Sends an embed with information about the currently playing track."""
         # Retrieve the current track_info from the queue
         track_info: dict = self.queue[0]['track_info']
-        embed: Optional[discord.Embed] = track_info['embed']
+        unloaded_embed: Optional[discord.Embed] = track_info['embed']
         title: str = track_info['display_name']
         url: str = track_info['url']
         title_markdown = f'[{title}](<{url}>)'
 
-        if embed:
+        if unloaded_embed:
             # In case it requires additional api calls,
             # The embed is generated when needed only
-            if isinstance(embed, Callable):
-                sent_embed = await embed()
+            if isinstance(unloaded_embed, Callable):
+                track_info['embed'] = await track_info['embed']()
+                sent_embed = deepcopy(track_info['embed'])
             else:
-                sent_embed = deepcopy(embed)
+                sent_embed = deepcopy(unloaded_embed)
 
+            next_track = 'End of queue!'
             if len(self.queue) > 1:
                 next_track_info = self.queue[1]['track_info']
-                next_track = (
-                    f'[{next_track_info["display_name"]}](<{next_track_info["url"]}>)')
-            else:
-                next_track = 'End of queue!'
+                next_track = f'[{next_track_info["display_name"]}](<{next_track_info["url"]}>)'
             # Update the embed with remaining tracks
             sent_embed.add_field(
                 name="Remaining",

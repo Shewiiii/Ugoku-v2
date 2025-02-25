@@ -173,18 +173,7 @@ def get_accent_color(
 async def get_dominant_rgb_from_url(
     image_url: str
 ) -> Tuple[int, int, int]:
-    """
-    Fetch an image from a URL and extract its accent color.
-
-    Args:
-        image_url (str): The URL of the image.
-
-    Returns:
-        Tuple[int, int, int]: The RGB values of the extracted accent color.
-
-    Raises:
-        aiohttp.ClientResponseError: If the image fetch fails.
-    """
+    """Fetch an image from a URL and extract its accent color."""
     async with httpx.AsyncClient(follow_redirects=True) as session:
         response = await session.get(image_url)
         response.raise_for_status()

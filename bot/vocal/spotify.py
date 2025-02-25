@@ -189,9 +189,8 @@ class Spotify:
         """Initializes the Spotify class with SpotifySessions."""
         self.sessions = sessions
 
-    async def generate_info_embed(self, track_id: str) -> discord.Embed:
+    async def generate_info_embed(self, track_api: dict) -> discord.Embed:
         """Generates a Discord embed with information about a Spotify track."""
-        track_api = await asyncio.to_thread(self.sessions.sp.track, track_id)
 
         # Grab all the data needed
         track_name = track_api['name']
@@ -283,7 +282,7 @@ class Spotify:
                 id_,
                 aq=aq
             ),
-            'embed': lambda: self.generate_info_embed(id_)
+            'embed': lambda: self.generate_info_embed(track_api)
         }
         return results
 

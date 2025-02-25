@@ -50,6 +50,7 @@ async def on_ready() -> None:
         bot.spotify = spotify
         if DEEZER_ENABLED:
             bot.deezer = Deezer()
+            await bot.deezer.setup()
     bot.youtube = Youtube()
 
     # Chatbot instances

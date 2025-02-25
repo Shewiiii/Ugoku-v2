@@ -84,13 +84,13 @@ async def upload_cover(cover_bytes: bytes) -> dict:
             }
 
 
-async def get_cover_data_from_hash(cover_hash: str) -> dict:
-    """Retrieve cover art data for a given cover hash. 
+async def get_cover_data_from_file(filename: str) -> dict:
+    """Retrieve cover art data for a given JSON file.
     Returns a dict with the 'url' and 'dominant_rgb' of the latter."""
-    cache_file_path = os.path.join(TEMP_FOLDER, f"{cover_hash}.json")
+    cache_file_path = Path(TEMP_FOLDER) / f"{filename}.json"
 
     # Returns the default embed color
-    if not os.path.exists(cache_file_path):
+    if not cache_file_path.exists():
         return {'url': '', 'dominant_rgb': DEFAULT_EMBED_COLOR}
 
     with open(cache_file_path, 'r') as cache_file:

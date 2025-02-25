@@ -1,10 +1,10 @@
-from typing import List, Union
 from datetime import datetime
+from typing import List, Union, Callable
 
 import discord
 from discord.ui import View
 
-from bot.vocal.custom import get_cover_data_from_hash
+from bot.vocal.custom import get_cover_data_from_file
 from bot.utils import get_dominant_rgb_from_url, split_into_chunks
 from config import DEFAULT_EMBED_COLOR
 
@@ -92,11 +92,14 @@ class QueueView(View):
         service: str = self.queue[0]['service']
         track_info: dict = self.queue[0]['track_info']
         if service == 'custom':
-            cover_data = await get_cover_data_from_hash(track_info['id'])
+            cover_data = await get_cover_data_from_file(track_info['id'])
         else:
+            if isinstance(track_info['embed'], Callable):
+                track_info['embed'] = await track_info['embed']()
+            embed = track_info['embed']
             cover_data = {
                 'url': track_info['cover'],
-                'dominant_rgb': await get_dominant_rgb_from_url(track_info['cover'])
+                'dominant_rgb': embed.color if embed and embed.color else DEFAULT_EMBED_COLOR
             }
 
         # Create the embed
