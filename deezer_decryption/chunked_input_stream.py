@@ -21,7 +21,7 @@ class DeezerChunkedInputStream:
 
     async def set_async_chunks(self) -> None:
         """Set chunks in self.async_chunks for download"""
-        self.async_stream_ctx = await self.session.stream(
+        self.async_stream_ctx = self.session.stream(
             method='GET',
             url=self.stream_url,
             headers=self.headers,
