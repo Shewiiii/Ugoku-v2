@@ -311,12 +311,13 @@ class ServerSession:
                 f'{output_source}volume={volume_adjust}[out]"'
             )
             ffmpeg_options = {
-                "before_options": before_options,
+                "before_options": f'{before_options} -fflags +discardcorrupt',
                 "options": f'-filter_complex {filter_complex} -map "[out]" -ss {start_position}'
             }
         else:
             # Basic volume adjustment
             ffmpeg_options = {
+                'before_options': '-fflags +discardcorrupt',
                 'options': f'-ss {start_position} -filter:a "volume={volume}"'
             }
 
