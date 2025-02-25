@@ -29,6 +29,7 @@ class Play(commands.Cog):
         interaction: Optional[discord.Interaction] = None,
         offset: int = 0,
         artist_mode: bool = False,
+        album: bool = False,
         effect: str = 'default'
     ) -> None:
         if interaction:
@@ -78,7 +79,7 @@ class Play(commands.Cog):
                 return
             await play_spotify(
                 ctx, query, session, interaction,
-                offset, artist_mode
+                offset, artist_mode, album
             )
         else:
             await edit(content='wut duh')
@@ -107,6 +108,11 @@ class Play(commands.Cog):
             description="Plays the 10 first tracks of the queried artist if enabled.",
             default=0
         ),  # type: ignore
+        album: discord.Option(
+            bool,
+            description="Add an album to queue. Can't combine with artist mode.",
+            default=0
+        ),  # type: ignore
         effect: discord.Option(
             str,
             description="The audio effect to apply.",
@@ -120,6 +126,7 @@ class Play(commands.Cog):
             service.lower(),
             offset=playlist_offset,
             artist_mode=artist_mode,
+            album=album,
             effect=effect
         )
 

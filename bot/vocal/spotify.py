@@ -287,34 +287,28 @@ class Spotify:
         }
         return results
 
-    async def fetch_id(self, query: str) -> dict:
+    async def fetch_id(self, query: str, album: bool = False) -> dict:
         """Fetch the Spotify ID and type either from a URL or search query."""
         if is_url(query, ['open.spotify.com']):
-            match = re.match(
+            m = re.match(
                 r"https?://open\.spotify\.com/(?:(?:intl-[a-z]{2})/)?"
                 r"(track|album|playlist|artist)/(?P<ID>[0-9a-zA-Z]{22})",
                 query,
                 re.IGNORECASE
             )
-            return {'id': match.group('ID'), 'type': match.group(1)} if match else {}
-
-        search = await asyncio.to_thread(self.sessions.sp.search, q=query, limit=1)
-        if not search or not search['tracks']['items']:
+            if m:
+                return {'id': m.group('ID'), 'type': m.group(1)}
             return {}
 
-        item = search['tracks']['items'][0]
-        track_ratio = token_sort_ratio(
-            query,
-            f"{item['artists'][0]['name']} {item['name']}"
-        )
-        album_ratio = token_sort_ratio(
-            query,
-            f"{item['album']['artists'][0]['name']} {item['album']['name']}"
-        )
+        result = await asyncio.to_thread(self.sessions.sp.search, q=query, limit=1)
+        items = result.get('tracks', {}).get('items', [])
+        if not items:
+            return {}
 
+        item = items[0]
         return {
-            'id': item['id'] if track_ratio > album_ratio else item['album']['id'],
-            'type': 'track' if track_ratio > album_ratio else 'album'
+            'id': item['album']['id'] if album else item['id'],
+            'type': 'album' if album else 'track'
         }
 
     async def get_tracks(
@@ -325,11 +319,12 @@ class Spotify:
             AudioQuality.HIGH,
             AudioQuality.NORMAL
         ] = AudioQuality.VERY_HIGH,
-        offset: int = 0
+        offset: int = 0,
+        album: bool = False
     ) -> List[Optional[dict]]:
         """Fetch tracks from a URL or search query.
         This method can handle tracks, albums, playlists, and artists."""
-        result = await self.fetch_id(query)
+        result = await self.fetch_id(query, album)
         if not result:
             return []
 

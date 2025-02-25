@@ -21,7 +21,8 @@ async def play_spotify(
     session: ServerSession,
     interaction: Optional[discord.Interaction] = None,
     offset: int = 0,
-    artist_mode: bool = False
+    artist_mode: bool = False,
+    album: bool = False
 ) -> None:
     """
     Handles playback of Spotify tracks.
@@ -37,9 +38,13 @@ async def play_spotify(
             ctx.bot.spotify.sessions.sp.search, query, type='artist', limit=1
         )
         # Get the artist URL and get the tracks from it
-        tracks_info = await ctx.bot.spotify.get_tracks(response['artists']['items'][0]['external_urls']['spotify'], offset=offset) if response else None
+        tracks_info = await ctx.bot.spotify.get_tracks(
+            response['artists']['items'][0]['external_urls']['spotify'],
+            offset=offset,
+            album=album
+        ) if response else None
     else:
-        tracks_info = await ctx.bot.spotify.get_tracks(query, offset=offset)
+        tracks_info = await ctx.bot.spotify.get_tracks(query, offset=offset, album=album)
 
     if not tracks_info:
         content = 'Track not found!'
