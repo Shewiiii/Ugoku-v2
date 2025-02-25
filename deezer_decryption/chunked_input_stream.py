@@ -1,8 +1,9 @@
 import asyncio
 from deezer_decryption.constants import HEADERS, CHUNK_SIZE
 from deezer_decryption.crypto import generate_blowfish_key, decrypt_chunk
-from typing import Union, Optional, AsyncIterator
-from httpx import AsyncClient, Response
+import logging
+from typing import Union, Optional
+import httpx
 import requests
 
 
@@ -14,30 +15,30 @@ class DeezerChunkedInputStream:
         self.headers: dict = HEADERS
         self.chunk_size: int = CHUNK_SIZE
         self.current_position: int = 0
-        self.session = AsyncClient()
-        self.read_complete: bool = False
+        self.session = httpx.AsyncClient()
+        self.stream = None
+        self.async_stream = None
 
     async def set_async_chunks(self) -> None:
-        """Using httpx. Set chunks in self.async_chunks for download"""
-        self.stream_ctx = self.session.stream(
+        """Set chunks in self.async_chunks for download"""
+        self.async_stream_ctx = await self.session.stream(
             method='GET',
             url=self.stream_url,
             headers=self.headers,
             timeout=10
         )
-        self.async_stream = await self.stream_ctx.__aenter__()
+        self.async_stream = await self.async_stream_ctx.__aenter__()
         self.async_chunks = self.async_stream.aiter_bytes(self.chunk_size)
 
     async def set_chunks(self) -> None:
-        """Using requests. Set chunks in self.chunks for ffmpeg pipe"""
+        """Set chunks in self.chunks for ffmpeg pipe"""
         self.stream = await asyncio.to_thread(
             requests.get,
-            self.stream_url,
+            url=self.stream_url,
             headers=self.headers,
-            stream=True,
             timeout=10
         )
-        self.chunks = self.stream.iter_content(self.chunk_size)
+        self.chunks = await asyncio.to_thread(self.stream.iter_content, self.chunk_size)
 
     def read(self, size: Optional[int] = None) -> bytes:
         # Chunk in buffer
@@ -46,27 +47,31 @@ class DeezerChunkedInputStream:
             data = self.buffer[self.current_position:end_position]
             self.current_position += len(data)
             return data
+
         # New chunk
         try:
             chunk = next(self.chunks)
-            if len(chunk) >= 2048:
-                decrypted_chunk = decrypt_chunk(
-                    self.blowfish_key,
-                    chunk[0:2048]
-                ) + chunk[2048:]
-                self.buffer += decrypted_chunk
-                self.current_position += len(decrypted_chunk)
-                return decrypted_chunk
-            else:
-                return b''
         except StopIteration:
-            self.read_complete = True
             return b''
+        except Exception as e:
+            logging.error(e)
+            return b''
+
+        if len(chunk) >= 2048:
+            decrypted_chunk = decrypt_chunk(
+                self.blowfish_key,
+                chunk[0:2048]
+            ) + chunk[2048:]
+            self.buffer += decrypted_chunk
+            self.current_position += len(decrypted_chunk)
+            return decrypted_chunk
+        else:
+            return chunk
 
     async def close(self):
         if self.async_stream:
-            self.stream_ctx.__aexit__(None, None, None)
+            await self.async_stream_ctx.__aexit__(None, None, None)
         if self.stream:
-            await asyncio.to_thread(self.stream.close)
+            await self.stream_ctx.__aexit__(None, None, None)
         self.chunks = None
         del self.buffer
