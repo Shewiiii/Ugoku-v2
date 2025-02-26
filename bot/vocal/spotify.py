@@ -184,13 +184,13 @@ class Librespot:
 
 
 class Spotify:
-
     def __init__(self, sessions: SpotifySessions) -> None:
         """Initializes the Spotify class with SpotifySessions."""
         self.sessions = sessions
 
-    async def generate_info_embed(self, track_api: dict) -> discord.Embed:
+    async def generate_info_embed(self, track_id: str) -> discord.Embed:
         """Generates a Discord embed with information about a Spotify track."""
+        track_api = await asyncio.to_thread(self.sessions.sp.track, track_id)
 
         # Grab all the data needed
         track_name = track_api['name']
@@ -266,6 +266,16 @@ class Spotify:
                 return images[0].get('url', '')
             return album.get('cover', '')
 
+        async def embed():
+            return await generate_info_embed(
+                url=f"https://open.spotify.com/track/{id_}",
+                title=track_api['name'],
+                artists=[artist['name'] for artist in track_api['artists']],
+                album=get_album_name(),
+                cover_url=get_cover_url(),
+                dominant_rgb=await get_dominant_rgb_from_url(get_cover_url())
+            )
+
         results = {
             'display_name': f"{track_api['artists'][0]['name']} - {track_api['name']}",
             'title': track_api['name'],
@@ -282,7 +292,7 @@ class Spotify:
                 id_,
                 aq=aq
             ),
-            'embed': lambda: self.generate_info_embed(track_api)
+            'embed': lambda: self.generate_info_embed(id_)
         }
         return results
 

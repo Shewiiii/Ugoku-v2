@@ -80,10 +80,11 @@ class QueueView(View):
         )
 
     async def create_embed(self) -> discord.Embed:
+        default_color = discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
         if not self.queue:
             embed = discord.Embed(
                 title='Queue Overview',
-                color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR),
+                color=default_color,
                 description='No songs in queue!'
             )
             return embed
@@ -99,14 +100,14 @@ class QueueView(View):
             embed = track_info['embed']
             cover_data = {
                 'url': track_info['cover'],
-                'dominant_rgb': embed.color if embed and embed.color else DEFAULT_EMBED_COLOR
+                'dominant_rgb': embed.color if embed and embed.color else default_color
             }
 
         # Create the embed
         embed = discord.Embed(
             title="Queue Overview",
             thumbnail=cover_data['url'],
-            color=discord.Color.from_rgb(*cover_data['dominant_rgb'])
+            color=cover_data['dominant_rgb']
         )
 
         # "Now playing" track section

@@ -84,7 +84,7 @@ async def upload_cover(cover_bytes: bytes) -> dict:
             }
 
 
-async def get_cover_data_from_file(filename: str) -> dict:
+async def get_cover_data_from_file(filename: str) -> dict[str, discord.Colour]:
     """Retrieve cover art data for a given JSON file.
     Returns a dict with the 'url' and 'dominant_rgb' of the latter."""
     cache_file_path = Path(TEMP_FOLDER) / f"{filename}.json"
@@ -98,7 +98,7 @@ async def get_cover_data_from_file(filename: str) -> dict:
         cover_url = cached_data.get('url')
         dominant_rgb = cached_data.get('dominant_rgb')
 
-        return {'url': cover_url, 'dominant_rgb': dominant_rgb}
+        return {'url': cover_url, 'dominant_rgb': discord.Colour.from_rgb(*dominant_rgb)}
 
 
 async def generate_info_embed(
