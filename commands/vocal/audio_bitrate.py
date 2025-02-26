@@ -13,7 +13,7 @@ class AudioBitrate(commands.Cog):
 
     @commands.slash_command(
         name='audio-bitrate',
-        description='Change the bitrate of the audio session, from 6 to 510 kbps.',
+        description='Change the bitrate of the audio session, from 1 to 510 kbps.',
         integration_types={
             discord.IntegrationType.guild_install
         }
@@ -28,8 +28,9 @@ class AudioBitrate(commands.Cog):
         if not await vocal_action_check(session, ctx, ctx.respond):
             return
 
-        if not 6 <= bitrate <= 510:
+        if not 0 <= bitrate <= 510:
             await ctx.respond(f"Invalid bitrate: {bitrate} kbps !")
+            return
 
         session.bitrate = bitrate
         current_pos = session.time_elapsed + \
