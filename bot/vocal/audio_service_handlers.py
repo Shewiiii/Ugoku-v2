@@ -1,11 +1,13 @@
-import re
-from urllib.parse import unquote
-from typing import Optional
 import asyncio
+import logging
+import re
+from typing import Optional
+from urllib.parse import unquote
 
 
-import discord
 from aiohttp.client_exceptions import ClientResponseError
+import discord
+from spotipy.exceptions import SpotifyException
 from yt_dlp.utils import DownloadError
 
 from bot.vocal.custom import fetch_audio_stream, upload_cover, generate_info_embed
@@ -32,23 +34,32 @@ async def play_spotify(
     if len(query) >= 250:
         await ctx.respond('Query too long!')
         return
+    
+    edit = interaction.edit_original_message if interaction else ctx.edit
 
-    if artist_mode:
-        response = await asyncio.to_thread(
-            ctx.bot.spotify.sessions.sp.search, query, type='artist', limit=1
-        )
-        # Get the artist URL and get the tracks from it
-        tracks_info = await ctx.bot.spotify.get_tracks(
-            response['artists']['items'][0]['external_urls']['spotify'],
-            offset=offset,
-            album=album
-        ) if response else None
-    else:
-        tracks_info = await ctx.bot.spotify.get_tracks(query, offset=offset, album=album)
+    try:
+        if artist_mode:
+            response = await asyncio.to_thread(
+                ctx.bot.spotify.sessions.sp.search, query, type='artist', limit=1
+            )
+            # Get the artist URL and get the tracks from it
+            tracks_info = await ctx.bot.spotify.get_tracks(
+                response['artists']['items'][0]['external_urls']['spotify'],
+                offset=offset,
+                album=album
+            ) if response else None
+        else:
+            tracks_info = await ctx.bot.spotify.get_tracks(query, offset=offset, album=album)
 
-    if not tracks_info:
-        content = 'Track not found!'
-        await (interaction.edit_original_message(content=content) if interaction else ctx.edit(content=content))
+        if not tracks_info:
+            content = 'Track not found!'
+            await edit(content=content)
+            return
+    except SpotifyException as e:
+        if e.http_status == 404:
+            await edit(content="Content not found! Perhaps you are trying to play a private playlist?")
+        else:
+            logging.error(e)
         return
 
     await session.add_to_queue(ctx, tracks_info, 'spotify/deezer', interaction)
