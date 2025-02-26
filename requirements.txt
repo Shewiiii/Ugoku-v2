@@ -1,4 +1,4 @@
-py-cord >= 2.6.0
+py-cord[voice,speed] >=2.6.0
 spotipy>=2.11.0
 git+https://github.com/Shewiiii/librespot-python
 requests
