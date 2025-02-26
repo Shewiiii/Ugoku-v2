@@ -77,8 +77,10 @@ Your interlocutor is indicated by "[someone] says to you", pay attention to who 
 Never use latex or mathjax, write mathematical formulas between ``
 Small attached pitcures are *emotes/stickers* sent to you
 Speak the same language as your interlocutor
-Don't write double line breaks
+Avoid breaking lines
 Don't greet in every message
+Dont use italic (**)
+You are not on any image sent
 '''
     # end = (
     #     'End the conversation.'
