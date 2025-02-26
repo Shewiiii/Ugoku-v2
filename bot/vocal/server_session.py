@@ -193,12 +193,13 @@ class ServerSession:
 
         # Try to get native track API (to grab the song from irsc)
         native_track_api = await deezer.parse_spotify_track(track_info['url'], self.bot.spotify.sessions.sp)
+
         if not native_track_api:
             return
 
         # Setup streaming
         track_id = native_track_api['id']
-        gw_track_api = (await deezer.get_track_page(track_id)).get('DATA')
+        gw_track_api = await deezer.get_track(track_id)
         if not gw_track_api:
             return
 
@@ -211,7 +212,6 @@ class ServerSession:
 
         input_stream = DeezerChunkedInputStream(track_id, stream_url)
         await input_stream.set_chunks()
-
         track_info.update({
             'source': input_stream,
             'id': track_id

@@ -31,14 +31,15 @@ class DeezerChunkedInputStream:
         self.async_chunks = self.async_stream.aiter_bytes(self.chunk_size)
 
     async def set_chunks(self) -> None:
-        """Set chunks in self.chunks for ffmpeg pipe"""
+        """Set up the stream for reading, but do not load content."""
         self.stream = await asyncio.to_thread(
             requests.get,
             url=self.stream_url,
             headers=self.headers,
-            timeout=10
+            timeout=10,
+            stream=True
         )
-        self.chunks = await asyncio.to_thread(self.stream.iter_content, self.chunk_size)
+        self.chunks = self.stream.iter_content(self.chunk_size)
 
     def read(self, size: Optional[int] = None) -> bytes:
         # Chunk in buffer

@@ -91,7 +91,7 @@ class Download:
         track_id: bool = False
     ) -> Path:
         if track_id:
-            track_data = (await self.api.get_track_page(query)).get('data')
+            track_data = await self.api.get_track(query)
             if not track_data:
                 return
         else:

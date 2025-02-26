@@ -9,12 +9,14 @@ from typing import Optional, Union, Literal
 
 DEEZER_ARL = os.getenv("DEEZER_ARL")
 
-
+# Simplified and adapted from https://gitlab.com/RemixDev/deezer-py !
 class Deezer:
     def __init__(self):
         self.headers = HEADERS
-        self.session = httpx.AsyncClient()
-        self.session.cookies.set('arl', DEEZER_ARL, '.deezer.com')
+        self.session = httpx.AsyncClient(
+            cookies={'arl': DEEZER_ARL},
+            http2=True
+        )
         self.base_url = "http://www.deezer.com/ajax/gw-light.php"
         self.params = {}
         self.api_token = None
@@ -87,8 +89,8 @@ class Deezer:
     async def get_native_track(self, track_id: Union[str, int]) -> dict:
         return await self.native_api_call(f"track/{str(track_id)}")
 
-    async def get_track_page(self, sng_id: Union[int, str]) -> dict:
-        return await self.gw_api_call('deezer.pageTrack', {'SNG_ID': sng_id})
+    async def get_track(self, sng_id: Union[int, str]) -> dict:
+        return await self.gw_api_call('song.getData', {'SNG_ID': sng_id})
 
     async def get_tracks(self, track_ids: list[Union[int, str]]) -> dict:
         return (await self.gw_api_call('song.getListData', {'SNG_IDS': track_ids}))['data']
