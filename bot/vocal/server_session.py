@@ -193,7 +193,6 @@ class ServerSession:
 
         # Try to get native track API (to grab the song from irsc)
         native_track_api = await deezer.parse_spotify_track(track_info['url'], self.bot.spotify.sessions.sp)
-
         if not native_track_api:
             return
 
@@ -358,16 +357,12 @@ class ServerSession:
         track_info = self.queue[index]['track_info']
         current_id = track_info['id']
 
-        # Deezer
-        await self.load_deezer_stream(index=index)
-
         # Generate the embed
         embed = track_info.get('embed', None)
         if embed and isinstance(embed, Callable):
             if track_info['id'] == current_id:
                 track_info['embed'] = await embed()
-
-        logging.info(f"Preloaded {track_info['display_name']}")
+            logging.info(f"Loaded embed of {track_info['display_name']}")
 
     async def add_to_queue(
         self,
