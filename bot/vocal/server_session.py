@@ -176,7 +176,13 @@ class ServerSession:
         await self.start_playing(self.last_context, start_position=position)
         return True
 
-    async def load_deezer_stream(self, index: int = 0) -> Optional[DeezerChunkedInputStream]:
+    async def load_deezer_stream(
+        self,
+        index: int = 0,
+        load_chunks: bool = True,
+        current_id: Optional[int] = int
+    ) -> Optional[DeezerChunkedInputStream]:
+        start = datetime.now()
         if (index >= len(self.queue)
             or not DEEZER_ENABLED or self.queue[index]['service'] != 'spotify/deezer'
                 or isinstance(self.queue[0]['track_info']['source'], (str, Path))):
@@ -188,6 +194,10 @@ class ServerSession:
 
         # Already a Deezer stream: reset the position
         if isinstance(source, DeezerChunkedInputStream):
+            if load_chunks:
+                await asyncio.to_thread(source.set_chunks)
+                logging.info(
+                    f"Loaded chunks of {track_info['id']} in {(datetime.now() - start).total_seconds()}s")
             source.current_position = 0
             return source
 
@@ -210,12 +220,18 @@ class ServerSession:
             return
 
         input_stream = DeezerChunkedInputStream(track_id, stream_url)
-        await input_stream.set_chunks()
-        track_info.update({
-            'source': input_stream,
-            'id': track_id
-        })
+        if load_chunks:
+            await asyncio.to_thread(input_stream.set_chunks)
 
+        # Only update if the track hasn't changed
+        if not current_id or current_id == track_info['id']:
+            track_info.update({
+                'source': input_stream,
+                'id': track_id
+            })
+
+        logging.info(
+            f"Loaded stream of {track_info['id']} in {(datetime.now() - start).total_seconds()}s")
         return input_stream
 
     async def load_spotify_stream(self, index: int = 0) -> Optional[AbsChunkedInputStream]:
@@ -276,7 +292,7 @@ class ServerSession:
         track_info = current_element['track_info']
         unloaded_source = track_info['source']
         if service == 'spotify/deezer' and not isinstance(unloaded_source, (Path, str)):
-            source = await self.load_deezer_stream() or await self.load_spotify_stream()
+            source = await self.load_deezer_stream(load_chunks=True) or await self.load_spotify_stream()
             if source is None:
                 await ctx.send(f"{track_info['display_name']} is not available!")
                 self.after_playing(ctx, error=None)
@@ -342,12 +358,12 @@ class ServerSession:
         self.is_seeking = False
         self.previous = False
 
-        # Process the next track
-        await self.prepare_next_track()
-
         # Log total processing time
         logging.info(
-            f"Start playing processing time: {(datetime.now() - start).total_seconds()}s")
+            f"Loading time before playing {track_id}: {(datetime.now() - start).total_seconds()}s")
+
+        # Process the next track
+        await self.prepare_next_track()
 
     async def prepare_next_track(self, index: int = 1) -> None:
         """Check the availability of the next track and load its embed in queue."""
@@ -357,12 +373,17 @@ class ServerSession:
         track_info = self.queue[index]['track_info']
         current_id = track_info['id']
 
+        # Deezer
+        await self.load_deezer_stream(index, current_id=current_id)
+
         # Generate the embed
         embed = track_info.get('embed', None)
         if embed and isinstance(embed, Callable):
+            loaded_embed = await embed()
             if track_info['id'] == current_id:
-                track_info['embed'] = await embed()
-            logging.info(f"Loaded embed of {track_info['display_name']}")
+                track_info['embed'] = loaded_embed
+
+        logging.info(f"Preloaded track {track_info['id']}")
 
     async def add_to_queue(
         self,
@@ -557,7 +578,7 @@ class ServerSession:
     async def close_streams(self) -> None:
         for stream in self.queue+self.stack_previous+self.to_loop:
             if isinstance(stream, DeezerChunkedInputStream):
-                await self.current_stream.close(),
+                await self.stream.close(),
             elif isinstance(stream, AbsChunkedInputStream):
-                await asyncio.to_thread(self.current_stream.close)
+                await asyncio.to_thread(self.stream.close)
             self.stream = None
