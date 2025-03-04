@@ -166,10 +166,7 @@ class ServerSession:
 
         self.is_seeking = True
         self.time_elapsed = position
-        self.voice_client.stop()
-
-        # Wait a short time to ensure the stop has been processed
-        await asyncio.sleep(0.1)
+        self.voice_client.pause()
 
         if not quiet and self.last_context:
             await self.last_context.send(f"Seeking to {position} seconds")
@@ -181,7 +178,7 @@ class ServerSession:
         self,
         index: int = 0,
         load_chunks: bool = True,
-        current_id: Optional[int] = int
+        current_id: Optional[int] = None
     ) -> Optional[DeezerChunkedInputStream]:
         start = datetime.now()
         if (index >= len(self.queue)
@@ -200,6 +197,7 @@ class ServerSession:
                 await asyncio.to_thread(source.set_chunks)
                 logging.info(
                     f"Loaded chunks of {track_info['id']} in {(datetime.now() - start).total_seconds()}s")
+            # If seeking: current position will automatically be set by Ffmpeg's pipe
             source.current_position = 0
             return source
 
@@ -227,11 +225,8 @@ class ServerSession:
 
         # Only update if the track hasn't changed
         if not current_id or current_id == track_info['id']:
-            track_info.update({
-                'source': input_stream,
-                'id': track_id
-            })
-
+            track_info['source'] = input_stream
+            track_info['id'] = track_id
         logging.info(
             f"Loaded stream of {track_info['id']} in {(datetime.now() - start).total_seconds()}s")
         return input_stream
@@ -257,7 +252,7 @@ class ServerSession:
     async def start_playing(
         self,
         ctx: discord.ApplicationContext,
-        start_position: int = 0
+        start_position: int = 0,
     ) -> None:
         """Handles the playback of the next track in the queue."""
         start = datetime.now()
