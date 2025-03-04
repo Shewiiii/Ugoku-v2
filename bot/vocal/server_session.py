@@ -66,7 +66,8 @@ class ServerSession:
         self.shuffle = False
         self.original_queue: List[Optional[dict]] = []
         self.shuffled_queue: List[Optional[dict]] = []
-        self.cached_songs: set[str] = set()
+        # self.cached_songs: set[str] = set()
+        self.deezer_blacklist: set[str, int] = set()
         self.previous = False
         self.stack_previous = []
         self.is_seeking = False
@@ -185,7 +186,8 @@ class ServerSession:
         start = datetime.now()
         if (index >= len(self.queue)
             or not DEEZER_ENABLED or self.queue[index]['service'] != 'spotify/deezer'
-                or isinstance(self.queue[0]['track_info']['source'], (str, Path))):
+                or isinstance(self.queue[0]['track_info']['source'], (str, Path))
+                or current_id in self.deezer_blacklist):
             return
 
         deezer: Deezer = self.bot.deezer
@@ -374,7 +376,8 @@ class ServerSession:
         current_id = track_info['id']
 
         # Deezer
-        await self.load_deezer_stream(index, current_id=current_id)
+        if not await self.load_deezer_stream(index, current_id=current_id):
+            self.deezer_blacklist.add(current_id)
 
         # Generate the embed
         embed = track_info.get('embed', None)
