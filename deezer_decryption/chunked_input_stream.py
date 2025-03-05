@@ -23,6 +23,7 @@ class DeezerChunkedInputStream:
         self.current_position: int = 0
         self.stream = None
         self.async_stream = None
+        self.chunks = None
 
     async def set_async_chunks(self) -> None:
         """Set chunks in self.async_chunks for download."""
@@ -36,7 +37,10 @@ class DeezerChunkedInputStream:
         self.async_chunks = self.async_stream.aiter_bytes(self.chunk_size)
 
     def set_chunks(self, start_position: int = 0) -> None:
-        """Set chunks in self.chunks for streaming."""
+        """Set chunks (once) in self.chunks for streaming."""
+        if self.chunks is not None:
+            return
+
         headers = self.headers.copy()
         if start_position > 0:
             headers['Range'] = f'bytes={start_position}-'
@@ -67,6 +71,7 @@ class DeezerChunkedInputStream:
             return b''
         except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError) as e:
             logging.error(f"{str(e)}, requesting a new stream...")
+            self.chunks = None
             self.set_chunks(start_position=self.current_position)
             return self.read()
         except http.client.IncompleteRead as e:
