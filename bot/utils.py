@@ -417,8 +417,11 @@ def extract_video_id(url):
 async def send_response(
     respond: Callable[[str], discord.Message],
     message: str,
-    guild_id: int
+    guild_id: int,
+    silent: bool = False
 ) -> None:
+    if silent:
+        return
     try:
         await respond(message)
     except discord.errors.HTTPException:
@@ -469,19 +472,23 @@ async def vocal_action_check(
     session,
     ctx: discord.ApplicationContext,
     respond_function,
-    check_queue: bool = True
+    check_queue: bool = True,
+    silent: bool = False
 ) -> bool:
     """Checks if a user is allowed to execute an operation in vc."""
     if not session or ctx.author.voice.channel != session.voice_client.channel:
-        await respond_function('You are not in an active voice channel!')
+        if not silent:
+            await respond_function('You are not in an active voice channel!')
         return False
 
     if not session:
-        await respond_function("No active session !")
+        if not silent:
+            await respond_function("No active session !")
         return False
 
     if check_queue and not session.queue:
-        await respond_function("No song in queue !")
+        if not silent:
+            await respond_function("No song in queue anymore !")
         return False
 
     return True

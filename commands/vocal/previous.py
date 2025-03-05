@@ -13,20 +13,21 @@ class Previous(commands.Cog):
     async def execute_previous(
         self,
         ctx: discord.ApplicationContext,
-        send: bool = False
-    ) -> None:
+        silent: bool = False
+    ) -> bool:
         guild_id: int = ctx.guild.id
         session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
-        respond = (ctx.send if send else ctx.respond)
-        if not await vocal_action_check(session, ctx, respond, check_queue=False):
-            return
+        if not await vocal_action_check(session, ctx, ctx.respond, check_queue=False, silent=silent):
+            return False
 
         if not session.stack_previous:
-            await send_response(respond, "No tracks played previously!", guild_id)
-            return
+            await send_response(ctx.respond, "No tracks played previously!", guild_id, silent)
+            return False
 
-        await send_response(respond, "Playing the previous track!", guild_id)
+        await send_response(ctx.respond, "Playing the previous track!", guild_id, silent)
         await session.play_previous(ctx)
+
+        return True
 
     @commands.slash_command(
         name='previous',

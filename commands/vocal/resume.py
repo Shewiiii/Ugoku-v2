@@ -13,21 +13,22 @@ class Resume(commands.Cog):
     async def execute_resume(
         self,
         ctx: discord.ApplicationContext,
-        send=False
-    ) -> None:
+        silent: bool = False
+    ) -> bool:
         guild_id = ctx.guild.id
         session = session_manager.server_sessions.get(ctx.guild.id)
-        respond = (ctx.send if send else ctx.respond)
-        if not await vocal_action_check(session, ctx, respond):
-            return
+        if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
+            return False
 
         voice_client = session.voice_client
         if voice_client.is_paused():
             voice_client.resume()
             session.last_played_time = datetime.now()
-            await send_response(respond, 'Resumed!', guild_id)
+            await send_response(ctx.respond, 'Resumed!', guild_id, silent)
         else:
-            await send_response(respond, 'The audio is not paused.', guild_id)
+            await send_response(ctx.respond, 'The audio is not paused.', guild_id, silent)
+        
+        return True
 
     @commands.slash_command(
         name='resume',

@@ -4,7 +4,7 @@ from pathlib import Path
 import logging
 import random
 from datetime import datetime, timedelta
-from typing import Optional, Callable, List, Literal
+from typing import Optional, Callable, List, Literal, Union
 
 import discord
 from librespot.audio import AbsChunkedInputStream
@@ -68,6 +68,7 @@ class ServerSession:
         self.shuffled_queue: List[Optional[dict]] = []
         # self.cached_songs: set[str] = set()
         self.deezer_blacklist: set[str, int] = set()
+        self.previous_song_id: Optional[Union[int, str]] = None
         self.previous = False
         self.stack_previous = []
         self.is_seeking = False
@@ -139,7 +140,7 @@ class ServerSession:
             message = ''
 
             # VIEW (buttons)
-            view = controlView(self.bot, ctx, self.voice_client)
+            view = controlView(self.bot, ctx, self.voice_client, self)
 
         else:
             message = f'Now playing: {title_markdown}'
@@ -276,6 +277,7 @@ class ServerSession:
             not self.is_seeking
             and (self.skipped or not self.loop_current)
             and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
+            and not (self.previous_song_id == track_id and self.previous)
         )
         if should_send_now_playing:
             try:
@@ -528,6 +530,8 @@ class ServerSession:
         ctx: discord.ApplicationContext
     ) -> None:
         """Plays the next track in the queue, handling looping and previous track logic."""
+        self.previous_song_id = self.queue[0]['track_info']['id']
+
         if self.queue and not self.loop_current and not self.previous:
             self.stack_previous.append(self.queue[0])
 

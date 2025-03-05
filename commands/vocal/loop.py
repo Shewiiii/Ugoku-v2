@@ -16,13 +16,12 @@ class Loop(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         mode: str,
-        send: bool = False
-    ) -> None:
+        silent: bool = False
+    ) -> bool:
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
-        respond = (ctx.send if send else ctx.respond)
-        if not await vocal_action_check(session, ctx, respond):
-            return
+        if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
+            return False
 
         mode = mode.lower()
 
@@ -47,7 +46,8 @@ class Loop(commands.Cog):
         else:
             response = "oi"
 
-        await send_response(respond, response, guild_id)
+        await send_response(ctx.respond, response, guild_id, silent)
+        return True
 
     @commands.slash_command(
         name='loop',

@@ -16,13 +16,12 @@ class Pause(commands.Cog):
     async def execute_pause(
         self,
         ctx: discord.ApplicationContext,
-        send: bool = True
-    ) -> None:
+        silent: bool = False
+    ) -> bool:
         guild_id = ctx.guild.id
         session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
-        respond = (ctx.send if send else ctx.respond)
-        if not await vocal_action_check(session, ctx, respond):
-            return
+        if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
+            return False
 
         # Pause
         session.voice_client.pause()
@@ -32,17 +31,20 @@ class Pause(commands.Cog):
         session.last_played_time = current_time
 
         await send_response(
-            respond,
+            ctx.respond,
             f"Paused at {session.time_elapsed}s!",
-            guild_id
+            guild_id,
+            silent
         )
+
+        return True
 
     @commands.slash_command(
         name='pause',
         description='Pause the current song.'
     )
     async def execute(self, ctx: discord.ApplicationContext) -> None:
-        await self.execute_pause(ctx, send=False)
+        await self.execute_pause(ctx)
 
 
 def setup(bot):
