@@ -5,27 +5,25 @@ from bot.vocal.session_manager import session_manager as sm
 from bot.utils import vocal_action_check
 
 
-class Queue(commands.Cog):
+class NowPlaying(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
     @commands.slash_command(
-        name='queue',
-        description='Show the current queue.'
+        name='now-playing',
+        description='Send the Now playing embed.'
     )
     async def queue(self, ctx: discord.ApplicationContext):
-        await ctx.defer()
-        guild_id: int = ctx.guild.id
+        guild_id = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
         if not await vocal_action_check(session, ctx, ctx.respond):
             return
 
-        if not session:
-            await ctx.respond('No active session !')
-            return
-
-        await session.display_queue(ctx)
+        await ctx.respond("Sending !", ephemeral=True)
+        await session.now_playing_message.delete()
+        session.now_playing_message = None
+        await session.update_now_playing(ctx)
 
 
 def setup(bot):
-    bot.add_cog(Queue(bot))
+    bot.add_cog(NowPlaying(bot))

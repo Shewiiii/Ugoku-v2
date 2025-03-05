@@ -10,7 +10,7 @@ import discord
 from librespot.audio import AbsChunkedInputStream
 
 from bot.vocal.queue_view import QueueView
-from bot.vocal.control_view import controlView
+from bot.vocal.control_view import nowPlayingView
 from config import (
     AUTO_LEAVE_DURATION,
     DEFAULT_AUDIO_VOLUME,
@@ -53,28 +53,29 @@ class ServerSession:
         channel_id: int,
         session_manager: 'SessionManager'
     ) -> None:
-        self.bot = bot
-        self.guild_id = guild_id
-        self.voice_client = voice_client
+        self.bot: discord.Bot = bot
+        self.guild_id: int = guild_id
+        self.voice_client: discord.VoiceClient = voice_client
         self.queue: List[Optional[dict]] = []
         self.to_loop: List[Optional[dict]] = []
-        self.last_played_time = datetime.now()
-        self.time_elapsed = 0
-        self.loop_current = False
-        self.loop_queue = False
-        self.skipped = False
-        self.shuffle = False
+        self.last_played_time: datetime = datetime.now()
+        self.time_elapsed: int = 0
+        self.loop_current: bool = False
+        self.loop_queue: bool = False
+        self.skipped: bool = False
+        self.shuffle: bool = False
         self.original_queue: List[Optional[dict]] = []
         self.shuffled_queue: List[Optional[dict]] = []
-        # self.cached_songs: set[str] = set()
         self.deezer_blacklist: set[str, int] = set()
         self.previous_song_id: Optional[Union[int, str]] = None
-        self.previous = False
-        self.stack_previous = []
-        self.is_seeking = False
-        self.channel_id = channel_id
-        self.session_manager = session_manager
-        self.auto_leave_task = asyncio.create_task(
+        self.previous: bool = False
+        self.stack_previous: list = []
+        self.is_seeking: bool = False
+        self.channel_id: int = channel_id
+        self.now_playing_view: Optional[nowPlayingView] = None
+        self.now_playing_message: Optional[discord.Message] = None
+        self.session_manager: SessionManager = session_manager
+        self.auto_leave_task: asyncio.Task = asyncio.create_task(
             self.check_auto_leave()
         )
         self.playback_start_time = None
@@ -100,9 +101,9 @@ class ServerSession:
         )
         await view.display(ctx)
 
-    async def send_now_playing(
+    async def update_now_playing(
         self,
-        ctx: discord.ApplicationContext
+        ctx: discord.ApplicationContext,
     ) -> None:
         """Sends an embed with information about the currently playing track."""
         # Retrieve the current track_info from the queue
@@ -140,30 +141,40 @@ class ServerSession:
             message = ''
 
             # VIEW (buttons)
-            view = controlView(self.bot, ctx, self.voice_client, self)
-
+            if not self.now_playing_view:
+                self.now_playing_view = nowPlayingView(
+                    self.bot, ctx, self.voice_client, self)
+            view = self.now_playing_view
         else:
-            message = f'Now playing: {title_markdown}'
             view = None
+            sent_embed = None
+            message = f'Now playing: {title_markdown}'
 
         # Send the message or edit the previous message based on the context
-        await ctx.send(
-            content=message,
-            embed=sent_embed,
-            view=view,
-            silent=True
-        )
+        if not self.now_playing_message:
+            try:
+                self.now_playing_message = await ctx.send(
+                    content=message,
+                    embed=sent_embed,
+                    view=view,
+                )
+                discord.Interaction
+            except discord.errors.Forbidden:
+                logging.error(
+                    f"Now playing embed sent in forbidden channel in {self.guild_id}")
+        else:
+            await self.now_playing_message.edit(content=message, embed=sent_embed)
 
     async def seek(
         self,
         position: int,
         quiet: bool = False
-    ) -> bool:
+    ) -> None:
         """Seeks to a specific position in the current track.
         Returns True if successful."""
         # No audio is playing
         if not self.voice_client or not self.voice_client.is_playing():
-            return False
+            return
 
         self.is_seeking = True
         self.time_elapsed = position
@@ -173,7 +184,6 @@ class ServerSession:
             await self.last_context.send(f"Seeking to {position} seconds")
 
         await self.start_playing(self.last_context, start_position=position)
-        return True
 
     async def load_deezer_stream(
         self,
@@ -273,18 +283,13 @@ class ServerSession:
             current_element['track_info']['source'] = file_path
 
         # Send now playing
-        should_send_now_playing = (
+        should_update_now_playing = (
             not self.is_seeking
             and (self.skipped or not self.loop_current)
             and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
-            and not (self.previous_song_id == track_id and self.previous)
         )
-        if should_send_now_playing:
-            try:
-                await self.send_now_playing(ctx)
-            except discord.errors.Forbidden:
-                logging.error(
-                    f"Now playing embed sent in forbidden channel in {self.guild_id}")
+        if should_update_now_playing:
+            await self.update_now_playing(ctx)
             self.skipped = False
 
         # Audio source setup
@@ -455,6 +460,8 @@ class ServerSession:
 
         if not self.voice_client.is_playing() and len(self.queue) >= 1:
             await self.start_playing(ctx)
+        else:
+            await self.update_now_playing(ctx)
 
         # Preload next tracks if the queue has only one track
         # (prepare_next_track method has not been called before)
@@ -465,6 +472,7 @@ class ServerSession:
         self.previous = True
         self.queue.insert(0, self.stack_previous.pop())
         if self.voice_client.is_playing():
+            # Do not change ! Pause to not trigger the after_playing callback
             self.voice_client.pause()
         await self.start_playing(ctx)
 
@@ -482,7 +490,7 @@ class ServerSession:
             for track in self.queue
         ]
 
-    def shuffle_queue(self) -> bool:
+    async def shuffle_queue(self) -> bool:
         """Toggles shuffling of the queue. Returns True if successful."""
         if len(self.queue) <= 1:
             self.shuffle = not self.shuffle
@@ -503,6 +511,7 @@ class ServerSession:
             self.queue = [current_song] + self.shuffled_queue
 
         self.shuffle = not self.shuffle
+        await self.update_now_playing(self.last_context)
         return True
 
     def after_playing(
@@ -563,12 +572,12 @@ class ServerSession:
 
                 if time_until_disconnect <= timedelta(seconds=0):
                     await self.voice_client.disconnect()
+                    channel = self.bot.get_channel(self.channel_id)
                     if channel:
                         await channel.send('Baibai~')
                     await self.voice_client.cleanup()
                     await self.close_streams()
                     del self.session_manager.server_sessions[self.guild_id]
-                    channel = self.bot.get_channel(self.channel_id)
                     logging.info(
                         f'Deleted audio session in {self.guild_id} '
                         'due to inactivity.'

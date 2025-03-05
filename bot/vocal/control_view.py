@@ -1,8 +1,10 @@
+import asyncio
 import discord
+from discord import ButtonStyle
+from typing import Optional
 
 
-# VIEW (for buttons under the "now playing" embed)
-class controlView(discord.ui.View):
+class nowPlayingView(discord.ui.View):
     def __init__(
         self,
         bot: discord.bot,
@@ -19,12 +21,44 @@ class controlView(discord.ui.View):
     async def in_active_vc(self, interaction: discord.Interaction) -> None:
         voice = interaction.user.voice
         if not voice:
-            return False
+            return
         return voice.channel == self.ctx.voice_client.channel
+
+    async def update_buttons(self, paused: Optional[bool] = None, delay: float = 0.) -> None:
+        await asyncio.sleep(delay)
+        states_list = {
+            0: {
+                "inactive_msg": "Pause",
+                "active_msg": "Paused",
+                "is_active": paused if paused is not None else self.voice_client.is_paused(),
+            },
+            3: {
+                "inactive_msg": "Loop",
+                "active_msg": "Looping",
+                "is_active": self.server_session.loop_current
+            },
+            4: {
+                "inactive_msg": "Shuffle",
+                "active_msg": "Shuffling",
+                "is_active": self.server_session.shuffle
+            }
+        }
+        for key, s in states_list.items():
+            item = self.children[key]
+            item.label = s["active_msg"] if s["is_active"] else s["inactive_msg"]
+            item.style = ButtonStyle.success if s["is_active"] else ButtonStyle.secondary
+
+        # Update previous and next
+        previous = self.children[1]
+        skip = self.children[2]
+        previous.disabled = len(self.server_session.stack_previous) == 0
+        skip.disabled = len(self.server_session.queue) == 0
+
+        await self.server_session.now_playing_message.edit(view=self)
 
     @discord.ui.button(
         label="Pause",
-        style=discord.ButtonStyle.secondary,
+        style=ButtonStyle.secondary,
     )
     async def pause_button_callback(
         self,
@@ -38,22 +72,15 @@ class controlView(discord.ui.View):
 
         if self.voice_client.is_playing():
             pause_cog = self.bot.get_cog('Pause')
-            if await pause_cog.execute_pause(self.ctx, silent=True):
-                button.label = "Resume"
-                button.style = discord.ButtonStyle.success
-
+            await pause_cog.execute_pause(self.ctx, silent=True)
         else:
             resume_cog = self.bot.get_cog('Resume')
-            if await resume_cog.execute_resume(self.ctx, silent=True):
-                button.label = "Pause"
-                button.style = discord.ButtonStyle.secondary
-
-        # Refresh the view
-        await interaction.message.edit(view=self)
+            await resume_cog.execute_resume(self.ctx, silent=True)
 
     @discord.ui.button(
         label="Previous",
-        style=discord.ButtonStyle.secondary,
+        style=ButtonStyle.secondary,
+        disabled=True
     )
     async def previous_button_callback(
         self,
@@ -65,20 +92,11 @@ class controlView(discord.ui.View):
             return
 
         previous_cog = self.bot.get_cog('Previous')
-        if await previous_cog.execute_previous(self.ctx, silent=True):
-            button.label = "Played previous"
-            button.style = discord.ButtonStyle.blurple
-            # Update the "Skipped" button as well
-            for item in self.children:
-                if getattr(item, "label", None) == "Skipped":
-                    item.label = "Skip"
-                    item.style = discord.ButtonStyle.secondary
-                    break
-            await interaction.message.edit(view=self)
+        await previous_cog.execute_previous(self.ctx, silent=True)
 
     @discord.ui.button(
         label="Skip",
-        style=discord.ButtonStyle.secondary,
+        style=ButtonStyle.secondary,
     )
     async def skip_button_callback(
         self,
@@ -90,20 +108,11 @@ class controlView(discord.ui.View):
             return
 
         skip_cog = self.bot.get_cog('Skip')
-        if await skip_cog.execute_skip(self.ctx, silent=True):
-            button.label = "Skipped"
-            button.style = discord.ButtonStyle.blurple
-            # Update the "Played previous" button as well
-            for item in self.children:
-                if getattr(item, "label", None) == "Played previous":
-                    item.label = "Previous"
-                    item.style = discord.ButtonStyle.secondary
-                    break
-            await interaction.message.edit(view=self)
+        await skip_cog.execute_skip(self.ctx, silent=True)
 
     @discord.ui.button(
         label="Loop",
-        style=discord.ButtonStyle.secondary,
+        style=ButtonStyle.secondary,
     )
     async def loop_button_callback(
         self,
@@ -117,19 +126,9 @@ class controlView(discord.ui.View):
         loop_cog = self.bot.get_cog('Loop')
         await loop_cog.execute_loop(self.ctx, 'Song', silent=True)
 
-        if self.server_session.loop_current:
-            button.label = "Looping"
-            button.style = discord.ButtonStyle.success
-        else:
-            button.label = "Loop"
-            button.style = discord.ButtonStyle.secondary
-
-        # Refresh the view
-        await interaction.message.edit(view=self)
-
     @discord.ui.button(
         label="Shuffle",
-        style=discord.ButtonStyle.secondary,
+        style=ButtonStyle.secondary,
     )
     async def shuffle_button_callback(
         self,
@@ -141,4 +140,4 @@ class controlView(discord.ui.View):
             return
 
         shuffle_cog = self.bot.get_cog('Shuffle')
-        await shuffle_cog.execute_shuffle(self.ctx, send=True)
+        await shuffle_cog.execute_shuffle(self.ctx, silent=True)

@@ -17,11 +17,11 @@ class Pause(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         silent: bool = False
-    ) -> bool:
+    ) -> None:
         guild_id = ctx.guild.id
         session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
         if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
-            return False
+            return
 
         # Pause
         session.voice_client.pause()
@@ -36,8 +36,7 @@ class Pause(commands.Cog):
             guild_id,
             silent
         )
-
-        return True
+        await session.now_playing_view.update_buttons()
 
     @commands.slash_command(
         name='pause',

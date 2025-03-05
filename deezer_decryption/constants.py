@@ -4,7 +4,7 @@ USER_AGENT_HEADER = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, 
 HEADERS = {
     'Pragma': 'no-cache',
     'Origin': 'https://www.deezer.com',
-    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Language': 'fr',
     'User-Agent': USER_AGENT_HEADER,
     'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
     'Accept': '*/*',

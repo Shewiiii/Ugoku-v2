@@ -51,7 +51,6 @@ class HelpDropdown(discord.ui.Select):
                 description="Works on server Only !",
                 color=discord.Color.blue()
             )
-            # /play
             embed.add_field(
                 name="/play",
                 value=(
@@ -60,7 +59,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /shuffle
             embed.add_field(
                 name="/shuffle",
                 value=(
@@ -68,7 +66,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /loop
             embed.add_field(
                 name="/loop",
                 value=(
@@ -76,7 +73,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /clear
             embed.add_field(
                 name="/clear",
                 value=(
@@ -84,7 +80,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /leave
             embed.add_field(
                 name="/leave",
                 value=(
@@ -92,7 +87,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /lyrics
             embed.add_field(
                 name="/lyrics",
                 value=(
@@ -101,7 +95,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /pause
             embed.add_field(
                 name="/pause",
                 value=(
@@ -109,7 +102,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /resume
             embed.add_field(
                 name="/resume",
                 value=(
@@ -117,7 +109,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /seek
             embed.add_field(
                 name="/seek",
                 value=(
@@ -126,7 +117,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /previous
             embed.add_field(
                 name="/previous",
                 value=(
@@ -134,7 +124,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /skip
             embed.add_field(
                 name="/skip",
                 value=(
@@ -142,7 +131,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /spdl
             embed.add_field(
                 name="/spdl",
                 value=(
@@ -151,7 +139,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /dzdl
             embed.add_field(
                 name="/dzdl",
                 value=(
@@ -160,7 +147,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /audio-effect
             embed.add_field(
                 name="/audio-effect",
                 value=(
@@ -169,7 +155,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /audio-bitrate
             embed.add_field(
                 name="/audio-bitrate",
                 value=(
@@ -179,12 +164,18 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /POP
             embed.add_field(
                 name="/pop",
                 value=(
                     "Remove songs from the queue\n"
                     "Example: ``/pop Single Nanatsukaze - もしも``\n"
+                ),
+                inline=False
+            )
+            embed.add_field(
+                name="/now-playing",
+                value=(
+                    "Delete the old Now playing embed and resend it\n"
                 ),
                 inline=False
             )
@@ -215,7 +206,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /ask
             embed.add_field(
                 name="/ask",
                 value=(
@@ -225,7 +215,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /summarize
             embed.add_field(
                 name="/summarize",
                 value=(
@@ -235,7 +224,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /reset_chatbot
             embed.add_field(
                 name="/reset_chatbot",
                 value=(
@@ -245,7 +233,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /translate
             embed.add_field(
                 name="/translate",
                 value=(
@@ -281,7 +268,6 @@ class HelpDropdown(discord.ui.Select):
                 title="Misc Commands",
                 color=discord.Color.purple()
             )
-            # /ping
             embed.add_field(
                 name="/ping",
                 value=(
@@ -291,7 +277,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /get-stickers
             embed.add_field(
                 name="/get-stickers",
                 value=(
@@ -301,7 +286,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /get-emotes
             embed.add_field(
                 name="/get-emotes",
                 value=(
@@ -310,7 +294,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /echo
             embed.add_field(
                 name="/echo",
                 value=(
@@ -320,7 +303,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
-            # /danbooru
             embed.add_field(
                 name="/danbooru",
                 value=(

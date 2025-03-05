@@ -16,18 +16,17 @@ class Shuffle(commands.Cog):
     async def execute_shuffle(
         self,
         ctx: discord.ApplicationContext,
-        send: bool = False
+        silent: bool = False
     ) -> None:
         guild_id: int = ctx.guild.id
         session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
-        respond = (ctx.send if send else ctx.respond)
-        if not await vocal_action_check(session, ctx, respond):
+        if not await vocal_action_check(session, ctx, ctx.respond, silent=True):
             return
 
-        session.shuffle_queue()
+        await session.shuffle_queue()
         response_message = "Queue shuffled!" if session.shuffle else "Original queue order restored."
-
-        await send_response(respond, response_message, guild_id)
+        await send_response(ctx.respond, response_message, guild_id, silent)
+        await session.now_playing_view.update_buttons()
         await session.prepare_next_track()
 
     @commands.slash_command(

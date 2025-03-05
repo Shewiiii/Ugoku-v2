@@ -476,19 +476,19 @@ async def vocal_action_check(
     silent: bool = False
 ) -> bool:
     """Checks if a user is allowed to execute an operation in vc."""
-    if not session or ctx.author.voice.channel != session.voice_client.channel:
-        if not silent:
-            await respond_function('You are not in an active voice channel!')
-        return False
-
     if not session:
         if not silent:
-            await respond_function("No active session !")
+            await respond_function(content="No active session !")
+        return False
+
+    if ctx.author.voice.channel != session.voice_client.channel:
+        if not silent:
+            await respond_function(content="You are not in the active voice channel !")
         return False
 
     if check_queue and not session.queue:
         if not silent:
-            await respond_function("No song in queue anymore !")
+            await respond_function(content="No songs in the queue !")
         return False
 
     return True

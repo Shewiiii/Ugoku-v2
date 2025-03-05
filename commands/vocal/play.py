@@ -32,6 +32,7 @@ class Play(commands.Cog):
         album: bool = False,
         effect: str = 'default'
     ) -> None:
+        await ctx.defer()
         if interaction:
             respond = interaction.response.send_message
             edit = interaction.edit_original_response
@@ -41,7 +42,7 @@ class Play(commands.Cog):
 
         # Connect to the voice channel
         session: Optional[ServerSession] = await sm.connect(ctx, self.bot)
-        if not await vocal_action_check(session, ctx, respond, check_queue=False):
+        if not await vocal_action_check(session, ctx, ctx.respond, check_queue=False):
             return
 
         # Applying audio effects
@@ -58,8 +59,6 @@ class Play(commands.Cog):
             }
             for attr, value in attrs.items():
                 setattr(session.audio_effect, attr, value)
-
-        await send_response(respond, "Give me a second~", session.guild_id)
 
         youtube_domains = ['youtube.com', 'www.youtube.com', 'youtu.be']
         spotify_domains = ['open.spotify.com']

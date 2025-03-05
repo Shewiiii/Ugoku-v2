@@ -14,11 +14,11 @@ class Resume(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         silent: bool = False
-    ) -> bool:
+    ) -> None:
         guild_id = ctx.guild.id
         session = session_manager.server_sessions.get(ctx.guild.id)
         if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
-            return False
+            return
 
         voice_client = session.voice_client
         if voice_client.is_paused():
@@ -27,8 +27,8 @@ class Resume(commands.Cog):
             await send_response(ctx.respond, 'Resumed!', guild_id, silent)
         else:
             await send_response(ctx.respond, 'The audio is not paused.', guild_id, silent)
-        
-        return True
+
+        await session.now_playing_view.update_buttons()
 
     @commands.slash_command(
         name='resume',

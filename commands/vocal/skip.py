@@ -14,12 +14,12 @@ class Skip(commands.Cog):
     async def execute_skip(
         self,
         ctx: discord.ApplicationContext,
-        silent: bool = False
-    ) -> bool:
+        silent: bool = False,
+    ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
         if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
-            return False
+            return
 
         await send_response(ctx.respond, "Skipping!", session.guild_id, silent)
 
@@ -33,7 +33,7 @@ class Skip(commands.Cog):
             session.last_played_time = datetime.now()
         session.voice_client.stop()
 
-        return True
+        await session.now_playing_view.update_buttons(delay=0.5)
 
     @commands.slash_command(
         name='skip',

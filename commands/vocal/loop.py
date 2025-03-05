@@ -17,11 +17,11 @@ class Loop(commands.Cog):
         ctx: discord.ApplicationContext,
         mode: str,
         silent: bool = False
-    ) -> bool:
+    ) -> None:
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
         if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
-            return False
+            return
 
         mode = mode.lower()
 
@@ -35,7 +35,6 @@ class Loop(commands.Cog):
 
         elif mode == 'queue':
             session.loop_queue = not session.loop_queue
-
             if session.loop_queue:
                 session.loop_current = False
                 response = "You are now looping the queue!"
@@ -47,7 +46,7 @@ class Loop(commands.Cog):
             response = "oi"
 
         await send_response(ctx.respond, response, guild_id, silent)
-        return True
+        await session.now_playing_view.update_buttons()
 
     @commands.slash_command(
         name='loop',
