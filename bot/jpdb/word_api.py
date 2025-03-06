@@ -6,7 +6,7 @@ import typing_extensions as typing
 import json
 
 
-from config import CHATBOT_ENABLED, GEMINI_UTILS_MODEL
+from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL
 from bot.chatbot.gemini import Gembot
 import google.generativeai as genai
 
@@ -20,7 +20,7 @@ class JpdbWordApi:
     def __init__(self):
         self.session = httpx.AsyncClient(follow_redirects=True)
         self.gembot = Gembot(
-            0, GEMINI_UTILS_MODEL) if CHATBOT_ENABLED else None
+            0, GEMINI_UTILS_MODEL) if GEMINI_ENABLED else None
 
     @staticmethod
     def extract_pitch_accent(pitch_section: BeautifulSoup) -> str:

@@ -17,7 +17,8 @@ import pytz
 from config import (
     CHATBOT_TIMEZONE,
     GEMINI_UTILS_MODEL,
-    PINECONE_RECALL_WINDOW
+    PINECONE_RECALL_WINDOW,
+    PINECONE_ENABLED
 )
 
 
@@ -62,6 +63,8 @@ Add in the text field a summary of the message. It should only be factual.\n
         self.active = False
 
     async def init_pinecone(self, index_name: str) -> None:
+        if not PINECONE_ENABLED:
+            return
         if not PINECONE_API_KEY:
             logging.warning("No valid Pinecone API key has been provided")
             return
@@ -140,7 +143,7 @@ Add in the text field a summary of the message. It should only be factual.\n
             self.index.upsert,
             vectors=vectors
         )
-        
+
         logging.info(f"Added to Pinecone: {metadata['text']}")
         return True
 

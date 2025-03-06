@@ -39,11 +39,17 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
 - [x] Get a random image from Danbooru (SFW only).
 - [ ] And maybe more in the future~
 
+<h2>Public playground bot</h2>
+
+Chatbot features are disabled, but you can still play with the bot !
+[Invite link](https://discord.com/oauth2/authorize?client_id=1260656795974897695)
+
 <h2>Known bugs to fix</h2>
 
 - Example sentences not always well chosen when reviewing jpdb cards (cause: Gemini's randomness in its response).
 - The song in vc may stop randomly with Spotify (cause: Librespot session's connection closing).
 - Audio may lag at the beginning of a song, when changing the audio effect or when seeking forward (causes: Discord client, slow Deezer/Spotify chunked input stream reading).
+- Some Deezer songs may be unplayable. (cause: corrupted streams ?)
 
 <h2>Requirements</h2>
 
@@ -110,15 +116,10 @@ python3 -m pip install -r requirements.txt
 - Restart the IDE (to update the env variables).
 - Configure and activate the features in the config.py file.
 - Run `main.py`.
-- If Spotify is enabled, log in to Librespot from your Spotify client (it should appear in the device list).
-  > [!TIP]
-  > This action will create a `credentials.json` file in the root folder. If you are having trouble creating it on a remote machine, try creating it on your local machine and exporting it.
+- If Spotify is enabled, log in to Librespot from your Spotify client (it should appear in the device list)\*.
 - Done !
 
-<h2>Public playground bot</h2>
-
-Chatbot features are disabled, but you can still play with the bot !
-[Invite link](https://discord.com/oauth2/authorize?client_id=1260656795974897695)
+> [!TIP] > \*This action will create a `credentials.json` file in the root folder. If you are having trouble creating it on a remote machine, try creating it on your local machine and exporting it.
 
 <h2>Random screenshots</h2>
 

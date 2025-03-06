@@ -104,6 +104,7 @@ class ServerSession:
     async def update_now_playing(
         self,
         ctx: discord.ApplicationContext,
+        send: bool = True
     ) -> None:
         """Sends an embed with information about the currently playing track."""
         # Retrieve the current track_info from the queue
@@ -144,6 +145,8 @@ class ServerSession:
             if not self.now_playing_view:
                 self.now_playing_view = nowPlayingView(
                     self.bot, ctx, self.voice_client, self)
+            else:
+                await self.now_playing_view.update_buttons(edit=False)
             view = self.now_playing_view
         else:
             view = None
@@ -151,7 +154,7 @@ class ServerSession:
             message = f'Now playing: {title_markdown}'
 
         # Send the message or edit the previous message based on the context
-        if not self.now_playing_message:
+        if not self.now_playing_message and send:
             try:
                 self.now_playing_message = await ctx.send(
                     content=message,
@@ -162,8 +165,8 @@ class ServerSession:
             except discord.errors.Forbidden:
                 logging.error(
                     f"Now playing embed sent in forbidden channel in {self.guild_id}")
-        else:
-            await self.now_playing_message.edit(content=message, embed=sent_embed)
+        elif send:
+            await self.now_playing_message.edit(content=message, embed=sent_embed, view=view)
 
     async def seek(
         self,
@@ -230,16 +233,17 @@ class ServerSession:
             # Track not found at desired bitrate and no alternative found
             return
 
-        input_stream = DeezerChunkedInputStream(track_id, stream_url)
+        input_stream = DeezerChunkedInputStream(
+            track_id, stream_url, track_token, self.bot)
         if load_chunks:
             await asyncio.to_thread(input_stream.set_chunks)
+            logging.info(
+                f"Loaded chunks of {track_info['id']} in {(datetime.now() - start).total_seconds()}s")
 
         # Only update if the track hasn't changed
         if not current_id or current_id == track_info['id']:
             track_info['source'] = input_stream
             track_info['id'] = track_id
-        logging.info(
-            f"Loaded stream of {track_info['id']} in {(datetime.now() - start).total_seconds()}s")
         return input_stream
 
     async def load_spotify_stream(self, index: int = 0) -> Optional[AbsChunkedInputStream]:
@@ -281,16 +285,6 @@ class ServerSession:
         file_path = get_cache_path(f"{service}{track_id}".encode('utf-8'))
         if file_path.is_file():
             current_element['track_info']['source'] = file_path
-
-        # Send now playing
-        should_update_now_playing = (
-            not self.is_seeking
-            and (self.skipped or not self.loop_current)
-            and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
-        )
-        if should_update_now_playing:
-            await self.update_now_playing(ctx)
-            self.skipped = False
 
         # Audio source setup
         track_info = current_element['track_info']
@@ -352,6 +346,24 @@ class ServerSession:
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
+        # Send now playing
+        if self.queue:
+            should_update_now_playing = (
+                not self.is_seeking
+                and (self.skipped or not self.loop_current)
+                and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
+            )
+            if should_update_now_playing:
+                await self.update_now_playing(ctx)
+                self.skipped = False
+
+            # Log total processing time
+            logging.info(
+                f"Loading time before playing {track_id}: {(datetime.now() - start).total_seconds()}s")
+        else:
+            logging.error(
+                f"Queue should not be empty after playing in {self.guild_id}")
+
         # Playback State Management
         now = datetime.now()
         self.time_elapsed = start_position
@@ -361,10 +373,6 @@ class ServerSession:
         # Reset control flags
         self.is_seeking = False
         self.previous = False
-
-        # Log total processing time
-        logging.info(
-            f"Loading time before playing {track_id}: {(datetime.now() - start).total_seconds()}s")
 
         # Process the next track
         await self.prepare_next_track()
@@ -460,6 +468,7 @@ class ServerSession:
 
         if not self.voice_client.is_playing() and len(self.queue) >= 1:
             await self.start_playing(ctx)
+
         else:
             await self.update_now_playing(ctx)
 

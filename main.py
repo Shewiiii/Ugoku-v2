@@ -3,7 +3,7 @@ from bot.vocal.youtube import Youtube
 from config import (
     COMMANDS_FOLDER,
     SPOTIFY_API_ENABLED,
-    CHATBOT_ENABLED,
+    GEMINI_ENABLED,
     PINECONE_INDEX_NAME,
     DEEZER_ENABLED,
     TEMP_FOLDER
@@ -13,7 +13,7 @@ import os
 import logging
 import asyncio
 from dotenv import load_dotenv
-if CHATBOT_ENABLED:
+if GEMINI_ENABLED:
     from bot.chatbot.vector_recall import memory
 if DEEZER_ENABLED:
     from deezer_decryption.api import Deezer
@@ -54,7 +54,7 @@ async def on_ready() -> None:
     bot.youtube = Youtube()
 
     # Chatbot instances
-    if CHATBOT_ENABLED:
+    if GEMINI_ENABLED:
         await memory.init_pinecone(PINECONE_INDEX_NAME)
 
     # Party !

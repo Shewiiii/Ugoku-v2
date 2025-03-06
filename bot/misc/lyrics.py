@@ -6,8 +6,8 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 
-from config import CHATBOT_ENABLED, GEMINI_UTILS_MODEL
-if CHATBOT_ENABLED:
+from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL
+if GEMINI_ENABLED:
     from bot.chatbot.gemini import Gembot
     import google.generativeai as genai
 

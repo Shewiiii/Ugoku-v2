@@ -17,10 +17,11 @@ from bot.utils import upload, cleanup_cache, get_cache_path, upload
 
 
 class Download:
-    def __init__(self, deezer: Optional[Deezer] = None):
+    def __init__(self, deezer: Optional[Deezer] = None, bot: Optional[discord.Bot] = None):
         if deezer is None:
             deezer = Deezer()
         self.api = deezer
+        self.bot = bot
 
     async def tracks(
         self,
@@ -48,7 +49,8 @@ class Download:
             if file_path.is_file():
                 continue
 
-            input_ = DeezerChunkedInputStream(track_id, track_urls[i])
+            input_ = DeezerChunkedInputStream(
+                track_id, track_urls[i], gw_track_apis[i]['TRACK_TOKEN'], bot=self.bot)
             await input_.set_async_chunks()
 
             async with aiofiles.open(file_path, 'wb') as file:

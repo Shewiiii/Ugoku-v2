@@ -24,7 +24,12 @@ class nowPlayingView(discord.ui.View):
             return
         return voice.channel == self.ctx.voice_client.channel
 
-    async def update_buttons(self, paused: Optional[bool] = None, delay: float = 0.) -> None:
+    async def update_buttons(
+            self,
+            paused: Optional[bool] = None,
+            delay: float = 0.,
+            edit: bool = True
+    ) -> None:
         await asyncio.sleep(delay)
         states_list = {
             0: {
@@ -53,8 +58,8 @@ class nowPlayingView(discord.ui.View):
         skip = self.children[2]
         previous.disabled = len(self.server_session.stack_previous) == 0
         skip.disabled = len(self.server_session.queue) == 0
-
-        await self.server_session.now_playing_message.edit(view=self)
+        if edit:
+            await self.server_session.now_playing_message.edit(view=self)
 
     @discord.ui.button(
         label="Pause",

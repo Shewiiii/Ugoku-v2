@@ -4,11 +4,11 @@ from discord.ext import commands
 from config import (
     LANGUAGES,
     CHATBOT_WHITELIST,
-    CHATBOT_ENABLED
+    GEMINI_ENABLED
 )
 from google.generativeai.types.generation_types import BlockedPromptException
 
-if CHATBOT_ENABLED:
+if GEMINI_ENABLED:
     from bot.chatbot.gemini import Gembot, active_chats
 
 
@@ -33,7 +33,7 @@ class Ask(commands.Cog):
         guild_id = ctx.guild.id
         author_name = ctx.author.global_name
 
-        if not CHATBOT_ENABLED:
+        if not GEMINI_ENABLED:
             await ctx.respond("Chatbot features are not enabled.")
             return
         if ctx.guild.id not in CHATBOT_WHITELIST:

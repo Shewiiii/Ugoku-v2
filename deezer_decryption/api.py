@@ -3,6 +3,7 @@ from deezer_decryption.constants import HEADERS
 import httpx
 import logging
 import os
+import requests
 from spotipy.exceptions import SpotifyException
 from spotipy import Spotify
 from typing import Optional, Union, Literal
@@ -10,6 +11,8 @@ from typing import Optional, Union, Literal
 DEEZER_ARL = os.getenv("DEEZER_ARL")
 
 # Simplified and adapted from https://gitlab.com/RemixDev/deezer-py !
+
+
 class Deezer:
     def __init__(self):
         self.headers = HEADERS
@@ -142,6 +145,36 @@ class Deezer:
             else:
                 result.append(None)
         return result
+
+    def get_track_url_sync(self, track_token: str, tracks_format: Literal['MP3_128', 'MP3_320', 'FLAC'] = 'FLAC') -> Optional[str]:
+        if not self.user_data:
+            self.setup()
+        license_token = self.user_data["USER"]["OPTIONS"]["license_token"]
+        if not license_token:
+            return
+        # Cannot stream lossless => Free account (with 128kbps as the max mp3 bitrate)
+        if not self.can_stream_lossless() and tracks_format != "MP3_128":
+            raise ValueError
+
+        request = requests.post(
+            "https://media.deezer.com/v1/get_url",
+            json={
+                'license_token': license_token,
+                'media': [{
+                    'type': "FULL",
+                    'formats': [
+                        {'cipher': "BF_CBC_STRIPE", 'format': tracks_format}
+                    ]
+                }],
+                'track_tokens': [track_token]
+            },
+            headers=self.headers
+        )
+        request.raise_for_status()
+        response = request.json()
+        result = response['data'][0]
+        if 'media' in result and len(result['media']):
+            return result['media'][0]['sources'][0]['url']
 
     async def parse_spotify_track(self, spotify_track_id_or_url: str, sp: Spotify) -> Optional[dict]:
         try:

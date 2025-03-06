@@ -312,6 +312,14 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False
             )
+            embed.add_field(
+                name="/config",
+                value=(
+                    "Get the front-end current config of Ugoku !\n"
+                    "Works on: Server"
+                ),
+                inline=False
+            )
         else:
             embed = discord.Embed(
                 title="Misc Commands",

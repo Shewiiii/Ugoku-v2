@@ -1,6 +1,6 @@
-import asyncio
 from deezer_decryption.constants import HEADERS, CHUNK_SIZE
 from deezer_decryption.crypto import generate_blowfish_key, decrypt_chunk
+import discord
 import logging
 from typing import Union, Optional
 import httpx
@@ -13,9 +13,16 @@ async_client = httpx.AsyncClient(http2=True)
 
 
 class DeezerChunkedInputStream:
-    def __init__(self, track_id: Union[int, str], stream_url: str) -> None:
+    def __init__(
+        self,
+        track_id: Union[int, str],
+        stream_url: str,
+        track_token: str,
+        bot: Optional[discord.Bot] = None
+    ) -> None:
         self.track_id = track_id
         self.stream_url: str = stream_url
+        self.track_token: str = track_token
         self.buffer: bytes = b''
         self.blowfish_key: bytes = generate_blowfish_key(str(track_id))
         self.headers: dict = HEADERS
@@ -24,6 +31,7 @@ class DeezerChunkedInputStream:
         self.stream = None
         self.async_stream = None
         self.chunks = None
+        self.bot = bot
 
     async def set_async_chunks(self) -> None:
         """Set chunks in self.async_chunks for download."""
@@ -51,6 +59,7 @@ class DeezerChunkedInputStream:
             timeout=10,
             stream=True
         )
+        self.stream.raise_for_status()
         self.chunks = self.stream.iter_content(self.chunk_size)
 
     def read(self, size: Optional[int] = None) -> bytes:
@@ -65,6 +74,23 @@ class DeezerChunkedInputStream:
         try:
             chunk = next(self.chunks)
         except StopIteration:
+            # Failed reading the first chunk
+            if len(self.buffer) <= CHUNK_SIZE and self.bot:
+                logging.error(
+                    f"First reading of {self.track_id} failed,"
+                    " requesting a new stream URL..."
+                )
+                new_stream_url = self.bot.deezer.get_track_url_sync(
+                    self.track_token)
+                if not new_stream_url:
+                    logging.error(
+                        f"New stream URL request failed for {self.track_id}")
+                self.stream_url = new_stream_url
+                self.chunks = None
+                self.set_chunks()
+                return self.read()
+
+            # Finished reading
             logging.info(
                 f"Finished reading stream of {self.track_id}, closing")
             self.stream.close()

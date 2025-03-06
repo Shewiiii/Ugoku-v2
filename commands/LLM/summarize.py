@@ -1,10 +1,11 @@
 import discord
 from discord.ext import commands
 
-from config import CHATBOT_ENABLED, CHATBOT_WHITELIST
+from config import GEMINI_ENABLED
+from bot.search import is_url
 
 
-if CHATBOT_ENABLED:
+if GEMINI_ENABLED:
     from bot.misc.summaries import Summaries
 
     class Summarize(commands.Cog):
@@ -13,30 +14,31 @@ if CHATBOT_ENABLED:
 
         @commands.slash_command(
             name='summarize',
-            description='Summarize a given text, an audio file or a Youtube video.'
+            description='Summarize a given text, an audio file or a Youtube video.',
+            integration_types={
+                discord.IntegrationType.guild_install,
+                discord.IntegrationType.user_install
+            }
         )
         async def summarize(
             self,
             ctx: discord.ApplicationContext,
-            query: str,
-            type: discord.Option(
-                str,
-                choices=['Text', 'Youtube video']
-            )  # type: ignore
+            query: str
         ) -> None:
-            if not CHATBOT_ENABLED or not ctx.guild.id in CHATBOT_WHITELIST:
-                await ctx.respond('Summaries are not available in your server~')
+            if not GEMINI_ENABLED:
+                await ctx.respond('Summaries are not available !')
                 return
 
-            await ctx.respond('Give me a second~')
-            if type == 'Youtube video':
+            await ctx.defer()
+            if is_url(query, ['youtube.com', 'www.youtube.com', 'youtu.be']):
                 query = await Summaries.get_youtube_transcript_text(url=query)
 
             # Prepare the summary
-            text = await Summaries.summarize(query)
-            if not text:
-                await ctx.edit(
-                    content='An error occured during the summary genetation!')
+            text = "Something went wrong during the summary generation."
+            try:
+                text = await Summaries.summarize(query)
+            except Exception as e:
+                text += f"\n -# {str(e)}"
 
             # Prepare the embed
             # ...

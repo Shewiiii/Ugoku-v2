@@ -13,7 +13,7 @@ from deezer_decryption.download import Download
 class DeezerDownload(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.download = Download()
+        self.download = Download(bot=self.bot)
 
     @commands.slash_command(
         name='dzdl',

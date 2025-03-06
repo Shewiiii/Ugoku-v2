@@ -3,7 +3,7 @@ from typing import Optional
 from config import (
     SPOTIFY_API_ENABLED, 
     DEFAULT_EMBED_COLOR, 
-    CHATBOT_ENABLED,
+    GEMINI_ENABLED,
     DEFAULT_STREAMING_SERVICE
 )
 
@@ -77,7 +77,7 @@ class Lyrics(commands.Cog):
 
         # CONVERT
         if convert_to:
-            if not CHATBOT_ENABLED:
+            if not GEMINI_ENABLED:
                 await ctx.respond(
                     'Chatbot features need to be enabled in '
                     'order to use lyrics conversion.'

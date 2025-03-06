@@ -19,8 +19,8 @@ from config import (
     CHATBOT_TIMEZONE,
     CHATBOT_TEMPERATURE,
     CHATBOT_EMOTES,
-    GEMINI_MAX_OUTPUT_TOKEN,
-    GEMINI_MAX_CONTENT_SIZE,
+    CHATBOT_MAX_OUTPUT_TOKEN,
+    CHATBOT_MAX_CONTENT_SIZE,
     CHATBOT_EMOTE_FREQUENCY
 )
 
@@ -128,7 +128,7 @@ class Gembot:
         query: str,
         model: genai.GenerativeModel = global_model,
         temperature: float = CHATBOT_TEMPERATURE,
-        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKEN,
+        max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
         safety_settings=GEMINI_SAFETY_SETTINGS
     ) -> Optional[str]:
         try:
@@ -159,7 +159,7 @@ class Gembot:
         extra_content: Optional[List[str]] = None,
         r_text: str = "",
         temperature: float = 2.0,
-        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKEN
+        max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN
     ) -> Optional[str]:
 
         # Update variables
@@ -225,7 +225,7 @@ class Gembot:
                 response.raise_for_status()
                 mime_type = response.headers.get('content-type', '')
                 content_type = mime_type.split("/")[0]  # E.g: audio, text..
-                max_size = GEMINI_MAX_CONTENT_SIZE.get(content_type, 0)
+                max_size = CHATBOT_MAX_CONTENT_SIZE.get(content_type, 0)
 
                 if content_type == 'text':
                     raw = BeautifulSoup(response.text, "html.parser")

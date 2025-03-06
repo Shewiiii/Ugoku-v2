@@ -3,12 +3,11 @@ import logging
 from discord.ext import commands
 from config import (
     LANGUAGES,
-    CHATBOT_ENABLED
+    GEMINI_ENABLED
 )
-from google.generativeai.types.generation_types import BlockedPromptException
 
-if CHATBOT_ENABLED:
-    from bot.chatbot.gemini import Gembot, active_chats
+if GEMINI_ENABLED:
+    from bot.chatbot.gemini import Gembot
 
 
 class Translate(commands.Cog):
@@ -19,6 +18,7 @@ class Translate(commands.Cog):
         name='translate',
         description='Translate any sentence to a language.',
         integration_types={
+            discord.IntegrationType.guild_install,
             discord.IntegrationType.user_install
         }
     )

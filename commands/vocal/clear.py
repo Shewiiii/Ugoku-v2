@@ -19,24 +19,25 @@ class Clear(commands.Cog):
     async def clear(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
         session: ServerSession | None = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond):
+        if not await vocal_action_check(session, ctx, ctx.respond, check_queue=False):
             return
 
-        if session:
-            voice_client = session.voice_client
-            session.queue.clear()
-            session.original_queue.clear()
-            session.to_loop.clear()
-            session.stack_previous.clear()
-            session.loop_current = False
-            session.loop_queue = False
-            session.shuffle = False
+        voice_client = session.voice_client
+        session.queue.clear()
+        session.original_queue.clear()
+        session.to_loop.clear()
+        session.stack_previous.clear()
+        session.loop_current = False
+        session.loop_queue = False
+        session.shuffle = False
 
-            if voice_client.is_playing():
-                session.last_played_time = datetime.now()
-                voice_client.stop()
+        if voice_client.is_playing():
+            session.last_played_time = datetime.now()
+            voice_client.stop()
 
-            await ctx.respond('Queue cleared!')
+        await ctx.respond('Queue cleared!')
+
+        if session.now_playing_message:
             await session.now_playing_message.delete()
             session.now_playing_message = None
 

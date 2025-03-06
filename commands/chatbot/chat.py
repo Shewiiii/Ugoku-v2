@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from config import (
     CHATBOT_WHITELIST,
-    CHATBOT_ENABLED,
+    GEMINI_ENABLED,
     ALLOW_CHATBOT_IN_DMS,
     CHATBOT_PREFIX
 )
@@ -14,7 +14,7 @@ from google.generativeai.types.generation_types import (
     StopCandidateException
 )
 
-if CHATBOT_ENABLED:
+if GEMINI_ENABLED:
     from bot.chatbot.gemini import Gembot, active_chats
     from bot.utils import split_into_chunks
 
