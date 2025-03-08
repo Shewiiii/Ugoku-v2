@@ -28,7 +28,7 @@ CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds). Default is one month
 AUTO_LEAVE_DURATION = 900 # Duration before killing an audio session (in seconds)
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
 DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
-DEFAULT_AUDIO_VOLUME = 40 # The recommended value is 40 since the bot can get pretty loud
+DEFAULT_AUDIO_VOLUME = 15 # Linear scale! The recommended value is around 15.
 DEFAULT_ONSEI_VOLUME = 100 # Audio works are generally quieter for a higher dynamic range
 DEFAULT_AUDIO_BITRATE = 510 # From 6 to 510 kbps (opus output)
 IMPULSE_RESPONSE_PARAMS = {
@@ -79,14 +79,14 @@ IMPULSE_RESPONSE_PARAMS = {
         'right_ir_file': 'raum_default_grounded_R.wav',
         'dry': 10,
         'wet': 10,
-        'volume_multiplier': 0.75
+        'volume_multiplier': 0.65
     },
     'Raum size 100%, decay 2s': {
         'left_ir_file': 'raum_max_size_L.wav',
         'right_ir_file': 'raum_max_size_R.wav',
         'dry': 10,
         'wet': 10,
-        'volume_multiplier': 0.6
+        'volume_multiplier': 0.5
     }
 } # (Advanced) Add your own audio effects to the /audio-effect list with an impulse response file in ./audio-ir
 # Onsei filters

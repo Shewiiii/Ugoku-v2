@@ -29,7 +29,7 @@ class AudioEffects(commands.Cog):
         effect_only: discord.Option(
             bool,
             description="Remove the original audio from the mix.",
-            default=False
+            default=None
         ),  # type: ignore
         dry: discord.Option(
             int,
@@ -56,6 +56,8 @@ class AudioEffects(commands.Cog):
         wet_value = wet if wet is not None else (p.get('wet', 0) if p else 0)
         dry_value = dry if dry is not None else (p.get('dry', 10) if p else 10)
         volume_value = p.get('volume_multiplier', 1) if p else 1
+        if effect_only is None:
+            effect_only = "raum" in effect.lower()
 
         # If not default effect
         if p:
@@ -74,9 +76,10 @@ class AudioEffects(commands.Cog):
             int((datetime.now() - session.last_played_time).total_seconds())
         asyncio.create_task(ctx.respond(
             f"Applying the {effect} effect!\n"
-            f"> Dry: {dry_value}\n"
-            f"> Wet: {wet_value}\n"
-            f"> Volume multiplier: {volume_value}"
+            f"-# Reduce Ugoku's volume if the audio clips !\n"
+            f"> Dry: {dry_value}, Wet: {wet_value}\n"
+            f"> Volume multiplier: {volume_value}\n"
+            f"> Effect only: {effect_only}"
         ))
         await session.seek(current_pos, quiet=True)
 

@@ -49,7 +49,7 @@ class Play(commands.Cog):
             attrs = {
                 'left_ir_file': p.get('left_ir_file', ''),
                 'right_ir_file': p.get('right_ir_file', ''),
-                'effect_only': False,
+                'effect_only': "raum" in effect.lower(),
                 'wet': p.get('wet', 0),
                 'dry': p.get('dry', 0),
                 'volume_multiplier': p.get('volume_multiplier', 1)
