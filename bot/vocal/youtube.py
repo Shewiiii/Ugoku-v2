@@ -14,6 +14,7 @@ import aiohttp
 from bot.search import is_url
 from bot.utils import get_cache_path, get_dominant_rgb_from_url
 from bot.vocal.custom import generate_info_embed
+from config import YT_COOKIES_PATH
 
 
 class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
@@ -30,8 +31,8 @@ yt_dlp.utils.bug_reports_message = lambda: ''  # disable yt_dlp bug report
 def format_options(file_path: Union[str, Path]) -> dict:
     # See https://github.com/yt-dlp/yt-dlp/wiki/Extractors#po-token-guide
     # If Ugoku is detected as a bot
-    po_token = ''
     return {
+        'cookiefile': YT_COOKIES_PATH,
         'format': 'bestaudio',
         'outtmpl': str(file_path),
         'restrictfilenames': True,
@@ -47,9 +48,6 @@ def format_options(file_path: Union[str, Path]) -> dict:
         'age_limit': 100,
         'live_from_start': True,
         'quiet': True,
-
-        # 'extractor-args': 'youtube:player-client=web,default;po_token=web+'+po_token,
-        # 'cookies': './cookiebro-cookies.json'
     }
 
 

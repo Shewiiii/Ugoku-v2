@@ -14,11 +14,13 @@ PINECONE_ENABLED = True
 ALLOW_CHATBOT_IN_DMS = True # Allow everyone to use the bot in dms. Can increase the token usage.
 
 #  ===SETTINGS===
+# Youtube cookies
+YT_COOKIES_PATH = './cookies.txt' # Parse cookies to ytdl to help with bot detection. Learn more: https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies
 # Paths
 COMMANDS_FOLDER = Path('./commands')
 TEMP_FOLDER = Path('.') / 'temp'
-# Cache control
 PREMIUM_CHANNEL_ID = None # Upload files too big to a channel in a boosted server instead
+# Cache control
 # DELAY_BEFORE_CACHING = 10 # Seconds to wait before caching the current and next track in queue
 CACHE_SIZE = 100  # Cache size limit (in number of files)
 CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds). Default is one month
