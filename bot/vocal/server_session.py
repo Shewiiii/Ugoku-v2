@@ -429,6 +429,7 @@ class ServerSession:
                 logging.error(str(e))
 
         # Add elements to the queue
+        original_length = len(self.queue)
         added_elements = [
             {'track_info': track_info, 'service': service} for track_info in tracks_info
         ]
@@ -454,6 +455,11 @@ class ServerSession:
             await self.start_playing(ctx)
         else:
             asyncio.create_task(self.update_now_playing(ctx))
+
+        # Preload next tracks if the queue has only one track
+        # (prepare_next_track method has not been called before)
+        if original_length == 1:
+            await self.prepare_next_track()
 
     async def play_previous(self, ctx: discord.ApplicationContext) -> None:
         self.previous = True
