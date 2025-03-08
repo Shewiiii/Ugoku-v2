@@ -31,31 +31,27 @@ bot = discord.Bot(intents=intents, loop=loop)
 
 @bot.event
 async def on_ready() -> None:
-    # Temp folder
     TEMP_FOLDER.mkdir(parents=True, exist_ok=True)
-
-    # Rich presence
-    await bot.change_presence(
-        activity=discord.Activity(
-            type=discord.ActivityType.listening,
-            name="/help for usage !"
+    tasks = [
+        bot.change_presence(
+            activity=discord.Activity(
+                type=discord.ActivityType.listening,
+                name="/help for usage !"
+            )
         )
-    )
-
-    # Music instances
+    ]
     if SPOTIFY_API_ENABLED:
         spotify_sessions = SpotifySessions()
         spotify = Spotify(spotify_sessions)
-        await spotify_sessions.init_spotify()
+        tasks.append(spotify_sessions.init_spotify())
         bot.spotify = spotify
         if DEEZER_ENABLED:
             bot.deezer = Deezer()
-            await bot.deezer.setup()
+            tasks.append(bot.deezer.setup())
     bot.youtube = Youtube()
-
-    # Chatbot instances
     if GEMINI_ENABLED:
-        await memory.init_pinecone(PINECONE_INDEX_NAME)
+        tasks.append(memory.init_pinecone(PINECONE_INDEX_NAME))
+    await asyncio.gather(*tasks)
 
     # Party !
     logging.info(f"{bot.user} is running !")

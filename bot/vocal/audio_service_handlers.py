@@ -24,7 +24,8 @@ async def play_spotify(
     interaction: Optional[discord.Interaction] = None,
     offset: int = 0,
     artist_mode: bool = False,
-    album: bool = False
+    album: bool = False,
+    play_next: bool = False
 ) -> None:
     """
     Handles playback of Spotify tracks.
@@ -34,14 +35,13 @@ async def play_spotify(
     if len(query) >= 250:
         await ctx.respond('Query too long!')
         return
-    
+
     edit = interaction.edit_original_message if interaction else ctx.edit
 
     try:
         if artist_mode:
             response = await asyncio.to_thread(
-                ctx.bot.spotify.sessions.sp.search, query, type='artist', limit=1
-            )
+                ctx.bot.spotify.sessions.sp.search, query, type='artist', limit=1)
             # Get the artist URL and get the tracks from it
             tracks_info = await ctx.bot.spotify.get_tracks(
                 response['artists']['items'][0]['external_urls']['spotify'],
@@ -55,6 +55,7 @@ async def play_spotify(
             content = 'Track not found!'
             await edit(content=content)
             return
+
     except SpotifyException as e:
         if e.http_status == 404:
             await edit(content="Content not found! Perhaps you are trying to play a private playlist?")
@@ -62,7 +63,7 @@ async def play_spotify(
             logging.error(e)
         return
 
-    await session.add_to_queue(ctx, tracks_info, 'spotify/deezer', interaction)
+    await session.add_to_queue(ctx, tracks_info, 'spotify/deezer', interaction, play_next=play_next)
 
 
 def get_display_name_from_query(query: str) -> str:
@@ -74,7 +75,8 @@ def get_display_name_from_query(query: str) -> str:
 async def play_custom(
     ctx: discord.ApplicationContext,
     query: str,
-    session: ServerSession
+    session: ServerSession,
+    play_next: bool = False
 ) -> None:
     """Handles playback of other URLs."""
     # Request and cache
@@ -93,7 +95,6 @@ async def play_custom(
     titles = list(metadata.get('title', []))
     artists = list(metadata.get('artist', []))
     albums = list(metadata.get('album', []))
-    print(titles, artists, albums)
 
     artist = first_item(artists, default='?')
     album = first_item(albums, default='?')
@@ -139,13 +140,14 @@ async def play_custom(
         'id': id
     }
 
-    await session.add_to_queue(ctx, [track_info], 'custom')
+    await session.add_to_queue(ctx, [track_info], 'custom', play_next=play_next)
 
 
 async def play_onsei(
     ctx: discord.ApplicationContext,
     query: str,
-    session: ServerSession
+    session: ServerSession,
+    play_next: bool = False
 ) -> None:
     """
     Handles playback of Onsei audio tracks.
@@ -203,14 +205,15 @@ async def play_onsei(
         }
 
         tracks_info.append(track_info)
-    await session.add_to_queue(ctx, tracks_info, 'onsei')
+    await session.add_to_queue(ctx, tracks_info, 'onsei', play_next=play_next)
 
 
 async def play_youtube(
     ctx: discord.ApplicationContext,
     query: str,
     session: ServerSession,
-    interaction: Optional[discord.Interaction] = None
+    interaction: Optional[discord.Interaction] = None,
+    play_next: bool = False
 ) -> None:
     if interaction:
         edit = interaction.edit_original_message
@@ -227,4 +230,4 @@ async def play_youtube(
         await edit(content='No video has been found!')
         return
 
-    await session.add_to_queue(ctx, [tracks_info], 'youtube', interaction)
+    await session.add_to_queue(ctx, [tracks_info], 'youtube', interaction, play_next=play_next)

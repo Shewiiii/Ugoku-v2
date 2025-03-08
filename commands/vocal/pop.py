@@ -1,4 +1,4 @@
-import logging
+import asyncio
 from typing import Optional
 
 import discord
@@ -58,64 +58,39 @@ class PopSong(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond):
+        if not vocal_action_check(session, ctx, ctx.respond):
             return
 
         removed_tracks = []
         queue = session.queue
-        tracks_info = [element['track_info'] for element in queue]
         # If a song is specified, find its index in the queue
         if song:
-            for i, track_info in enumerate(tracks_info):
+            for i, track_info in enumerate([e['track_info'] for e in queue]):
                 if track_info['display_name'] == song:
                     index = i
                     break
 
-        if not index:
-            # If index is 0 or None
-            pass
-        elif mode == 'Single' and len(queue) >= index >= -1:
+        # Remove tracks
+        if not index or not -1 <= index < len(queue):
+            await ctx.respond("No song has been removed !")
+            return
+        elif mode == 'Single':
             removed_tracks: list[Optional[dict]] = [session.queue.pop(index)]
-        elif mode == 'After (included)':
-            removed_tracks = queue[index:]
-            session.queue = queue[:index]
         elif mode == 'Before (included)':
-            removed_tracks = queue[:index]
-            session.queue = queue[index:]
+            removed_tracks, session.queue = queue[:index], queue[index:]
+        elif mode == 'After (included)':
+            index = min(index, len(queue))
+            removed_tracks, session.queue = queue[index:], queue[:index]
 
         # Send message
-        # If no song removed
-        count = len(removed_tracks)
+        c = len(removed_tracks)
         r_tracks_info = [track['track_info'] for track in removed_tracks]
-        if count == 0:
-            await ctx.respond("No song has been removed !")
-
-        # If only one song is removed
-        elif count == 1:
-            title = r_tracks_info[0]['display_name']
-            url = r_tracks_info[0]['url']
-            await ctx.respond(content=f'Removed: [{title}](<{url}>) !')
-
-        # If 2 or 3 songs are removed
-        elif count in [2, 3]:
-            titles_urls = ', '.join(
-                f'[{track["display_name"]}](<{track["url"]}>)'
-                for track in r_tracks_info
-            )
-            await ctx.respond(content=f'Removed: {titles_urls} !')
-
-        # If more than 3 songs are removed
-        elif count > 3:
-            titles_urls = ', '.join(
-                f'[{track["display_name"]}](<{track["url"]}>)'
-                for track in r_tracks_info[:3]
-            )
-            additional_songs = count - 3
-            await ctx.respond(
-                content=(
-                    f'Removed: {titles_urls}, and '
-                    f'{additional_songs} more song(s) !')
-            )
+        titles = ', '.join(
+            f'[{t["display_name"]}](<{t["url"]}>)' for t in r_tracks_info[:3]
+        )
+        message = f'Removed: {titles}{" !" if c <= 3 else f", and {c-3} more songs !"}'
+        asyncio.create_task(ctx.respond(message))
+        asyncio.create_task(session.update_now_playing(ctx))
 
 
 def setup(bot):

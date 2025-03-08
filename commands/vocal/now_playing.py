@@ -1,3 +1,4 @@
+import asyncio
 from discord.ext import commands
 import discord
 
@@ -16,13 +17,13 @@ class NowPlaying(commands.Cog):
     async def queue(self, ctx: discord.ApplicationContext):
         guild_id = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond):
+        if not vocal_action_check(session, ctx, ctx.respond):
             return
 
-        await ctx.respond("Sending !", ephemeral=True)
+        asyncio.create_task(ctx.respond("Sending !", ephemeral=True))
         await session.now_playing_message.delete()
         session.now_playing_message = None
-        await session.update_now_playing(ctx)
+        asyncio.create_task(session.update_now_playing(ctx))
 
 
 def setup(bot):

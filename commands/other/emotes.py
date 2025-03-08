@@ -19,10 +19,11 @@ class Emotes(commands.Cog):
         user_id = ctx.user.id
         channel_id = ctx.channel.id
         self.pending[user_id] = channel_id
-        await ctx.respond("Send any emotes or stickers, or reply to a message ! (Cancel in 60 seconds)")
+        asyncio.create_task(ctx.respond(
+            "Send any emotes or stickers, or reply to a message ! (Cancel in 60 seconds)"))
         await asyncio.sleep(60)
         if user_id in self.pending:
-            await ctx.respond(f"Get emotes canceled for {ctx.author.global_name}.")
+            asyncio.create_task(ctx.respond(f"Get emotes canceled for {ctx.author.global_name}."))
             del self.pending[user_id]
 
     @commands.Cog.listener()

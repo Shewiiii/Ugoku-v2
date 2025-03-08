@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 
@@ -26,7 +27,7 @@ class Stickers(commands.Cog):
             required=True
         )  # type: ignore
     ) -> None:
-        await ctx.respond('Give me a second~')
+        asyncio.create_task(ctx.respond('Give me a second~'))
 
         try:
             zip_file = await get_stickerpack(url, ctx=ctx)
@@ -39,10 +40,10 @@ class Stickers(commands.Cog):
             )
             return
 
-        await ctx.edit(
+        asyncio.create_task(ctx.edit(
             file=discord.File(zip_file),
             content="Here's the sticker pack you requested~"
-        )
+        ))
         # Clean up the file after sending
         os.remove(zip_file)
 

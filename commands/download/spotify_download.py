@@ -47,7 +47,7 @@ class SpotifyDownload(commands.Cog):
             await ctx.respond(content='Spotify features are not enabled.')
             return
 
-        await ctx.respond('Give me a second~')
+        asyncio.create_task(ctx.respond('Give me a second~'))
 
         # Quality dict
         quality_dict = {

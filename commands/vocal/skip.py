@@ -18,10 +18,10 @@ class Skip(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
+        if not vocal_action_check(session, ctx, ctx.respond, silent=silent):
             return
 
-        await send_response(ctx.respond, "Skipping!", session.guild_id, silent)
+        send_response(ctx.respond, "Skipping!", session.guild_id, silent)
 
         # SKIP
         session.skipped = True

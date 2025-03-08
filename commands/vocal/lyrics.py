@@ -1,8 +1,9 @@
+import asyncio
 import logging
 from typing import Optional
 from config import (
-    SPOTIFY_API_ENABLED, 
-    DEFAULT_EMBED_COLOR, 
+    SPOTIFY_API_ENABLED,
+    DEFAULT_EMBED_COLOR,
     GEMINI_ENABLED,
     DEFAULT_STREAMING_SERVICE
 )
@@ -17,6 +18,45 @@ from commands.vocal.play import Play
 
 
 logger = logging.getLogger(__name__)
+
+# Create the view if Spotify enabled (buttons)
+
+
+class lyricsView(discord.ui.View):
+    def __init__(
+        self,
+        bot: discord.bot,
+        ctx: discord.ApplicationContext,
+        track_info: dict
+    ) -> None:
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.ctx = ctx
+        self.track_info = track_info
+
+        spotify_button = discord.ui.Button(
+            label="Spotify Link",
+            style=discord.ButtonStyle.link,
+            url=self.track_info['url']
+        )
+        self.add_item(spotify_button)
+
+    @discord.ui.button(
+        label="Play it",
+        style=discord.ButtonStyle.primary,
+    )
+    async def play_button_callback(
+        self,
+        button: discord.ui.Button,
+        interaction: discord.Interaction
+    ) -> None:
+        play_cog: Play = self.bot.get_cog('Play')
+        await play_cog.execute_play(
+            self.ctx,
+            self.track_info['url'],
+            DEFAULT_STREAMING_SERVICE,
+            interaction=interaction
+        )
 
 
 class Lyrics(commands.Cog):
@@ -83,7 +123,7 @@ class Lyrics(commands.Cog):
                     'order to use lyrics conversion.'
                 )
                 return
-            await ctx.respond('Converting~')
+            asyncio.create_task(ctx.respond('Converting~'))
             lyrics = await BotLyrics.convert(lyrics, convert_to)
 
         # Split the lyrics in case it's too long
@@ -103,47 +143,12 @@ class Lyrics(commands.Cog):
             embed.add_field(name='', value=part, inline=False)
 
         if SPOTIFY_API_ENABLED:
-            # Create the view if Spotify enabled (buttons)
-            class lyricsView(discord.ui.View):
-                def __init__(
-                    self,
-                    bot: discord.bot,
-                    ctx: discord.ApplicationContext
-                ) -> None:
-                    super().__init__(timeout=None)
-                    self.bot = bot
-                    self.ctx = ctx
-
-                    spotify_button = discord.ui.Button(
-                        label="Spotify Link",
-                        style=discord.ButtonStyle.link,
-                        url=track_info['url']
-                    )
-                    self.add_item(spotify_button)
-
-                @discord.ui.button(
-                    label="Play it",
-                    style=discord.ButtonStyle.primary,
-                )
-                async def play_button_callback(
-                    self,
-                    button: discord.ui.Button,
-                    interaction: discord.Interaction
-                ) -> None:
-                    play_cog: Play = self.bot.get_cog('Play')
-                    await play_cog.execute_play(
-                        ctx,
-                        track_info['url'], 
-                        DEFAULT_STREAMING_SERVICE,
-                        interaction=interaction
-                    )
-
             # Add a cover to the embed
             embed.set_author(name="Lyrics", icon_url=track_info['cover'])
-
-            await ctx.respond(embed=embed, view=lyricsView(self.bot, ctx))
+            asyncio.create_task(ctx.respond(
+                embed=embed, view=lyricsView(self.bot, ctx, track_info)))
         else:
-            await ctx.respond(embed=embed)
+            asyncio.create_task(ctx.respond(embed=embed))
 
 
 def setup(bot):

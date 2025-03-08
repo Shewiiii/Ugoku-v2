@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 from datetime import datetime
@@ -25,7 +26,7 @@ class AudioBitrate(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond):
+        if not vocal_action_check(session, ctx, ctx.respond):
             return
 
         if not 0 <= bitrate <= 510:
@@ -35,7 +36,8 @@ class AudioBitrate(commands.Cog):
         session.bitrate = bitrate
         current_pos = session.time_elapsed + \
             int((datetime.now() - session.last_played_time).total_seconds())
-        await ctx.respond(f"Changing the bitrate to {bitrate} kbps !")
+        asyncio.create_task(ctx.respond(
+            f"Changing the bitrate to {bitrate} kbps !"))
         await session.seek(current_pos, quiet=True)
 
 

@@ -10,7 +10,7 @@ import discord
 from librespot.audio import AbsChunkedInputStream
 
 from bot.vocal.queue_view import QueueView
-from bot.vocal.control_view import nowPlayingView
+from bot.vocal.now_playing_view import nowPlayingView
 from config import (
     AUTO_LEAVE_DURATION,
     DEFAULT_AUDIO_VOLUME,
@@ -48,14 +48,16 @@ class ServerSession:
     def __init__(
         self,
         guild_id: int,
-        voice_client: discord.VoiceClient,
+        voice_client: Optional[discord.VoiceClient],
         bot: discord.Bot,
         channel_id: int,
-        session_manager: 'SessionManager'
+        session_manager: 'SessionManager',
+        connect_task: Optional[asyncio.Task] = None
     ) -> None:
+        self.connect_task = connect_task
         self.bot: discord.Bot = bot
         self.guild_id: int = guild_id
-        self.voice_client: discord.VoiceClient = voice_client
+        self.voice_client: Optional[discord.VoiceClient] = voice_client
         self.queue: List[Optional[dict]] = []
         self.to_loop: List[Optional[dict]] = []
         self.last_played_time: datetime = datetime.now()
@@ -123,19 +125,18 @@ class ServerSession:
             else:
                 sent_embed = deepcopy(unloaded_embed)
 
+            # Update the embed with remaining tracks
             next_track = 'End of queue!'
             if len(self.queue) > 1:
                 next_track_info = self.queue[1]['track_info']
                 next_track = f'[{next_track_info["display_name"]}](<{next_track_info["url"]}>)'
-            # Update the embed with remaining tracks
+
             sent_embed.add_field(
                 name="Remaining",
                 value=str(len(self.queue) - 1),
-                inline=True
-            )
-            sent_embed.add_field(
+            ).add_field(
                 name="Next",
-                value=next_track, inline=True
+                value=next_track
             )
 
             # No need for a text message if embed
@@ -156,12 +157,7 @@ class ServerSession:
         # Send the message or edit the previous message based on the context
         if not self.now_playing_message and send:
             try:
-                self.now_playing_message = await ctx.send(
-                    content=message,
-                    embed=sent_embed,
-                    view=view,
-                )
-                discord.Interaction
+                self.now_playing_message = await ctx.send(content=message, embed=sent_embed, view=view)
             except discord.errors.Forbidden:
                 logging.error(
                     f"Now playing embed sent in forbidden channel in {self.guild_id}")
@@ -256,7 +252,7 @@ class ServerSession:
             try:
                 input_stream = await source()
             except Exception as e:
-                logging.error(e)
+                logging.error(str(e))
                 return
 
         # Skip non-audio content in Spotify streams
@@ -292,7 +288,8 @@ class ServerSession:
         if service == 'spotify/deezer' and not isinstance(unloaded_source, (Path, str)):
             source = await self.load_deezer_stream(load_chunks=True) or await self.load_spotify_stream()
             if source is None:
-                await ctx.send(f"{track_info['display_name']} is not available!")
+                asyncio.create_task(
+                    ctx.send(f"{track_info['display_name']} is not available!"))
                 self.after_playing(ctx, error=None)
                 return
         else:
@@ -333,7 +330,16 @@ class ServerSession:
                 'options': f'-ss {start_position} -filter:a "volume={volume}"'
             }
 
+        # Wait until the bot is fully connected to the vc
+        if self.connect_task:
+            self.voice_client = await self.connect_task
+
+        if not self.voice_client:
+            logging.error(f"No voice client in {self.guild_id} session")
+
         # Play !
+        if self.voice_client.is_playing():
+            return
         ffmpeg_source = discord.FFmpegOpusAudio(
             source,
             pipe=isinstance(source, (AbsChunkedInputStream,
@@ -354,7 +360,7 @@ class ServerSession:
                 and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
             )
             if should_update_now_playing:
-                await self.update_now_playing(ctx)
+                asyncio.create_task(self.update_now_playing(ctx))
                 self.skipped = False
 
             # Log total processing time
@@ -385,16 +391,24 @@ class ServerSession:
         track_info = self.queue[index]['track_info']
         current_id = track_info['id']
 
-        # Deezer
-        if not await self.load_deezer_stream(index, current_id=current_id):
-            self.deezer_blacklist.add(current_id)
+        # Deezer task
+        deezer_stream_task = asyncio.create_task(
+            self.load_deezer_stream(index, current_id=current_id))
 
-        # Generate the embed
+        # Embed task
+        embed_task = None
         embed = track_info.get('embed', None)
         if embed and isinstance(embed, Callable):
-            loaded_embed = await embed()
-            if track_info['id'] == current_id:
-                track_info['embed'] = loaded_embed
+            embed_task = asyncio.create_task(embed())
+
+        # Embed load
+        if embed_task and track_info['id'] == current_id:
+            loaded_embed = await embed_task
+            track_info['embed'] = loaded_embed
+
+        # Deezer load
+        if not await deezer_stream_task:
+            self.deezer_blacklist.add(current_id)
 
         logging.info(f"Preloaded track {track_info['id']}")
 
@@ -403,79 +417,43 @@ class ServerSession:
         ctx: discord.ApplicationContext,
         tracks_info: List[dict],
         service: Literal['spotify', 'youtube', 'custom', 'onsei'],
-        interaction: Optional[discord.Interaction] = None
+        interaction: Optional[discord.Interaction] = None,
+        play_next: bool = False
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing."""
-        def edit_method(edit_function):
-            async def edit(content: str, edit_function=edit_function) -> None:
-                try:
-                    await edit_function(content=content)
-                except discord.errors.NotFound as e:
-                    logging.error(e)
-                    pass
-            return edit
+        async def respond(content: str):
+            edit_func = interaction.respond if interaction else ctx.respond
+            try:
+                await edit_func(content=content)
+            except discord.errors.NotFound as e:
+                logging.error(str(e))
 
-        # Check if triggered by an interaction
-        if interaction:
-            edit = edit_method(interaction.edit_original_response)
-        else:
-            edit = edit_method(ctx.edit)
+        # Add elements to the queue
+        added_elements = [
+            {'track_info': track_info, 'service': service} for track_info in tracks_info
+        ]
+        for queue in self.queue, self.original_queue:
+            queue[(i := 1 if play_next else len(queue)):i] = added_elements
 
-        original_length = len(self.queue)
-
-        for track_info in tracks_info:
-            queue_item: dict = {
-                'track_info': track_info,
-                'service': service
-            }
-            self.queue.append(queue_item)
-            # Add to original queue for shuffle
-            self.original_queue.append(queue_item)
-
+        # Shuffle if enabled
         if self.shuffle:
-            current_song = [self.queue[0]] if self.queue else []
-            remaining_songs = self.queue[1:]
-            random.shuffle(remaining_songs)
-            self.queue = current_song + remaining_songs
+            self.queue = [self.queue[0]] if self.queue else [] + \
+                random.shuffle(self.queue[1:])
 
-        # If only one song is added
-        count = len(tracks_info)
-        if count == 1:
-            title = tracks_info[0]['display_name']
-            url = tracks_info[0]['url']
-            await edit(content=f'Added to queue: [{title}](<{url}>) !')
+        # Tell the user what has been added
+        c = len(tracks_info)
+        titles = ', '.join(
+            f'[{t["display_name"]}](<{t["url"]}>)'
+            for t in tracks_info[:3]
+        )
+        asyncio.create_task(respond(
+            content=f'Added to queue: {titles}{" !" if c <= 3 else f", and {c-3} more songs !"}'))
 
-        # If 2 or 3 songs are added
-        elif count in [2, 3]:
-            titles_urls = ', '.join(
-                f'[{track_info["display_name"]}](<{track_info["url"]}>)'
-                for track_info in tracks_info
-            )
-            await edit(content=f'Added to queue: {titles_urls} !')
-
-        # If more than 3 songs are added
-        elif count > 3:
-            titles_urls = ', '.join(
-                f'[{track_info["display_name"]}](<{track_info["url"]}>)'
-                for track_info in tracks_info[:3]
-            )
-            additional_songs = count - 3
-            await edit(
-                content=(
-                    f'Added to queue: {titles_urls}, and '
-                    f'{additional_songs} more song(s) !')
-            )
-
-        if not self.voice_client.is_playing() and len(self.queue) >= 1:
+        # Play !
+        if len(self.queue) >= 1 and (not self.voice_client or not self.voice_client.is_playing()):
             await self.start_playing(ctx)
-
         else:
-            await self.update_now_playing(ctx)
-
-        # Preload next tracks if the queue has only one track
-        # (prepare_next_track method has not been called before)
-        if original_length == 1:
-            await self.prepare_next_track()
+            asyncio.create_task(self.update_now_playing(ctx))
 
     async def play_previous(self, ctx: discord.ApplicationContext) -> None:
         self.previous = True
@@ -520,7 +498,7 @@ class ServerSession:
             self.queue = [current_song] + self.shuffled_queue
 
         self.shuffle = not self.shuffle
-        await self.update_now_playing(self.last_context)
+        asyncio.create_task(self.update_now_playing(self.last_context))
         return True
 
     def after_playing(
@@ -537,11 +515,11 @@ class ServerSession:
         if self.is_seeking:
             return
 
-        if self.queue and self.voice_client.is_connected():
-            asyncio.run_coroutine_threadsafe(
-                self.play_next(ctx),
-                self.bot.loop
-            )
+        asyncio.run_coroutine_threadsafe(
+            self.play_next(ctx) if self.queue and self.voice_client.is_connected(
+            ) else self.update_now_playing(ctx),
+            self.bot.loop
+        )
 
     async def play_next(
         self,

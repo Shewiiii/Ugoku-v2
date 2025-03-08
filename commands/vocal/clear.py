@@ -1,7 +1,9 @@
+import asyncio
 from datetime import datetime
 
 import discord
 from discord.ext import commands
+
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
 from bot.utils import vocal_action_check
@@ -19,7 +21,7 @@ class Clear(commands.Cog):
     async def clear(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
         session: ServerSession | None = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond, check_queue=False):
+        if not vocal_action_check(session, ctx, ctx.respond, check_queue=False):
             return
 
         voice_client = session.voice_client
@@ -35,7 +37,7 @@ class Clear(commands.Cog):
             session.last_played_time = datetime.now()
             voice_client.stop()
 
-        await ctx.respond('Queue cleared!')
+        asyncio.create_task(ctx.respond('Queue cleared!'))
 
         if session.now_playing_message:
             await session.now_playing_message.delete()

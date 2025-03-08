@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 from datetime import datetime
@@ -43,7 +44,7 @@ class AudioEffects(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond):
+        if not vocal_action_check(session, ctx, ctx.respond):
             return
 
         if (wet and wet > 10) or (dry and dry > 10):
@@ -71,12 +72,12 @@ class AudioEffects(commands.Cog):
 
         current_pos = session.time_elapsed + \
             int((datetime.now() - session.last_played_time).total_seconds())
-        await ctx.respond(
+        asyncio.create_task(ctx.respond(
             f"Applying the {effect} effect!\n"
             f"> Dry: {dry_value}\n"
             f"> Wet: {wet_value}\n"
             f"> Volume multiplier: {volume_value}"
-        )
+        ))
         await session.seek(current_pos, quiet=True)
 
 

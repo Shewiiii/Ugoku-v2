@@ -1,6 +1,5 @@
-import logging
+import asyncio
 from bot.utils import send_response
-from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -20,7 +19,7 @@ class Loop(commands.Cog):
     ) -> None:
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
+        if not vocal_action_check(session, ctx, ctx.respond, silent=silent):
             return
 
         mode = mode.lower()
@@ -45,7 +44,7 @@ class Loop(commands.Cog):
         else:
             response = "oi"
 
-        await send_response(ctx.respond, response, guild_id, silent)
+        send_response(ctx.respond, response, guild_id, silent)
         await session.now_playing_view.update_buttons()
 
     @commands.slash_command(

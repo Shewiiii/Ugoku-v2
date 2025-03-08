@@ -13,7 +13,8 @@ class ConfigCommand(commands.Cog):
         name="config",
         description='Check the current config of the bot.',
         integration_types={
-            discord.IntegrationType.guild_install
+            discord.IntegrationType.guild_install,
+            discord.IntegrationType.user_install
         }
     )
     async def config(self, ctx: discord.ApplicationContext) -> None:
@@ -77,7 +78,7 @@ class ConfigCommand(commands.Cog):
             inline=False
         )
 
-        await ctx.respond(embed=config_embed)
+        await ctx.respond(embed=config_embed, ephemeral=True)
 
 
 def setup(bot):

@@ -18,8 +18,8 @@ class Ping(commands.Cog):
     )
     async def ping(self, ctx: discord.ApplicationContext) -> None:
         latency = round(self.bot.latency*1000, 2)
-        await ctx.respond(f'あわあわあわわわ ! {latency}ms')
         logging.info(f'Pinged latency: {latency}ms.')
+        await ctx.respond(f'あわあわあわわわ ! {latency}ms')
 
 
 def setup(bot):

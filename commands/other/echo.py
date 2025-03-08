@@ -1,3 +1,4 @@
+import asyncio
 from discord.ext import commands
 import discord
 
@@ -25,10 +26,10 @@ class Echo(commands.Cog):
         if not ctx.guild.me:
             # If using the bot as a user application
             # (Bot not in the server)
-            await ctx.respond(content=message)
+            asyncio.create_task(ctx.respond(content=message))
         else:
-            await ctx.send(content=message)
-            await ctx.respond('Done !', ephemeral=True)
+            asyncio.create_task(ctx.send(content=message))
+            asyncio.create_task(ctx.respond('Done !', ephemeral=True))
 
 
 def setup(bot):

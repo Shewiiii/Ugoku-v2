@@ -17,7 +17,7 @@ class Queue(commands.Cog):
         await ctx.defer()
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond):
+        if not vocal_action_check(session, ctx, ctx.respond):
             return
 
         if not session:

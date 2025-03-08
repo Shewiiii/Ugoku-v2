@@ -1,5 +1,8 @@
+import asyncio
 import discord
 from discord.ext import commands
+import logging
+import time
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
@@ -21,10 +24,10 @@ class Seek(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession | None = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond):
+        if not vocal_action_check(session, ctx, ctx.respond):
             return
 
-        await ctx.respond(f"Seeking to {position} seconds.")
+        asyncio.create_task(ctx.respond(f"Seeking to {position} seconds."))
         await session.seek(position, quiet=True)
 
 

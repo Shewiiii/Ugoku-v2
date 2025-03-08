@@ -17,16 +17,16 @@ class Resume(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session = session_manager.server_sessions.get(ctx.guild.id)
-        if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
+        if not vocal_action_check(session, ctx, ctx.respond, silent=silent):
             return
 
         voice_client = session.voice_client
         if voice_client.is_paused():
             voice_client.resume()
             session.last_played_time = datetime.now()
-            await send_response(ctx.respond, 'Resumed!', guild_id, silent)
+            send_response(ctx.respond, 'Resumed!', guild_id, silent)
         else:
-            await send_response(ctx.respond, 'The audio is not paused.', guild_id, silent)
+            send_response(ctx.respond, 'The audio is not paused.', guild_id, silent)
 
         await session.now_playing_view.update_buttons()
 

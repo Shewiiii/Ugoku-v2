@@ -1,12 +1,11 @@
 from typing import Optional
-
 from discord.ext import commands
 import discord
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
 from bot.vocal.audio_service_handlers import play_spotify, play_custom, play_onsei, play_youtube
-from bot.utils import is_onsei, send_response, vocal_action_check
+from bot.utils import is_onsei
 from bot.search import is_url
 from config import (
     SPOTIFY_ENABLED,
@@ -30,19 +29,17 @@ class Play(commands.Cog):
         offset: int = 0,
         artist_mode: bool = False,
         album: bool = False,
-        effect: str = 'default'
+        effect: str = 'default',
+        play_next: bool = False
     ) -> None:
-        await ctx.defer()
-        if interaction:
-            respond = interaction.response.send_message
-            edit = interaction.edit_original_response
-        else:
-            respond = ctx.respond
-            edit = ctx.edit
+        if not interaction:
+            await ctx.defer()
+        respond = interaction.response.send_message if interaction else ctx.respond
 
         # Connect to the voice channel
-        session: Optional[ServerSession] = await sm.connect(ctx, self.bot)
-        if not await vocal_action_check(session, ctx, ctx.respond, check_queue=False):
+        session: Optional[ServerSession] = sm.connect(ctx, self.bot)
+        if not session:
+            await ctx.respond(content="No active session !")
             return
 
         # Applying audio effects
@@ -64,24 +61,24 @@ class Play(commands.Cog):
         spotify_domains = ['open.spotify.com']
 
         if service == 'onsei' or is_onsei(query):
-            await play_onsei(ctx, query, session)
+            await play_onsei(ctx, query, session, play_next)
 
         elif service == 'custom' or (is_url(query) and not is_url(query, from_=spotify_domains+youtube_domains)):
-            await play_custom(ctx, query, session)
+            await play_custom(ctx, query, session, play_next)
 
         elif service == 'youtube' or is_url(query, from_=youtube_domains):
-            await play_youtube(ctx, query, session, interaction)
+            await play_youtube(ctx, query, session, interaction, play_next)
 
         elif service == 'spotify/deezer':
             if not SPOTIFY_API_ENABLED or (not SPOTIFY_ENABLED and not DEEZER_ENABLED):
-                await edit(content=f'Spotify API or no audio streaming service is enabled.')
+                await respond(content=f'Spotify API or no audio streaming service is enabled.')
                 return
             await play_spotify(
                 ctx, query, session, interaction,
-                offset, artist_mode, album
+                offset, artist_mode, album, play_next
             )
         else:
-            await edit(content='wut duh')
+            await respond(content='wut duh')
 
     @commands.slash_command(
         name='play',
@@ -96,6 +93,11 @@ class Play(commands.Cog):
             description="The streaming service you want to use.",
             choices=['Spotify/Deezer', 'Youtube', 'Custom', 'Onsei'],
             default=DEFAULT_STREAMING_SERVICE
+        ),  # type: ignore
+        play_next: discord.Option(
+            bool,
+            description="Add the song at the beginning of the queue.",
+            default=False
         ),  # type: ignore
         playlist_offset: discord.Option(
             int,
@@ -126,7 +128,8 @@ class Play(commands.Cog):
             offset=playlist_offset,
             artist_mode=artist_mode,
             album=album,
-            effect=effect
+            effect=effect,
+            play_next=play_next
         )
 
 

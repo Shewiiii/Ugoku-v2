@@ -1,5 +1,5 @@
+import asyncio
 import logging
-
 import discord
 
 from typing import Optional
@@ -10,6 +10,7 @@ onsei = Onsei()
 
 logger = logging.getLogger(__name__)
 
+
 class SessionManager:
     def __init__(self) -> None:
         """
@@ -19,7 +20,7 @@ class SessionManager:
         """
         self.server_sessions = {}
 
-    async def connect(
+    def connect(
         self,
         ctx: discord.ApplicationContext,
         bot: discord.Bot
@@ -50,19 +51,20 @@ class SessionManager:
         channel = user_voice.channel
 
         if not ctx.voice_client:
-            await channel.connect()
+            connect_task = asyncio.create_task(channel.connect())
             # Clean server session after a new connection
             self.server_sessions.pop(guild_id, None)
 
-        if ctx.voice_client.is_connected():
-            if guild_id not in self.server_sessions:
-                self.server_sessions[guild_id] = ServerSession(
-                    guild_id,
-                    ctx.voice_client,
-                    bot,
-                    ctx.channel_id,
-                    self
-                )
-            return self.server_sessions[guild_id]
+        if guild_id not in self.server_sessions:
+            self.server_sessions[guild_id] = ServerSession(
+                guild_id,
+                None,
+                bot,
+                ctx.channel_id,
+                self,
+                connect_task
+            )
+        return self.server_sessions[guild_id]
+
 
 session_manager = SessionManager()

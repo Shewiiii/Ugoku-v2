@@ -31,7 +31,7 @@ class DeezerDownload(commands.Cog):
         if not DEEZER_ENABLED:
             await ctx.respond(content='Deezer features are not enabled.')
             return
-        await ctx.respond('Give me a second~')
+        asyncio.create_task(ctx.respond('Give me a second~'))
         is_spotify_url = is_url(query, ['open.spotify.com'])
         track_not_found_message = 'Track not found !'
 

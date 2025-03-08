@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from httpx._exceptions import HTTPStatusError
 
@@ -77,12 +78,12 @@ class Danbooru_(commands.Cog):
                 text=post.get('tag_string_artist', '').replace('_', ' ')
             )
 
-            await ctx.respond(embed=embed)
+            asyncio.create_task(ctx.respond(embed=embed))
             sent = True
             break
 
         if not sent:
-            await ctx.respond('Failed to find a post !')
+            asyncio.create_task(ctx.respond('Failed to find a post !'))
 
 
 def setup(bot):

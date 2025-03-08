@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import logging
 from discord.ext import commands
@@ -59,10 +60,7 @@ class Ask(commands.Cog):
             )
 
         except BlockedPromptException:
-            await ctx.respond(
-                "*filtered*",
-                ephemeral=ephemeral
-            )
+            await ctx.respond("*filtered*",ephemeral=ephemeral)
             logging.error(f"Response blocked by Gemini in {chat.id_}")
             return
 
@@ -76,7 +74,7 @@ class Ask(commands.Cog):
         # Response
         formatted_reply = (
             f"-# {author_name}: {query}\n{chat.format_reply(reply)}")
-        await ctx.respond(formatted_reply, ephemeral=ephemeral)
+        asyncio.create_task(ctx.respond(formatted_reply, ephemeral=ephemeral))
 
         # Memory
         await chat.memory.store(

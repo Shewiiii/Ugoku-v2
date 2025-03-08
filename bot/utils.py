@@ -414,7 +414,7 @@ def extract_video_id(url):
         return None
 
 
-async def send_response(
+def send_response(
     respond: Callable[[str], discord.Message],
     message: str,
     guild_id: int,
@@ -423,7 +423,7 @@ async def send_response(
     if silent:
         return
     try:
-        await respond(message)
+        asyncio.create_task(respond(message))
     except discord.errors.HTTPException:
         logging.error(
             f"Failed to send response for guild {guild_id}. "
@@ -468,7 +468,7 @@ async def upload(
     await ctx.edit(content=f"Here you go ! [Direct URL]({message.attachments[0].url})")
 
 
-async def vocal_action_check(
+def vocal_action_check(
     session,
     ctx: discord.ApplicationContext,
     respond_function,
@@ -478,17 +478,20 @@ async def vocal_action_check(
     """Checks if a user is allowed to execute an operation in vc."""
     if not session:
         if not silent:
-            await respond_function(content="No active session !")
+            asyncio.create_task(respond_function(
+                content="No active session !"))
         return False
 
     if ctx.author.voice.channel != session.voice_client.channel:
         if not silent:
-            await respond_function(content="You are not in the active voice channel !")
+            asyncio.create_task(respond_function(
+                content="You are not in the active voice channel !"))
         return False
 
     if check_queue and not session.queue:
         if not silent:
-            await respond_function(content="No songs in the queue !")
+            asyncio.create_task(respond_function(
+                content="No songs in the queue !"))
         return False
 
     return True

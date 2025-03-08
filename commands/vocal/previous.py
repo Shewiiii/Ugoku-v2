@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 from bot.vocal.session_manager import session_manager as sm
@@ -17,14 +18,14 @@ class Previous(commands.Cog):
     ) -> None:
         guild_id: int = ctx.guild.id
         session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond, check_queue=False, silent=silent):
+        if not vocal_action_check(session, ctx, ctx.respond, check_queue=False, silent=silent):
             return
 
         if not session.stack_previous:
-            await send_response(ctx.respond, "No tracks played previously!", guild_id, silent)
+            send_response(ctx.respond, "No tracks played previously!", guild_id, silent)
             return
 
-        await send_response(ctx.respond, "Playing the previous track!", guild_id, silent)
+        send_response(ctx.respond, "Playing the previous track!", guild_id, silent)
         await session.play_previous(ctx)
         await session.now_playing_view.update_buttons(delay=0.5)
 

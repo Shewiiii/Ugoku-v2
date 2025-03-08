@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from typing import Optional, Callable
 
@@ -20,7 +21,7 @@ class Pause(commands.Cog):
     ) -> None:
         guild_id = ctx.guild.id
         session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond, silent=silent):
+        if not vocal_action_check(session, ctx, ctx.respond, silent=silent):
             return
 
         # Pause
@@ -30,13 +31,13 @@ class Pause(commands.Cog):
         session.time_elapsed += elapsed_time
         session.last_played_time = current_time
 
-        await send_response(
+        send_response(
             ctx.respond,
             f"Paused at {session.time_elapsed}s!",
             guild_id,
             silent
         )
-        await session.now_playing_view.update_buttons()
+        asyncio.create_task(session.now_playing_view.update_buttons())
 
     @commands.slash_command(
         name='pause',

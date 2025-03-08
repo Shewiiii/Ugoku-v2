@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 from bot.jpdb.jpdb import Jpdb, jpdb_sessions
@@ -39,7 +40,7 @@ class JpdbReview(commands.Cog):
         except:
             await ctx.respond('Please enter a valid API key !', ephemeral=True)
             return
-        await ctx.respond('Loading !', ephemeral=True)
+        asyncio.create_task(ctx.respond('Loading !', ephemeral=True))
         await session.get_all_vocab(deck_id)
         session.sort_vocab_by_frequency()
         await session.show_card()

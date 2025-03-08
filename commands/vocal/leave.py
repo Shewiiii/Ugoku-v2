@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 
@@ -16,12 +17,12 @@ class Leave(commands.Cog):
     async def leave(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
-        if not await vocal_action_check(session, ctx, ctx.respond, check_queue=False):
+        if not vocal_action_check(session, ctx, ctx.respond, check_queue=False):
             return
 
         if session:
             await session.voice_client.disconnect()
-            await ctx.respond('Baibai~')
+            asyncio.create_task(ctx.respond('Baibai~'))
             session.voice_client.cleanup()
             await session.close_streams()
             del sm.server_sessions[guild_id]
