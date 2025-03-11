@@ -40,13 +40,13 @@ async def play_spotify(
 
     try:
         if artist_mode:
-            response = await asyncio.to_thread(
-                ctx.bot.spotify.sessions.sp.search, query, type='artist', limit=1)
+            response = await ctx.bot.spotify.search(query, type='artist', limit=1)
             # Get the artist URL and get the tracks from it
             tracks_info = await ctx.bot.spotify.get_tracks(
-                response['artists']['items'][0]['external_urls']['spotify'],
                 offset=offset,
-                album=album
+                album=album,
+                id_=response[0]['id'],
+                type="artist"
             ) if response else None
         else:
             tracks_info = await ctx.bot.spotify.get_tracks(query, offset=offset, album=album)

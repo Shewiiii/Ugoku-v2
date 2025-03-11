@@ -1,3 +1,4 @@
+import asyncio
 from discord.ext import commands
 import discord
 
@@ -14,7 +15,6 @@ class Queue(commands.Cog):
         description='Show the current queue.'
     )
     async def queue(self, ctx: discord.ApplicationContext):
-        await ctx.defer()
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
         if not vocal_action_check(session, ctx, ctx.respond):

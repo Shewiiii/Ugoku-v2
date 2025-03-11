@@ -266,16 +266,6 @@ class Spotify:
                 return images[0].get('url', '')
             return album.get('cover', '')
 
-        async def embed():
-            return await generate_info_embed(
-                url=f"https://open.spotify.com/track/{id_}",
-                title=track_api['name'],
-                artists=[artist['name'] for artist in track_api['artists']],
-                album=get_album_name(),
-                cover_url=get_cover_url(),
-                dominant_rgb=await get_dominant_rgb_from_url(get_cover_url())
-            )
-
         results = {
             'display_name': f"{track_api['artists'][0]['name']} - {track_api['name']}",
             'title': track_api['name'],
@@ -296,7 +286,11 @@ class Spotify:
         }
         return results
 
-    async def fetch_id(self, query: str, album: bool = False) -> dict:
+    async def fetch_id(
+        self,
+        query: str,
+        album: bool = False,
+    ) -> dict:
         """Fetch the Spotify ID and type either from a URL or search query."""
         if is_url(query, ['open.spotify.com']):
             m = re.match(
@@ -309,8 +303,7 @@ class Spotify:
                 return {'id': m.group('ID'), 'type': m.group(1)}
             return {}
 
-        result = await asyncio.to_thread(self.sessions.sp.search, q=query, limit=1)
-        items = result.get('tracks', {}).get('items', [])
+        items = await self.search(query, limit=1)
         if not items:
             return {}
 
@@ -322,25 +315,29 @@ class Spotify:
 
     async def get_tracks(
         self,
-        query: str,
+        query: Optional[str] = None,
         aq: Literal[
             AudioQuality.VERY_HIGH,
             AudioQuality.HIGH,
             AudioQuality.NORMAL
         ] = AudioQuality.VERY_HIGH,
         offset: int = 0,
-        album: bool = False
+        album: bool = False,
+        id_: Optional[str] = None,
+        type: Optional[str] = None
     ) -> List[Optional[dict]]:
         """Fetch tracks from a URL or search query.
         This method can handle tracks, albums, playlists, and artists."""
-        result = await self.fetch_id(query, album)
-        if not result:
-            return []
-
-        id_, type_ = result['id'], result['type']
+        if not id_ and not type:
+            if not query:
+                return []
+            result = await self.fetch_id(query, album)
+            if not result:
+                return []
+            id_, type = result['id'], result['type']
 
         # TRACK
-        if type_ == 'track':
+        if type == 'track':
             track_api: dict = await asyncio.to_thread(
                 self.sessions.sp.track,
                 track_id=id_
@@ -348,7 +345,7 @@ class Spotify:
             return [self.get_track_info(track_api, aq=aq)]
 
         # ALBUM
-        elif type_ == 'album':
+        elif type == 'album':
             album_API: dict = await asyncio.to_thread(
                 self.sessions.sp.album,
                 album_id=id_
@@ -362,7 +359,7 @@ class Spotify:
                     for track in album_API['tracks']['items']]
 
         # PLAYLIST
-        elif type_ == 'playlist':
+        elif type == 'playlist':
             playlist_API: dict = await asyncio.to_thread(
                 self.sessions.sp.playlist_tracks,
                 playlist_id=id_,
@@ -372,7 +369,7 @@ class Spotify:
                     for track in playlist_API['items']]
 
         # ARTIST
-        elif type_ == 'artist':
+        elif type == 'artist':
             artist_API: dict = await asyncio.to_thread(
                 self.sessions.sp.artist_top_tracks,
                 artist_id=id_,
@@ -382,3 +379,17 @@ class Spotify:
                     for track in artist_API['tracks']]
 
         return []
+
+    async def search(
+        self,
+        query: str,
+        limit: int = 10,
+        offset: int = 0,
+        type: str = "track"
+    ) -> list:
+        """Search for tracks on Spotify."""
+        track_items = (await asyncio.to_thread(
+            self.sessions.sp.search, query, limit=limit, offset=offset, type=type
+        ))[f"{type}s"]['items']
+
+        return track_items

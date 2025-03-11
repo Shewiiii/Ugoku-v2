@@ -41,7 +41,7 @@ class Ask(commands.Cog):
             await ctx.respond("This server is not allowed to use that command.")
             return
 
-        await ctx.defer()
+        asyncio.create_task(ctx.defer())
 
         # Create/Use a chat
         if guild_id not in active_chats:

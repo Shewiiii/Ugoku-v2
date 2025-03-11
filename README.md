@@ -119,7 +119,15 @@ python3 -m pip install -r requirements.txt
 - If Spotify is enabled, log in to Librespot from your Spotify client (it should appear in the device list)\*.
 - Done !
 
-> [!TIP] > \*This action will create a `credentials.json` file in the root folder. If you are having trouble creating it on a remote machine, try creating it on your local machine and exporting it.
+> [!TIP] 
+> \*This action will create a `credentials.json` file in the root folder. If you are having trouble creating it on a remote machine, try creating it on your local machine and exporting it.
+
+<h2>Special Thanks</h2>
+
+- Chinono智乃乃, for helping me with this project and inspiring me  
+- Neutrixia, for providing improvement ideas for the music player  
+- Nothes, for allowing me to use your public server as a platform for Ugoku  
+- Everyone actively using my bot!
 
 <h2>Random screenshots</h2>
 
@@ -142,6 +150,4 @@ python3 -m pip install -r requirements.txt
   <p>Review of a jpdb card</p>
   <img src="img/jpdb_dict.jpg" alt="japanese word lookup"/>
   <p>Japanese word lookup</p>
-  <img src="img/chat.jpg" alt="chat message"/>
-  <p>Random message w</p>
 </div>

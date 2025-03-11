@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 from bot.jpdb.word_api import word_api
@@ -95,7 +96,7 @@ class JpdbLookup(commands.Cog):
             )
         ),  # type: ignore
     ) -> None:
-        await ctx.defer()
+        asyncio.create_task(ctx.defer())
         api_request = await word_api.get(word)
         if not api_request:
             await ctx.respond("Word not found !")

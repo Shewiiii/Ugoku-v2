@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord.ext import commands
 
@@ -29,7 +30,7 @@ if GEMINI_ENABLED:
                 await ctx.respond('Summaries are not available !')
                 return
 
-            await ctx.defer()
+            asyncio.create_task(ctx.defer())
             if is_url(query, ['youtube.com', 'www.youtube.com', 'youtu.be']):
                 query = await Summaries.get_youtube_transcript_text(url=query)
 

@@ -51,12 +51,12 @@ class lyricsView(discord.ui.View):
         interaction: discord.Interaction
     ) -> None:
         play_cog: Play = self.bot.get_cog('Play')
-        await play_cog.execute_play(
+        asyncio.create_task(play_cog.execute_play(
             self.ctx,
             self.track_info['url'],
             DEFAULT_STREAMING_SERVICE,
             interaction=interaction
-        )
+        ))
 
 
 class Lyrics(commands.Cog):
@@ -85,6 +85,7 @@ class Lyrics(commands.Cog):
         # Uncomment the following if Spotify features are disabled
         # artist: str = Optional[str]
     ) -> None:
+        asyncio.create_task(ctx.defer())
         if not query:
             guild_id = ctx.guild.id
             session = session_manager.server_sessions.get(guild_id)

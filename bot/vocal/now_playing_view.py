@@ -71,7 +71,7 @@ class nowPlayingView(discord.ui.View):
         interaction: discord.Interaction
     ) -> None:
         # To avoid "interaction failed message"
-        await interaction.response.defer()
+        asyncio.create_task(interaction.response.defer())
         if not await self.in_active_vc(interaction):
             return
 
@@ -92,7 +92,7 @@ class nowPlayingView(discord.ui.View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        await interaction.response.defer()
+        asyncio.create_task(interaction.response.defer())
         if not await self.in_active_vc(interaction):
             return
 
@@ -108,7 +108,7 @@ class nowPlayingView(discord.ui.View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        await interaction.response.defer()
+        asyncio.create_task(interaction.response.defer())
         if not await self.in_active_vc(interaction):
             return
 
@@ -124,7 +124,7 @@ class nowPlayingView(discord.ui.View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        await interaction.response.defer()
+        asyncio.create_task(interaction.response.defer())
         if not await self.in_active_vc(interaction):
             return
 
@@ -140,7 +140,7 @@ class nowPlayingView(discord.ui.View):
         button: discord.ui.Button,
         interaction: discord.Interaction
     ) -> None:
-        await interaction.response.defer()
+        asyncio.create_task(interaction.response.defer())
         if not await self.in_active_vc(interaction):
             return
 

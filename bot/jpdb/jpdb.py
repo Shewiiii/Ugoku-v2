@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 from typing import Optional
 import discord
@@ -31,7 +32,7 @@ class JpdbFrontView(discord.ui.View):
     ) -> None:
         if self.jpdb_session.user_id != interaction.user.id:
             return
-        await interaction.response.defer()
+        asyncio.create_task(interaction.response.defer())
         back_view = JpdbBackView(
             self.card,
             self.jpdb_session,
@@ -67,7 +68,7 @@ class JpdbBackView(discord.ui.View):
     ) -> None:
         if self.jpdb_session.user_id != interaction.user.id:
             return
-        await interaction.response.defer()
+        asyncio.create_task(interaction.response.defer())
         self.back_embed.colour = self.colors[grade]
         await interaction.edit_original_response(view=None, embed=self.back_embed)
         await self.jpdb_session.grade_card(
@@ -133,7 +134,7 @@ class JpdbBackView(discord.ui.View):
         """Add all the info contained in the card dict to the embed."""
         if self.jpdb_session.user_id != interaction.user.id:
             return
-        await interaction.response.defer()
+        asyncio.create_task(interaction.response.defer())
 
         embed = self.back_embed
         # Set variables

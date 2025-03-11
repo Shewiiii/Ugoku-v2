@@ -31,7 +31,7 @@ class Danbooru_(commands.Cog):
             autocomplete=Danbooru.autocomplete
         )  # type: ignore
     ) -> None:
-        await ctx.defer()
+        asyncio.create_task(ctx.defer())
         try:
             posts = await self.danbooru.get_posts(
                 tag=tag,

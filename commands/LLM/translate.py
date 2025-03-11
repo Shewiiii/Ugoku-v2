@@ -1,5 +1,5 @@
+import asyncio
 import discord
-import logging
 from discord.ext import commands
 from config import (
     LANGUAGES,
@@ -42,7 +42,7 @@ class Translate(commands.Cog):
         ),  # type: ignore
         ephemeral: bool = True
     ) -> None:
-        await ctx.defer()
+        asyncio.create_task(ctx.defer())
         await ctx.respond(
             content=await Gembot.translate(
                 query,

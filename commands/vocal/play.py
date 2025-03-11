@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 from discord.ext import commands
 import discord
@@ -33,13 +34,13 @@ class Play(commands.Cog):
         play_next: bool = False
     ) -> None:
         if not interaction:
-            await ctx.defer()
+            asyncio.create_task(ctx.defer())
         respond = interaction.response.send_message if interaction else ctx.respond
 
         # Connect to the voice channel
         session: Optional[ServerSession] = sm.connect(ctx, self.bot)
         if not session:
-            await ctx.respond(content="No active session !")
+            await ctx.respond(content="You are not in an active voice channel !")
             return
 
         # Applying audio effects

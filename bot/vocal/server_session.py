@@ -76,6 +76,7 @@ class ServerSession:
         self.channel_id: int = channel_id
         self.now_playing_view: Optional[nowPlayingView] = None
         self.now_playing_message: Optional[discord.Message] = None
+        self.old_message: Optional[discord.Message] = None
         self.session_manager: SessionManager = session_manager
         self.auto_leave_task: asyncio.Task = asyncio.create_task(
             self.check_auto_leave()
@@ -87,6 +88,10 @@ class ServerSession:
         self.audio_effect = AudioEffect()
         self.bitrate = DEFAULT_AUDIO_BITRATE
         self.deezer_download = Download(bot.deezer)
+
+    async def wait_for_connect_task(self) -> None:
+        if self.connect_task:
+            self.voice_client = await self.connect_task
 
     async def display_queue(
         self,
@@ -106,9 +111,11 @@ class ServerSession:
     async def update_now_playing(
         self,
         ctx: discord.ApplicationContext,
-        send: bool = True
+        send: bool = True,
+        edit_only: bool = False
     ) -> None:
         """Sends an embed with information about the currently playing track."""
+        print("gr nghoeirngerio")
         # Retrieve the current track_info from the queue
         track_info: dict = self.queue[0]['track_info']
         unloaded_embed: Optional[discord.Embed] = track_info['embed']
@@ -155,14 +162,24 @@ class ServerSession:
             message = f'Now playing: {title_markdown}'
 
         # Send the message or edit the previous message based on the context
-        if not self.now_playing_message and send:
-            try:
+        try:
+            if not self.now_playing_message and send:
+                if self.old_message:
+                    # /skip or /previous executed
+                    asyncio.create_task(self.old_message.delete())
+                    self.old_message = None
                 self.now_playing_message = await ctx.send(content=message, embed=sent_embed, view=view)
-            except discord.errors.Forbidden:
-                logging.error(
-                    f"Now playing embed sent in forbidden channel in {self.guild_id}")
-        elif send:
-            await self.now_playing_message.edit(content=message, embed=sent_embed, view=view)
+            elif send:
+                # If skipping, just edit the embed, resend a new one otherwise (if the track ended naturally)
+                if not (self.skipped or self.previous or edit_only):
+                    old_message = self.now_playing_message
+                    asyncio.create_task(old_message.delete())
+                    self.now_playing_message = await ctx.send(content=message, embed=sent_embed, view=view)
+                else:
+                    self.now_playing_message = await self.now_playing_message.edit(content=message, embed=sent_embed, view=view)
+        except discord.errors.Forbidden:
+            logging.error(
+                f"Now playing embed sent in forbidden channel in {self.guild_id}")
 
     async def seek(
         self,
@@ -270,6 +287,7 @@ class ServerSession:
         self.last_context = ctx
 
         if not self.queue:
+            asyncio.create_task(self.now_playing_view.update_buttons())
             logging.info(f'Playback stopped in {self.guild_id}')
             return
 
@@ -289,7 +307,10 @@ class ServerSession:
             source = await self.load_deezer_stream(load_chunks=True) or await self.load_spotify_stream()
             if source is None:
                 asyncio.create_task(
-                    ctx.send(f"{track_info['display_name']} is not available!"))
+                    ctx.send(f"{track_info['display_name']} is not available!")
+                )
+                # Wait for the voice_client to be set before continuing
+                await self.wait_for_connect_task()
                 self.after_playing(ctx, error=None)
                 return
         else:
@@ -331,8 +352,7 @@ class ServerSession:
             }
 
         # Wait until the bot is fully connected to the vc
-        if self.connect_task:
-            self.voice_client = await self.connect_task
+        await self.wait_for_connect_task()
 
         if not self.voice_client:
             logging.error(f"No voice client in {self.guild_id} session")
@@ -352,6 +372,9 @@ class ServerSession:
             after=lambda e=None: self.after_playing(ctx, e)
         )
 
+        # Process the next track
+        asyncio.create_task(self.prepare_next_track())
+
         # Send now playing
         if self.queue:
             should_update_now_playing = (
@@ -360,8 +383,8 @@ class ServerSession:
                 and not (len(self.queue) == 1 and len(self.to_loop) == 0 and self.loop_queue)
             )
             if should_update_now_playing:
-                asyncio.create_task(self.update_now_playing(ctx))
-                self.skipped = False
+                # Await to be sync with flags
+                await self.update_now_playing(ctx)
 
             # Log total processing time
             logging.info(
@@ -377,11 +400,10 @@ class ServerSession:
         self.playback_start_time = now.isoformat()
 
         # Reset control flags
+        self.skipped = False
         self.is_seeking = False
         self.previous = False
-
-        # Process the next track
-        await self.prepare_next_track()
+        self.edit_now_playing_embed = True
 
     async def prepare_next_track(self, index: int = 1) -> None:
         """Check the availability of the next track and load its embed in queue."""
@@ -454,7 +476,7 @@ class ServerSession:
         if len(self.queue) >= 1 and (not self.voice_client or not self.voice_client.is_playing()):
             await self.start_playing(ctx)
         else:
-            asyncio.create_task(self.update_now_playing(ctx))
+            asyncio.create_task(self.update_now_playing(ctx, edit_only=True))
 
         # Preload next tracks if the queue has only one track
         # (prepare_next_track method has not been called before)
@@ -522,8 +544,7 @@ class ServerSession:
             return
 
         asyncio.run_coroutine_threadsafe(
-            self.play_next(ctx) if self.queue and self.voice_client.is_connected(
-            ) else self.update_now_playing(ctx),
+            self.play_next(ctx),
             self.bot.loop
         )
 

@@ -57,7 +57,7 @@ Use these rules:
 • “other”: It doesn’t fit the other categories (e.g. greetings, jokes, improbable statements, nonsense, vague statements, affirmations).
 • “important_caracteristic”: It only concerns crutial informations about personal tastes (e.g. favorite food), 
 personal factual data (birthday, age, etc.), or real-world facts (historical events, fun facts).  
-Add in the text field a summary of the message. It should only be factual.\n
+Add in the text field the user message. It should be exact and should not loose information.\n
 """
         )
         self.active = False

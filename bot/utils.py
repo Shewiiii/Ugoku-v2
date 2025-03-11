@@ -349,39 +349,36 @@ async def tag_ogg_file(
     logging.info(f"Tagged '{file_path}' successfully.")
 
 
-def split_into_chunks(string: str, max_length=1024) -> list:
+def split_into_chunks(text: str, max_length: int = 1024) -> list:
     """Convert a string into a list of chunks with an adjustable size."""
-    paragraphs = string.split('/n')  # Split the text into paragraphs
+    tokens = []
+    markdown_pattern = r'(\[[^\]]*\]\([^)]*\))'
+    last_end = 0
+
+    for match in re.finditer(markdown_pattern, text, flags=re.DOTALL):
+        if match.start() > last_end:
+            tokens.extend(re.findall(r'\S+|\s+', text[last_end:match.start()]))
+        tokens.append(match.group(0))
+        last_end = match.end()
+
+    if last_end < len(text):
+        tokens.extend(re.findall(r'\S+|\s+', text[last_end:]))
+
     chunks = []
-    current_chunk = ''
+    current_chunk = ""
 
-    for paragraph in paragraphs:
-        # +1 accounts for the '/n' that was removed by split
-        additional_length = len(paragraph) + 1
-
-        if len(current_chunk) + additional_length > max_length:
+    for token in tokens:
+        if len(current_chunk) + len(token) > max_length:
             if current_chunk:
                 chunks.append(current_chunk)
-                current_chunk = ''
-
-            # If the single paragraph itself is longer than max_length, split it
-            if additional_length > max_length:
-                # Split the long paragraph into smaller parts
-                start = 0
-                while start < len(paragraph):
-                    end = start + max_length - 1  # -1 to account for '/n'
-                    chunk_part = paragraph[start:end]
-                    chunks.append(chunk_part)
-                    start = end
+                current_chunk = ""
+            if len(token) > max_length:
+                for i in range(0, len(token), max_length):
+                    part = token[i:i+max_length]
+                    chunks.append(part)
                 continue
+        current_chunk += token
 
-        # Add the paragraph and a newline to the current chunk
-        if current_chunk:
-            current_chunk += '/n' + paragraph
-        else:
-            current_chunk = paragraph
-
-    # Add the last chunk if it's not empty
     if current_chunk:
         chunks.append(current_chunk)
 
@@ -485,7 +482,7 @@ def vocal_action_check(
     if ctx.author.voice.channel != session.voice_client.channel:
         if not silent:
             asyncio.create_task(respond_function(
-                content="You are not in the active voice channel !"))
+                content="You are not in an active voice channel !"))
         return False
 
     if check_queue and not session.queue:
