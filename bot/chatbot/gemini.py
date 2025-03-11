@@ -444,7 +444,7 @@ class Gembot:
             return prompt
 
         emote_prompt = (
-            "\n# Emotes\nYou can use the following discord emotes.\n")
+            "\n# Emotes\nYou can use the following discord emotes only at the end of a message.\n")
         emote_list = '\n'.join([f":{emote}:" for emote in bot_emotes.keys()])
         final_prompt = prompt + emote_prompt + emote_list
         return final_prompt
