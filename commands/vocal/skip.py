@@ -28,7 +28,6 @@ class Skip(commands.Cog):
         # SKIP
         session.skipped = True
         if session.loop_current:
-            session.queue.pop(0)
             session.loop_current = False
 
         if not len(session.queue) == 1:
