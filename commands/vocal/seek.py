@@ -1,8 +1,6 @@
 import asyncio
 import discord
 from discord.ext import commands
-import logging
-import time
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
@@ -14,14 +12,9 @@ class Seek(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='seek',
-        description='Forward to any position in the song (in seconds).'
+        name="seek", description="Forward to any position in the song (in seconds)."
     )
-    async def seek(
-        self,
-        ctx: discord.ApplicationContext,
-        position: int
-    ) -> None:
+    async def seek(self, ctx: discord.ApplicationContext, position: int) -> None:
         guild_id = ctx.guild.id
         session: ServerSession | None = sm.server_sessions.get(guild_id)
         if not vocal_action_check(session, ctx, ctx.respond):

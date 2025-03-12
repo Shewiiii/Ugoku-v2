@@ -6,7 +6,11 @@ from typing import Union, Optional
 import httpx
 import http.client
 import requests
-from requests.exceptions import ConnectionError as RequestsConnectionError, ReadTimeout, ChunkedEncodingError
+from requests.exceptions import (
+    ConnectionError as RequestsConnectionError,
+    ReadTimeout,
+    ChunkedEncodingError,
+)
 
 
 async_client = httpx.AsyncClient(http2=True)
@@ -18,12 +22,12 @@ class DeezerChunkedInputStream:
         track_id: Union[int, str],
         stream_url: str,
         track_token: str,
-        bot: Optional[discord.Bot] = None
+        bot: Optional[discord.Bot] = None,
     ) -> None:
         self.track_id = track_id
         self.stream_url: str = stream_url
         self.track_token: str = track_token
-        self.buffer: bytes = b''
+        self.buffer: bytes = b""
         self.blowfish_key: bytes = generate_blowfish_key(str(track_id))
         self.headers: dict = HEADERS
         self.chunk_size: int = CHUNK_SIZE
@@ -36,10 +40,7 @@ class DeezerChunkedInputStream:
     async def set_async_chunks(self) -> None:
         """Set chunks in self.async_chunks for download."""
         self.async_stream_ctx = async_client.stream(
-            method='GET',
-            url=self.stream_url,
-            headers=self.headers,
-            timeout=10
+            method="GET", url=self.stream_url, headers=self.headers, timeout=10
         )
         self.async_stream = await self.async_stream_ctx.__aenter__()
         self.async_chunks = self.async_stream.aiter_bytes(self.chunk_size)
@@ -51,13 +52,10 @@ class DeezerChunkedInputStream:
 
         headers = self.headers.copy()
         if start_position > 0:
-            headers['Range'] = f'bytes={start_position}-'
+            headers["Range"] = f"bytes={start_position}-"
 
         self.stream = requests.get(
-            url=self.stream_url,
-            headers=headers,
-            timeout=10,
-            stream=True
+            url=self.stream_url, headers=headers, timeout=10, stream=True
         )
         self.stream.raise_for_status()
         self.chunks = self.stream.iter_content(self.chunk_size)
@@ -66,7 +64,7 @@ class DeezerChunkedInputStream:
         # Chunk in buffer
         if self.current_position < len(self.buffer):
             end_position = self.current_position + self.chunk_size
-            data = self.buffer[self.current_position:end_position]
+            data = self.buffer[self.current_position : end_position]
             self.current_position += len(data)
             return data
 
@@ -80,37 +78,33 @@ class DeezerChunkedInputStream:
                     f"First reading of {self.track_id} failed,"
                     " requesting a new stream URL..."
                 )
-                new_stream_url = self.bot.deezer.get_track_url_sync(
-                    self.track_token)
+                new_stream_url = self.bot.deezer.get_track_url_sync(self.track_token)
                 if not new_stream_url:
-                    logging.error(
-                        f"New stream URL request failed for {self.track_id}")
+                    logging.error(f"New stream URL request failed for {self.track_id}")
                 self.stream_url = new_stream_url
                 self.chunks = None
                 self.set_chunks()
                 return self.read()
 
             # Finished reading
-            logging.info(
-                f"Finished reading stream of {self.track_id}, closing")
+            logging.info(f"Finished reading stream of {self.track_id}, closing")
             self.stream.close()
-            return b''
+            return b""
         except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError) as e:
-            logging.error(f"{str(e)}, requesting a new stream...")
+            logging.error(f"{repr(e)}, requesting a new stream...")
             self.chunks = None
             self.set_chunks(start_position=self.current_position)
             return self.read()
         except http.client.IncompleteRead as e:
             chunk = e.partial
         except Exception as e:
-            logging.error(str(e))
-            return b''
+            logging.error(repr(e))
+            return b""
 
         if len(chunk) >= 2048:
-            decrypted_chunk = decrypt_chunk(
-                self.blowfish_key,
-                chunk[0:2048]
-            ) + chunk[2048:]
+            decrypted_chunk = (
+                decrypt_chunk(self.blowfish_key, chunk[0:2048]) + chunk[2048:]
+            )
             self.buffer += decrypted_chunk
             self.current_position += len(decrypted_chunk)
             return decrypted_chunk
@@ -124,4 +118,5 @@ class DeezerChunkedInputStream:
         if self.stream:
             self.stream.close()
         self.chunks = None
-        del self.buffer
+        self.buffer = b""
+        logging.info(f"Buffer of {self.track_id} cleared")

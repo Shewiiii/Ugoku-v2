@@ -19,10 +19,7 @@ class Summaries:
         """Make a summary from a text using GPT-4o Mini."""
         prompt = Prompts.summarize
         response = await Gembot.simple_prompt(
-            prompt+text,
-            model=genai.GenerativeModel(
-                model_name=GEMINI_UTILS_MODEL
-            )
+            prompt + text, model=genai.GenerativeModel(model_name=GEMINI_UTILS_MODEL)
         )
         return response
 
@@ -33,8 +30,7 @@ class Summaries:
             return
 
         transcript_list = await asyncio.to_thread(
-            YouTubeTranscriptApi.list_transcripts,
-            video_id
+            YouTubeTranscriptApi.list_transcripts, video_id
         )
 
         transcripts: dict = (
@@ -43,7 +39,7 @@ class Summaries:
         )
         if transcripts:
             transcript_data = list(transcripts.values())[0].fetch()
-            text = '\n'.join(entry['text'] for entry in transcript_data)
+            text = "\n".join(entry["text"] for entry in transcript_data)
 
             return text
 
@@ -51,7 +47,7 @@ class Summaries:
     async def get_youtube_transcript_path(url: str) -> Optional[Path]:
         text = Summaries.get_youtube_transcript_text(url)
         if text:
-            path = get_cache_path(text.encode('utf-8'))
-            with open(path, 'w') as file:
+            path = get_cache_path(text.encode("utf-8"))
+            with open(path, "w") as file:
                 file.write(text)
             return path

@@ -14,86 +14,63 @@ class JpdbLookup(commands.Cog):
 
     @staticmethod
     def create_embed(api_request: dict) -> discord.Embed:
-        reading = api_request.get('reading', '?')
+        reading = api_request.get("reading", "?")
         romaji = convert_to_romaji(reading)
-        word = api_request.get('word', '?')
+        word = api_request.get("word", "?")
         embed = discord.Embed(
             title=word,
             url=f"https://jpdb.io/search?q={word}",
-            description='\n'.join([reading, romaji]),
-            color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
+            description="\n".join([reading, romaji]),
+            color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR),
         )
         # Split the meanings
-        meanings = '\n'.join(
-            meaning
-            for meaning in api_request.get('meanings')
-        )
+        meanings = "\n".join(meaning for meaning in api_request.get("meanings"))
         splitted: list = split_into_chunks(meanings)
-        embed.add_field(
-            name="Meanings",
-            value=splitted[0],
-            inline=False
-        )
+        embed.add_field(name="Meanings", value=splitted[0], inline=False)
         for part in splitted[1:]:
-            embed.add_field(
-                name="",
-                value=part,
-                inline=False
-            )
+            embed.add_field(name="", value=part, inline=False)
         # Other fields
         # Set variables
-        top_request = api_request.get('top')
+        top_request = api_request.get("top")
         if top_request == 0:
             top = "Never used"
         else:
             top = f"Overall: Top {top_request}"
-        alt_forms_request = api_request.get('alt_forms')
+        alt_forms_request = api_request.get("alt_forms")
         if not alt_forms_request:
             alt_forms = "None"
         else:
-            alt_forms = ', '.join(alt_forms_request)
+            alt_forms = ", ".join(alt_forms_request)
 
         # Add extra fields
-        embed.add_field(
-            name='Alt forms',
-            value=alt_forms,
-            inline=True
+        embed.add_field(name="Alt forms", value=alt_forms, inline=True).add_field(
+            name="Kanji used", value="\n".join(api_request.get("kanji")), inline=True
         ).add_field(
-            name='Kanji used',
-            value='\n'.join(api_request.get('kanji')),
-            inline=True
+            name="Pitch accent", value=api_request.get("pitch"), inline=True
         ).add_field(
-            name='Pitch accent',
-            value=api_request.get('pitch'),
-            inline=True
+            name="Frequency",
+            value=("\n> ".join([top] + api_request.get("other_frequencies"))),
+            inline=True,
         ).add_field(
-            name='Frequency',
-            value=(
-                f'\n> '.join([top]+api_request.get('other_frequencies'))
-            ),
-            inline=True
-        ).add_field(
-            name='Word types',
-            value='\n> - '.join(api_request.get('types', '?')),
-            inline=True
+            name="Word types",
+            value="\n> - ".join(api_request.get("types", "?")),
+            inline=True,
         )
         return embed
 
     @commands.slash_command(
         name="jpsearch",
-        description='Search a Japanese word in a dictionary.',
+        description="Search a Japanese word in a dictionary.",
         integration_types={
             discord.IntegrationType.guild_install,
-        }
+        },
     )
     async def lookup(
         self,
         ctx: discord.ApplicationContext,
         word: discord.Option(
             str,
-            description=(
-                "The word you want to lookup. Can be romaji, kana or kanji."
-            )
+            description=("The word you want to lookup. Can be romaji, kana or kanji."),
         ),  # type: ignore
     ) -> None:
         asyncio.create_task(ctx.defer())

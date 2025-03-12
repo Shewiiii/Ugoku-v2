@@ -1,3 +1,4 @@
+import asyncio
 from bot.vocal.spotify import SpotifySessions, Spotify
 from bot.vocal.youtube import Youtube
 from config import (
@@ -6,20 +7,23 @@ from config import (
     GEMINI_ENABLED,
     PINECONE_INDEX_NAME,
     DEEZER_ENABLED,
-    TEMP_FOLDER
+    TEMP_FOLDER,
 )
 import discord
-import os
-import logging
-import asyncio
 from dotenv import load_dotenv
+import logging
+import os
+
+from bot.utils import cleanup_cache
+
+
 if GEMINI_ENABLED:
     from bot.chatbot.vector_recall import memory
 if DEEZER_ENABLED:
     from deezer_decryption.api import Deezer
 
 load_dotenv()
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 
 # Init bot
@@ -28,17 +32,25 @@ intents.message_content = True
 loop = asyncio.get_event_loop()
 bot = discord.Bot(intents=intents, loop=loop)
 
+for filepath in COMMANDS_FOLDER.rglob("*.py"):
+    relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix("")
+    module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
+    logging.info(f"Loading {module_name}")
+    bot.load_extension(module_name)
+
 
 @bot.event
 async def on_ready() -> None:
+    # Cache
     TEMP_FOLDER.mkdir(parents=True, exist_ok=True)
+
     tasks = [
         bot.change_presence(
             activity=discord.Activity(
-                type=discord.ActivityType.listening,
-                name="/help for usage !"
+                type=discord.ActivityType.listening, name="/help for usage !"
             )
-        )
+        ),
+        clean_cache_task(),
     ]
     if SPOTIFY_API_ENABLED:
         spotify_sessions = SpotifySessions()
@@ -57,11 +69,10 @@ async def on_ready() -> None:
     logging.info(f"{bot.user} is running !")
 
 
-for filepath in COMMANDS_FOLDER.rglob('*.py'):
-    relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix('')
-    module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
-    logging.info(f'Loading {module_name}')
-    bot.load_extension(module_name)
+async def clean_cache_task() -> None:
+    while True:
+        await cleanup_cache()
+        await asyncio.sleep(60)
 
 
 bot.run(BOT_TOKEN)

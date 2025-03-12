@@ -5,7 +5,7 @@ from config import (
     SPOTIFY_API_ENABLED,
     DEFAULT_EMBED_COLOR,
     GEMINI_ENABLED,
-    DEFAULT_STREAMING_SERVICE
+    DEFAULT_STREAMING_SERVICE,
 )
 
 import discord
@@ -24,10 +24,7 @@ logger = logging.getLogger(__name__)
 
 class lyricsView(discord.ui.View):
     def __init__(
-        self,
-        bot: discord.bot,
-        ctx: discord.ApplicationContext,
-        track_info: dict
+        self, bot: discord.bot, ctx: discord.ApplicationContext, track_info: dict
     ) -> None:
         super().__init__(timeout=None)
         self.bot = bot
@@ -37,7 +34,7 @@ class lyricsView(discord.ui.View):
         spotify_button = discord.ui.Button(
             label="Spotify Link",
             style=discord.ButtonStyle.link,
-            url=self.track_info['url']
+            url=self.track_info["url"],
         )
         self.add_item(spotify_button)
 
@@ -46,17 +43,17 @@ class lyricsView(discord.ui.View):
         style=discord.ButtonStyle.primary,
     )
     async def play_button_callback(
-        self,
-        button: discord.ui.Button,
-        interaction: discord.Interaction
+        self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
-        play_cog: Play = self.bot.get_cog('Play')
-        asyncio.create_task(play_cog.execute_play(
-            self.ctx,
-            self.track_info['url'],
-            DEFAULT_STREAMING_SERVICE,
-            interaction=interaction
-        ))
+        play_cog: Play = self.bot.get_cog("Play")
+        asyncio.create_task(
+            play_cog.execute_play(
+                self.ctx,
+                self.track_info["url"],
+                DEFAULT_STREAMING_SERVICE,
+                interaction=interaction,
+            )
+        )
 
 
 class Lyrics(commands.Cog):
@@ -65,7 +62,7 @@ class Lyrics(commands.Cog):
 
     @commands.slash_command(
         name="lyrics",
-        description='Get the lyrics of a song, or the currently playing one.'
+        description="Get the lyrics of a song, or the currently playing one.",
     )
     async def lyrics(
         self,
@@ -73,15 +70,9 @@ class Lyrics(commands.Cog):
         query: Optional[str],
         convert_to: discord.Option(
             str,
-            choices=[
-                'Romaji',
-                'Japanese Kana',
-                'English',
-                'Japanese',
-                'French'
-            ],
-            required=False
-        )  # type: ignore
+            choices=["Romaji", "Japanese Kana", "English", "Japanese", "French"],
+            required=False,
+        ),  # type: ignore
         # Uncomment the following if Spotify features are disabled
         # artist: str = Optional[str]
     ) -> None:
@@ -91,9 +82,9 @@ class Lyrics(commands.Cog):
             session = session_manager.server_sessions.get(guild_id)
 
             if session and session.queue:
-                track_info = session.queue[0]['track_info']
+                track_info = session.queue[0]["track_info"]
             else:
-                await ctx.respond('No song is playing !')
+                await ctx.respond("No song is playing !")
                 return
         else:
             if SPOTIFY_API_ENABLED:
@@ -101,53 +92,51 @@ class Lyrics(commands.Cog):
                 tracks_info = await self.bot.spotify.get_tracks(query)
 
                 if not tracks_info:
-                    await ctx.respond('No lyrics found!')
+                    await ctx.respond("No lyrics found!")
                     return
                 track_info = tracks_info[0]
             else:
                 track_info = {
-                    'title': query,
+                    "title": query,
                     # Uncomment the following if Spotify features are disabled
                     # 'artist': artist
                 }
 
         lyrics = await BotLyrics.get(track_info)
         if not lyrics:
-            await ctx.respond(lyrics or 'No lyrics found!')
+            await ctx.respond(lyrics or "No lyrics found!")
             return
 
         # CONVERT
         if convert_to:
             if not GEMINI_ENABLED:
                 await ctx.respond(
-                    'Chatbot features need to be enabled in '
-                    'order to use lyrics conversion.'
+                    "Chatbot features need to be enabled in "
+                    "order to use lyrics conversion."
                 )
                 return
-            asyncio.create_task(ctx.respond('Converting~'))
+            asyncio.create_task(ctx.respond("Converting~"))
             lyrics = await BotLyrics.convert(lyrics, convert_to)
 
         # Split the lyrics in case it's too long
         splitted_lyrics: list = split_into_chunks(lyrics)
 
         # Create the embed
-        if 'cover' in track_info:
-            dominant_rgb = await get_dominant_rgb_from_url(track_info['cover'])
+        if "cover" in track_info:
+            dominant_rgb = await get_dominant_rgb_from_url(track_info["cover"])
             color = discord.Colour.from_rgb(*dominant_rgb)
         else:
             color = discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
-        embed = discord.Embed(
-            title=track_info.get('display_name', query),
-            color=color
-        )
+        embed = discord.Embed(title=track_info.get("display_name", query), color=color)
         for part in splitted_lyrics:
-            embed.add_field(name='', value=part, inline=False)
+            embed.add_field(name="", value=part, inline=False)
 
         if SPOTIFY_API_ENABLED:
             # Add a cover to the embed
-            embed.set_author(name="Lyrics", icon_url=track_info['cover'])
-            asyncio.create_task(ctx.respond(
-                embed=embed, view=lyricsView(self.bot, ctx, track_info)))
+            embed.set_author(name="Lyrics", icon_url=track_info["cover"])
+            asyncio.create_task(
+                ctx.respond(embed=embed, view=lyricsView(self.bot, ctx, track_info))
+            )
         else:
             asyncio.create_task(ctx.respond(embed=embed))
 

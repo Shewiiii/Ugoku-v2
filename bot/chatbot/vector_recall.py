@@ -18,25 +18,23 @@ from config import (
     CHATBOT_TIMEZONE,
     GEMINI_UTILS_MODEL,
     PINECONE_RECALL_WINDOW,
-    PINECONE_ENABLED
+    PINECONE_ENABLED,
 )
 
 
 # Init
 load_dotenv()
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(
-    model_name=GEMINI_UTILS_MODEL
-)
-PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
+model = genai.GenerativeModel(model_name=GEMINI_UTILS_MODEL)
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 
 
 class QueryType(enum.Enum):
-    QUESTION = 'question'
-    INFO = 'info'
-    OTHER = 'other'
-    IMPORTANT_CARACTERISTIC = 'important_caracteristic'
+    QUESTION = "question"
+    INFO = "info"
+    OTHER = "other"
+    IMPORTANT_CARACTERISTIC = "important_caracteristic"
 
 
 class VectorMetadata(typing.TypedDict):
@@ -47,8 +45,7 @@ class VectorMetadata(typing.TypedDict):
 class Memory:
     def __init__(self) -> None:
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
-        self.prompt = (
-            """
+        self.prompt = """
 You are an assistant that classifies each Discord message into exactly one of four categories: 
 “question”, “info”, “other”, or “important_caracteristic”.
 Use these rules:
@@ -59,7 +56,6 @@ Use these rules:
 personal factual data (birthday, age, etc.), or real-world facts (historical events, fun facts).  
 Add in the text field the user message. It should be exact and should not loose information.\n
 """
-        )
         self.active = False
 
     async def init_pinecone(self, index_name: str) -> None:
@@ -74,20 +70,18 @@ Add in the text field the user message. It should be exact and should not loose 
             try:
                 self.pc = Pinecone(api_key=PINECONE_API_KEY)
                 self.active = True
-            except:
+            except Exception as e:
                 await logging.error(
-                    "Connection to Pinecone API failed, trying again in 60 seconds.")
+                    f"Connection to Pinecone API failed: {e}, trying again in 60 seconds."
+                )
                 await asyncio.sleep(60)
 
         existing_indexes = [index.name for index in self.pc.list_indexes()]
-        if not index_name in existing_indexes:
+        if index_name not in existing_indexes:
             self.pc.create_index(
                 index_name,
                 dimension=1024,
-                spec=ServerlessSpec(
-                    cloud="aws",
-                    region="us-east-1"
-                )
+                spec=ServerlessSpec(cloud="aws", region="us-east-1"),
             )
         self.index = self.pc.Index(index_name)
         logging.info("Pinecone has been initialized successfully")
@@ -97,17 +91,12 @@ Add in the text field the user message. It should be exact and should not loose 
             self.pc.inference.embed,
             model="multilingual-e5-large",
             inputs=inputs,
-            parameters={"input_type": "query", "truncate": "END"}
+            parameters={"input_type": "query", "truncate": "END"},
         )
-        vectors: list = [vector['values'] for vector in embeddings]
+        vectors: list = [vector["values"] for vector in embeddings]
         return vectors
 
-    async def store(
-        self,
-        user_text: str,
-        author: str,
-        id: int
-    ) -> bool:
+    async def store(self, user_text: str, author: str, id: int) -> bool:
         if not self.active:
             return
 
@@ -115,34 +104,31 @@ Add in the text field the user message. It should be exact and should not loose 
         date: str = datetime.now(self.timezone).strftime("%Y-%m-%d")
 
         # Generate metadata using Gemini
-        metadata = json.loads((await model.generate_content_async(
-            f'{self.prompt}{author} said "{user_text}"',
-            generation_config=genai.types.GenerationConfig(
-                response_mime_type="application/json",
-                response_schema=VectorMetadata,
-                candidate_count=1
-            )
-        )).text)
-        metadata['id'] = id
-        metadata['text'] = f"{date}-{author}: {metadata['text']}"
+        metadata = json.loads(
+            (
+                await model.generate_content_async(
+                    f'{self.prompt}{author} said "{user_text}"',
+                    generation_config=genai.types.GenerationConfig(
+                        response_mime_type="application/json",
+                        response_schema=VectorMetadata,
+                        candidate_count=1,
+                    ),
+                )
+            ).text
+        )
+        metadata["id"] = id
+        metadata["text"] = f"{date}-{author}: {metadata['text']}"
 
-        if metadata['query_type'] in ['info', 'question', 'other']:
+        if metadata["query_type"] in ["info", "question", "other"]:
             return False
 
         # Create the embeddings/vectors
-        vector_values = await self.generate_embeddings(metadata['text'])
+        vector_values = await self.generate_embeddings(metadata["text"])
         unique_id = str(uuid.uuid4())
-        vectors = [{
-            'id': unique_id,
-            'values': vector_values[0],
-            'metadata': metadata
-        }]
+        vectors = [{"id": unique_id, "values": vector_values[0], "metadata": metadata}]
 
         # Add to db
-        await asyncio.to_thread(
-            self.index.upsert,
-            vectors=vectors
-        )
+        await asyncio.to_thread(self.index.upsert, vectors=vectors)
 
         logging.info(f"Added to Pinecone: {metadata['text']}")
         return True
@@ -152,16 +138,13 @@ Add in the text field the user message. It should be exact and should not loose 
         text: str,
         id: int,
         top_k: int = PINECONE_RECALL_WINDOW,
-        author: Optional[str] = '?',
-        date_hour: str = ''
+        author: Optional[str] = "?",
+        date_hour: str = "",
     ) -> Optional[str]:
         if not self.active:
             return
 
-        infos = [
-            date_hour,
-            f"{author} says"
-        ]
+        infos = [date_hour, f"{author} says"]
         text = f"[{', '.join(infos)}] {text}"
 
         vectors = await self.generate_embeddings([text])
@@ -169,15 +152,14 @@ Add in the text field the user message. It should be exact and should not loose 
             self.index.query,
             vector=vectors[0],
             filter={
-                'id': {'$eq': id}  # Guild id
+                "id": {"$eq": id}  # Guild id
             },
             top_k=top_k,
-            include_metadata=True
+            include_metadata=True,
         )
-        rec = [match['metadata'].get('text') for match in results['matches']]
+        rec = [match["metadata"].get("text") for match in results["matches"]]
         if rec:
-            rec_string = ', '.join(str(recall).replace('\n', '')
-                                   for recall in rec)
+            rec_string = ", ".join(str(recall).replace("\n", "") for recall in rec)
             return rec_string
 
 

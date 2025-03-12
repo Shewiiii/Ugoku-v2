@@ -11,9 +11,7 @@ class Resume(commands.Cog):
         self.bot = bot
 
     async def execute_resume(
-        self,
-        ctx: discord.ApplicationContext,
-        silent: bool = False
+        self, ctx: discord.ApplicationContext, silent: bool = False
     ) -> None:
         guild_id = ctx.guild.id
         session = session_manager.server_sessions.get(ctx.guild.id)
@@ -24,16 +22,13 @@ class Resume(commands.Cog):
         if voice_client.is_paused():
             voice_client.resume()
             session.last_played_time = datetime.now()
-            send_response(ctx.respond, 'Resumed!', guild_id, silent)
+            send_response(ctx.respond, "Resumed!", guild_id, silent)
         else:
-            send_response(ctx.respond, 'The audio is not paused.', guild_id, silent)
+            send_response(ctx.respond, "The audio is not paused.", guild_id, silent)
 
         await session.now_playing_view.update_buttons()
 
-    @commands.slash_command(
-        name='resume',
-        description='Resume the current song.'
-    )
+    @commands.slash_command(name="resume", description="Resume the current song.")
     async def resume(self, ctx: discord.ApplicationContext) -> None:
         await self.execute_resume(ctx)
 

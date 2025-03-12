@@ -10,10 +10,10 @@ class JpdbReview(commands.Cog):
 
     @commands.slash_command(
         name="review",
-        description='Review your cards from JPDB !',
+        description="Review your cards from JPDB !",
         integration_types={
             discord.IntegrationType.guild_install,
-        }
+        },
     )
     async def review(
         self,
@@ -24,7 +24,7 @@ class JpdbReview(commands.Cog):
             description=(
                 "Specify the id of the deck you want to review."
                 "Defaults to the first one in your list."
-            )
+            ),
         ),  # type: ignore
         api_key: discord.Option(
             str,
@@ -32,18 +32,19 @@ class JpdbReview(commands.Cog):
             description=(
                 "Your JPDB API key you can find in the settings. "
                 "Will be saved in memory for your next review."
-            )
+            ),
         ),  # type: ignore
     ) -> None:
         try:
             session: Jpdb = await jpdb_sessions.get_session(ctx, api_key)
-        except:
-            await ctx.respond('Please enter a valid API key !', ephemeral=True)
+        except ValueError:
+            await ctx.respond("Please enter a valid API key !", ephemeral=True)
             return
-        asyncio.create_task(ctx.respond('Loading !', ephemeral=True))
+        asyncio.create_task(ctx.respond("Loading !", ephemeral=True))
         await session.get_all_vocab(deck_id)
         session.sort_vocab_by_frequency()
         await session.show_card()
+
 
 def setup(bot):
     bot.add_cog(JpdbReview(bot))

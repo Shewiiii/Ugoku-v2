@@ -21,18 +21,15 @@ def get_link(string: str) -> str:
     return re.findall(link_grabber, string)[-1][0]
 
 
-async def convert_to_gif(
-    sticker_count: int,
-    path: Path
-) -> None:
+async def convert_to_gif(sticker_count: int, path: Path) -> None:
     for i in range(sticker_count):
-        png_file = path / f'{i + 1}.png'
-        gif_file = path / f'{i + 1}.gif'
+        png_file = path / f"{i + 1}.png"
+        gif_file = path / f"{i + 1}.gif"
 
         # Read the APNG and save as GIF
         with imageio.get_reader(png_file) as reader:
             first_frame_meta = reader.get_meta_data(0)
-            duration = first_frame_meta.get('duration', 100)
+            duration = first_frame_meta.get("duration", 100)
 
             with imageio.get_writer(gif_file, duration=duration, disposal=2) as writer:
                 for frame in reader:
@@ -44,39 +41,25 @@ async def convert_to_gif(
 
 
 async def fetch_sticker_image(
-    session: ClientSession,
-    link: str, file_path: Path
+    session: ClientSession, link: str, file_path: Path
 ) -> None:
     async with session.get(link) as response:
         response.raise_for_status()
         sticker_image = await response.read()
-        async with aiofiles.open(file_path, 'wb') as png_file:
+        async with aiofiles.open(file_path, "wb") as png_file:
             await png_file.write(sticker_image)
 
 
-async def get_stickerpack(
-    link: str,
-    ctx: ApplicationContext | None = None
-) -> str:
+async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> str:
     try:
         async with ClientSession() as session:
             async with session.get(link) as response:
                 response.raise_for_status()
-                raw = BeautifulSoup(
-                    await response.text(),
-                    features="html.parser"
-                )
+                raw = BeautifulSoup(await response.text(), features="html.parser")
                 # Pack name
                 pack_name = (
-                    raw.find(
-                        'p',
-                        {'data-test': 'sticker-name-title'}
-                    )
-                    or
-                    raw.find(
-                        'p',
-                        {'data-test': 'emoji-name-title'}
-                    )
+                    raw.find("p", {"data-test": "sticker-name-title"})
+                    or raw.find("p", {"data-test": "emoji-name-title"})
                 ).get_text(strip=True)
 
     except Exception as e:
@@ -91,42 +74,39 @@ async def get_stickerpack(
     folder_path.mkdir(parents=True, exist_ok=True)
 
     # Get HTML elements of the stickers
-    stickers = raw.find_all('li', {'class': 'FnStickerPreviewItem'})
+    stickers = raw.find_all("li", {"class": "FnStickerPreviewItem"})
     if not stickers:
         raise ValueError("No stickers found on the page.")
 
     # Get sticker type and count
-    sticker_class = stickers[0].get('class', [''])
-    sticker_type = (sticker_class[-1] if len(sticker_class) >= 3
-                    else 'emote')
+    sticker_class = stickers[0].get("class", [""])
+    sticker_type = sticker_class[-1] if len(sticker_class) >= 3 else "emote"
     sticker_count = len(stickers)
 
     # Save the stickers
-    logging.info(f'Downloading {pack_name}, Sticker count: {sticker_count}.')
+    logging.info(f"Downloading {pack_name}, Sticker count: {sticker_count}.")
     if ctx:
-        await ctx.edit(content='Saving the stickers...')
+        await ctx.edit(content="Saving the stickers...")
 
     async with ClientSession() as session:
         tasks = []
         for i, sticker in enumerate(stickers):
-            preview_link = get_link(sticker['data-preview'])
-            file_path = folder_path / f'{i + 1}.png'
-            tasks.append(
-                fetch_sticker_image(session, preview_link, file_path)
-            )
+            preview_link = get_link(sticker["data-preview"])
+            file_path = folder_path / f"{i + 1}.png"
+            tasks.append(fetch_sticker_image(session, preview_link, file_path))
 
         await asyncio.gather(*tasks)
 
     # Convert APNGs to GIFs if needed
-    if sticker_type in ['animation-sticker', 'popup-sticker']:
+    if sticker_type in ["animation-sticker", "popup-sticker"]:
         if ctx:
-            await ctx.edit(content='Converting APNG files to GIF...')
+            await ctx.edit(content="Converting APNG files to GIF...")
         await convert_to_gif(sticker_count, folder_path)
 
     # Archive the folder
     if ctx:
-        await ctx.edit(content='Archiving...')
-    archive_file = shutil.make_archive(folder_path, 'zip', folder_path)
+        await ctx.edit(content="Archiving...")
+    archive_file = shutil.make_archive(folder_path, "zip", folder_path)
 
     # Remove the original folder
     shutil.rmtree(folder_path)

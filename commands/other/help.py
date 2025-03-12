@@ -15,30 +15,26 @@ class HelpDropdown(discord.ui.Select):
             discord.SelectOption(
                 label="Music Bot",
                 description="Shows music-related commands",
-                emoji="🎵"
+                emoji="🎵",
             ),
             discord.SelectOption(
                 label="Chatbot / LLM",
                 description="Shows chatbot and LLM-related commands",
-                emoji="💬"
+                emoji="💬",
             ),
             discord.SelectOption(
-                label="Misc",
-                description="Shows miscellaneous commands",
-                emoji="🌀"
+                label="Misc", description="Shows miscellaneous commands", emoji="🌀"
             ),
             discord.SelectOption(
-                label="Infos",
-                description="Learn more about the bot",
-                emoji="ℹ️"
-            )
+                label="Infos", description="Learn more about the bot", emoji="ℹ️"
+            ),
         ]
 
         super().__init__(
             placeholder="Choose a category...",
             min_values=1,
             max_values=1,
-            options=options
+            options=options,
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -49,7 +45,7 @@ class HelpDropdown(discord.ui.Select):
             embed = discord.Embed(
                 title="Music Bot Commands",
                 description="Works on server Only !",
-                color=discord.Color.blue()
+                color=discord.Color.blue(),
             )
             embed.add_field(
                 name="/play",
@@ -57,35 +53,21 @@ class HelpDropdown(discord.ui.Select):
                     "Play any song / playlist / album (Spotify, Deezer, YouTube, or Onsei)\n"
                     "Example: ``/play Blue Dream Cheel``\n"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
-                name="/shuffle",
-                value=(
-                    "Shuffle / unshuffle the queue\n"
-                ),
-                inline=False
+                name="/shuffle", value=("Shuffle / unshuffle the queue\n"), inline=False
             )
             embed.add_field(
-                name="/loop",
-                value=(
-                    "Repeat / un-repeat the queue\n"
-                ),
-                inline=False
+                name="/loop", value=("Repeat / un-repeat the queue\n"), inline=False
             )
             embed.add_field(
                 name="/clear",
-                value=(
-                    "Clear the current queue and stop the song playing\n"
-                ),
-                inline=False
+                value=("Clear the current queue and stop the song playing\n"),
+                inline=False,
             )
             embed.add_field(
-                name="/leave",
-                value=(
-                    "Leave the current voice channel\n"
-                ),
-                inline=False
+                name="/leave", value=("Leave the current voice channel\n"), inline=False
             )
             embed.add_field(
                 name="/lyrics",
@@ -93,21 +75,13 @@ class HelpDropdown(discord.ui.Select):
                     "Get the lyrics of the current song or any song\n"
                     "Example: ``/lyrics pikasonic lockdown English``\n"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
-                name="/pause",
-                value=(
-                    "Pause the current song\n"
-                ),
-                inline=False
+                name="/pause", value=("Pause the current song\n"), inline=False
             )
             embed.add_field(
-                name="/resume",
-                value=(
-                    "Resume the current song\n"
-                ),
-                inline=False
+                name="/resume", value=("Resume the current song\n"), inline=False
             )
             embed.add_field(
                 name="/seek",
@@ -115,21 +89,13 @@ class HelpDropdown(discord.ui.Select):
                     "Forward to any position in the song (seconds)\n"
                     "Example: ``/seek 60``\n"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
-                name="/previous",
-                value=(
-                    "Play the previous song\n"
-                ),
-                inline=False
+                name="/previous", value=("Play the previous song\n"), inline=False
             )
             embed.add_field(
-                name="/skip",
-                value=(
-                    "Skip the current song\n"
-                ),
-                inline=False
+                name="/skip", value=("Skip the current song\n"), inline=False
             )
             embed.add_field(
                 name="/spdl",
@@ -137,7 +103,7 @@ class HelpDropdown(discord.ui.Select):
                     "Download a song from Spotify\n"
                     "Example: ``/spdl https://open.spotify.com/track/3Q1UYQcegXHTlfexW2zVoQ``\n"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/dzdl",
@@ -145,7 +111,7 @@ class HelpDropdown(discord.ui.Select):
                     "Download a song from Deezer\n"
                     "Example: ``/dzdl Ma Meilleure Ennemie``\n"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/audio-effect",
@@ -153,7 +119,7 @@ class HelpDropdown(discord.ui.Select):
                     "Modify the audio effect of the currently playing song\n"
                     "Example: ``/audio-effect bass boost (mono)``\n"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/audio-bitrate",
@@ -162,7 +128,7 @@ class HelpDropdown(discord.ui.Select):
                     "Can be useful for limited internet connections\n"
                     "Example: ``/audio-bitrate 128``\n"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/pop",
@@ -170,20 +136,17 @@ class HelpDropdown(discord.ui.Select):
                     "Remove songs from the queue\n"
                     "Example: ``/pop Single Nanatsukaze - もしも``\n"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/now-playing",
-                value=(
-                    "Delete the old Now playing embed and resend it\n"
-                ),
-                inline=False
+                value=("Delete the old Now playing embed and resend it\n"),
+                inline=False,
             )
 
         elif selected == "Chatbot / LLM":
             embed = discord.Embed(
-                title="Chatbot / LLM Commands",
-                color=discord.Color.green()
+                title="Chatbot / LLM Commands", color=discord.Color.green()
             )
             # Chatbot notes
             embed.add_field(
@@ -202,9 +165,8 @@ class HelpDropdown(discord.ui.Select):
                     "to enhance conversations and provide more relevant responses. "
                     "However, this information is strictly private "
                     "and will never be shared across servers or DMs."
-
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/ask",
@@ -213,7 +175,7 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/ask Write a Python code to display the current time``\n"
                     "Works on: **Allowed servers Only**"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/summarize",
@@ -222,7 +184,7 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/summarize https://www.youtube.com/watch?v=Km2DNLbB-6o``\n"
                     "Works on: Server / Personal"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/reset_chatbot",
@@ -231,7 +193,7 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/reset_chatbot``\n"
                     "Works on: Server / Personal"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/translate",
@@ -240,7 +202,7 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/translate めっちゃいい曲だね！``\n"
                     "Works on: Server / Personal"
                 ),
-                inline=False
+                inline=False,
             )
             # normal prefix (activate the chatbot)
             embed.add_field(
@@ -250,24 +212,21 @@ class HelpDropdown(discord.ui.Select):
                     f"Example: ``{CHATBOT_PREFIX}Hi, who are you ?``\n"
                     "Works on: **Allowed servers Only**"
                 ),
-                inline=False
+                inline=False,
             )
             # double prefix (activate chatbot continuous mode)
             embed.add_field(
-                name=CHATBOT_PREFIX*2,
+                name=CHATBOT_PREFIX * 2,
                 value=(
                     "Activate the chatbot - Continuous mode\n"
-                    f"Example: ``{CHATBOT_PREFIX*2}Hi, who are you ?``\n"
+                    f"Example: ``{CHATBOT_PREFIX * 2}Hi, who are you ?``\n"
                     "Works on: **Allowed servers Only**"
                 ),
-                inline=False
+                inline=False,
             )
 
         elif selected == "Misc":
-            embed = discord.Embed(
-                title="Misc Commands",
-                color=discord.Color.purple()
-            )
+            embed = discord.Embed(title="Misc Commands", color=discord.Color.purple())
             embed.add_field(
                 name="/ping",
                 value=(
@@ -275,7 +234,7 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/ping``\n"
                     "Works on: Server / Personal"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/get-stickers",
@@ -284,7 +243,7 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/get-stickers https://store.line.me/stickershop/product/28492189/en``\n"
                     "Works on: Server / Personal"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/get-emotes",
@@ -292,7 +251,7 @@ class HelpDropdown(discord.ui.Select):
                     "Get the direct URL of emotes or a sticker from a message\n"
                     "Works on: Server"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/echo",
@@ -301,7 +260,7 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/echo Hibiki is cute``\n"
                     "Works on: Server / Personal"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/danbooru",
@@ -310,20 +269,17 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/danbooru nanashi_mumei``\n"
                     "Works on: Server / Personal"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="/config",
-                value=(
-                    "Get the front-end current config of Ugoku !\n"
-                    "Works on: Server"
-                ),
-                inline=False
+                value=("Get the front-end current config of Ugoku !\nWorks on: Server"),
+                inline=False,
             )
         else:
             embed = discord.Embed(
                 title="Misc Commands",
-                color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
+                color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR),
             )
             embed.add_field(
                 name="What is this bot?",
@@ -335,14 +291,14 @@ class HelpDropdown(discord.ui.Select):
                     "and Ugoku's purpose is to fill that niche gap. "
                     "Turns out, I had more fun than expected when coding it, so here we go!"
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="Is this legal?",
                 value=(
                     "It is not, since it breaks DRM restrictions of music streaming platforms."
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="Why does YouTube not work?",
@@ -351,7 +307,7 @@ class HelpDropdown(discord.ui.Select):
                     "Since Ugoku is not hosted on a local server, "
                     "it gets blocked within a few days after changing the VPN server."
                 ),
-                inline=False
+                inline=False,
             )
             embed.add_field(
                 name="The audio is buggy/stops !",
@@ -360,7 +316,7 @@ class HelpDropdown(discord.ui.Select):
                     "may disconnect during playback, or the VPS may experience connection issues. "
                     "Try ending the session (/leave) and playing the track again."
                 ),
-                inline=False
+                inline=False,
             )
 
         # Update the original message with the new embed
@@ -383,22 +339,18 @@ class Help(commands.Cog):
         description="Show help menu.",
         integration_types={
             discord.IntegrationType.guild_install,
-            discord.IntegrationType.user_install
-        }
+            discord.IntegrationType.user_install,
+        },
     )
     async def help_command(self, ctx: discord.ApplicationContext) -> None:
         """Slash command to show the help menu with a dropdown."""
         embed = discord.Embed(
             title="Help Menu",
             description="Select a category from the dropdown below.",
-            color=discord.Color.blurple()
+            color=discord.Color.blurple(),
         )
         view = HelpView()
-        await ctx.respond(
-            embed=embed,
-            view=view,
-            ephemeral=True
-        )
+        await ctx.respond(embed=embed, view=view, ephemeral=True)
 
 
 def setup(bot):

@@ -72,21 +72,21 @@ IMPULSE_RESPONSE_PARAMS = {
         'right_ir_file': 'raum_default_airy_R.wav',
         'dry': 10,
         'wet': 10,
-        'volume_multiplier': 0.9
+        'volume_multiplier': 1
     },
     'Raum grounded default': {
         'left_ir_file': 'raum_default_grounded_L.wav',
         'right_ir_file': 'raum_default_grounded_R.wav',
         'dry': 10,
         'wet': 10,
-        'volume_multiplier': 0.65
+        'volume_multiplier': 0.75
     },
     'Raum size 100%, decay 2s': {
         'left_ir_file': 'raum_max_size_L.wav',
         'right_ir_file': 'raum_max_size_R.wav',
         'dry': 10,
         'wet': 10,
-        'volume_multiplier': 0.5
+        'volume_multiplier': 0.4
     }
 } # (Advanced) Add your own audio effects to the /audio-effect list with an impulse response file in ./audio-ir
 # Onsei filters

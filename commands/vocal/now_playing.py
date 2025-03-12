@@ -11,9 +11,7 @@ class NowPlaying(commands.Cog):
         self.bot = bot
 
     async def resend_now_playing(
-        self, ctx:
-        discord.ApplicationContext,
-        notify: bool = True
+        self, ctx: discord.ApplicationContext, notify: bool = True
     ) -> None:
         guild_id = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
@@ -27,8 +25,7 @@ class NowPlaying(commands.Cog):
         asyncio.create_task(session.update_now_playing(ctx))
 
     @commands.slash_command(
-        name='now-playing',
-        description='Send the Now playing embed.'
+        name="now-playing", description="Send the Now playing embed."
     )
     async def now_playing(self, ctx: discord.ApplicationContext):
         await self.resend_now_playing(ctx)

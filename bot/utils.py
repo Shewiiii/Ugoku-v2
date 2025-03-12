@@ -40,9 +40,9 @@ def extract_number(string: str) -> str:
     Returns:
         Optional[str]: The extracted number as a string, or None if no number is found.
     """
-    search = re.search(r'\d+', string)
+    search = re.search(r"\d+", string)
     if not search:
-        return ''
+        return ""
 
     return search.group()
 
@@ -59,10 +59,10 @@ def is_onsei(string: str) -> bool:
     Returns:
         bool: True if the string meets any of the conditions, False otherwise.
     """
-    if string.startswith(('RJ', 'VJ')):
+    if string.startswith(("RJ", "VJ")):
         return True
 
-    if re.fullmatch(r'/d{6}|/d{8}', string):
+    if re.fullmatch(r"/d{6}|/d{8}", string):
         return True
 
     return False
@@ -83,7 +83,7 @@ def sanitize_filename(filename: str) -> str:
     """
     # For Windows, common illegal characters include: / / : * ? " < > |
     # The following pattern keeps only alphanumeric characters, hyphens, underscores, and periods.
-    sanitized_filename = re.sub(r'[^A-Za-z0-9._-]', '_', filename)
+    sanitized_filename = re.sub(r"[^A-Za-z0-9._-]", "_", filename)
     return sanitized_filename
 
 
@@ -119,10 +119,7 @@ def rgb_to_hsv(r: float, g: float, b: float) -> Tuple[float, float, float]:
     return h, s, v
 
 
-def get_accent_color(
-    image_bytes: bytes,
-    threshold: int = 50
-) -> Tuple[int, int, int]:
+def get_accent_color(image_bytes: bytes, threshold: int = 50) -> Tuple[int, int, int]:
     """
     Extract an accent color from an image.
 
@@ -134,7 +131,7 @@ def get_accent_color(
         Tuple[int, int, int]: The RGB values of the extracted accent color.
     """
     image = Image.open(BytesIO(image_bytes))
-    image = image.convert('RGB')  # Ensure image RGB
+    image = image.convert("RGB")  # Ensure image RGB
 
     # Resize image to reduce computation time
     image = image.resize((50, 50))
@@ -170,9 +167,7 @@ def get_accent_color(
     return accent_color
 
 
-async def get_dominant_rgb_from_url(
-    image_url: str
-) -> Tuple[int, int, int]:
+async def get_dominant_rgb_from_url(image_url: str) -> Tuple[int, int, int]:
     """Fetch an image from a URL and extract its accent color."""
     async with httpx.AsyncClient(follow_redirects=True) as session:
         response = await session.get(image_url)
@@ -196,7 +191,7 @@ def get_cache_path(utf_8: bytes) -> Path:
     """
     # Hash the URL to create a unique filename
     hash_digest = hashlib.md5(utf_8).hexdigest()
-    return TEMP_FOLDER / f'{hash_digest}.cache'
+    return TEMP_FOLDER / f"{hash_digest}.cache"
 
 
 async def cleanup_cache() -> None:
@@ -206,21 +201,28 @@ async def cleanup_cache() -> None:
     This function removes files that exceed the cache size limit and deletes expired files.
     """
     files = sorted(
-        TEMP_FOLDER.glob('*.cache'),
-        key=lambda f: f.stat().st_mtime
+        list(TEMP_FOLDER.glob("*.cache")) + list(TEMP_FOLDER.glob("*.json")),
+        key=lambda f: f.stat().st_mtime,
     )
+
+    remove_tasks = []
 
     # Remove files that exceed the cache size limit
     while len(files) > CACHE_SIZE:
         oldest_file = files.pop(0)
-        await asyncio.to_thread(os.remove, oldest_file)
+        logging.info(f"Removed {oldest_file} from cache")
+        remove_tasks.append(asyncio.to_thread(os.remove, oldest_file))
 
     # Remove expired files
     current_time = time()
     for file in files:
         file_stat = await asyncio.to_thread(os.stat, file)
         if current_time - file_stat.st_mtime > CACHE_EXPIRY:
-            await asyncio.to_thread(os.remove, file)
+            logging.info(f"Removed {file} from cache")
+            remove_tasks.append(asyncio.to_thread(os.remove, file))
+
+    if remove_tasks:
+        await asyncio.gather(*remove_tasks)
 
 
 def extract_cover_art(file_path) -> Optional[bytes]:
@@ -245,7 +247,7 @@ def extract_cover_art(file_path) -> Optional[bytes]:
 
     # For files using PICTURE block (OGG, Opus)
     elif isinstance(audio_file, (OggVorbis, OggOpus)):
-        covers_data = audio_file.get('metadata_block_picture')
+        covers_data = audio_file.get("metadata_block_picture")
         if covers_data:
             b64_data: str = covers_data[0]
             data = base64.b64decode(b64_data)
@@ -285,9 +287,9 @@ def get_metadata(file_path) -> Dict[str, List[str]]:
 
     if isinstance(audio_file, (MP3, ID3, WAVE)):
         return {
-            'title': audio_file.get('TIT2', ['?']),
-            'album': audio_file.get('TALB', ['?']),
-            'artist': audio_file.get('TPE1', ['?'])
+            "title": audio_file.get("TIT2", ["?"]),
+            "album": audio_file.get("TALB", ["?"]),
+            "artist": audio_file.get("TPE1", ["?"]),
         }
 
     return {key: value for key, value in audio_file.items()}
@@ -295,13 +297,13 @@ def get_metadata(file_path) -> Dict[str, List[str]]:
 
 async def tag_ogg_file(
     file_path: Union[Path, str],
-    title: str = '',
-    artist: str = '',
-    album_cover_url: str = '',
-    album: str = '',
-    date: str = '',
-    track_number: Union[int, str] = '',
-    disc_number: Union[int, str] = '',
+    title: str = "",
+    artist: str = "",
+    album_cover_url: str = "",
+    album: str = "",
+    date: str = "",
+    track_number: Union[int, str] = "",
+    disc_number: Union[int, str] = "",
     width: int = 640,
     height: int = 640,
 ) -> None:
@@ -317,20 +319,20 @@ async def tag_ogg_file(
     audio = OggVorbis(file_path)
 
     # Set title and artist tags
-    audio['title'] = title
-    audio['artist'] = artist
-    audio['album'] = album
-    audio['date'] = date
-    audio['tracknumber'] = str(track_number)
-    audio['discnumber'] = str(disc_number)
+    audio["title"] = title
+    audio["artist"] = artist
+    audio["album"] = album
+    audio["date"] = date
+    audio["tracknumber"] = str(track_number)
+    audio["discnumber"] = str(disc_number)
 
     # Create a Picture object
     picture = Picture()
     picture.type = 3  # Front Cover
     picture.width = width
     picture.height = height
-    picture.mime = 'image/jpeg'
-    picture.desc = 'Cover'
+    picture.mime = "image/jpeg"
+    picture.desc = "Cover"
 
     # Fetch the album cover
     if album_cover_url:
@@ -340,9 +342,9 @@ async def tag_ogg_file(
             cover_bytes = response.content
         picture.data = cover_bytes
         # Encode the picture data in base64
-        picture_encoded = base64.b64encode(picture.write()).decode('ascii')
+        picture_encoded = base64.b64encode(picture.write()).decode("ascii")
         # Add the picture to the metadata
-        audio['metadata_block_picture'] = [picture_encoded]
+        audio["metadata_block_picture"] = [picture_encoded]
 
     # Save the tags
     audio.save(file_path)
@@ -352,17 +354,17 @@ async def tag_ogg_file(
 def split_into_chunks(text: str, max_length: int = 1024) -> list:
     """Convert a string into a list of chunks with an adjustable size."""
     tokens = []
-    markdown_pattern = r'(\[[^\]]*\]\([^)]*\))'
+    markdown_pattern = r"(\[[^\]]*\]\([^)]*\))"
     last_end = 0
 
     for match in re.finditer(markdown_pattern, text, flags=re.DOTALL):
         if match.start() > last_end:
-            tokens.extend(re.findall(r'\S+|\s+', text[last_end:match.start()]))
+            tokens.extend(re.findall(r"\S+|\s+", text[last_end : match.start()]))
         tokens.append(match.group(0))
         last_end = match.end()
 
     if last_end < len(text):
-        tokens.extend(re.findall(r'\S+|\s+', text[last_end:]))
+        tokens.extend(re.findall(r"\S+|\s+", text[last_end:]))
 
     chunks = []
     current_chunk = ""
@@ -374,7 +376,7 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
                 current_chunk = ""
             if len(token) > max_length:
                 for i in range(0, len(token), max_length):
-                    part = token[i:i+max_length]
+                    part = token[i : i + max_length]
                     chunks.append(part)
                 continue
         current_chunk += token
@@ -396,17 +398,17 @@ def extract_video_id(url):
         str or None: The extracted video ID if found; otherwise, None.
     """
     parsed_url = urlparse(url)
-    if 'youtube' in parsed_url.hostname:
+    if "youtube" in parsed_url.hostname:
         # For URLs like https://www.youtube.com/watch?v=VIDEO_ID
-        if parsed_url.path == '/watch':
+        if parsed_url.path == "/watch":
             query_params = parse_qs(parsed_url.query)
-            return query_params.get('v', [None])[0]
+            return query_params.get("v", [None])[0]
         # For URLs like https://www.youtube.com/embed/VIDEO_ID
-        elif '/embed/' in parsed_url.path:
-            return parsed_url.path.split('/embed/')[1]
-    elif 'youtu.be' in parsed_url.hostname:
+        elif "/embed/" in parsed_url.path:
+            return parsed_url.path.split("/embed/")[1]
+    elif "youtu.be" in parsed_url.hostname:
         # For URLs like https://youtu.be/VIDEO_ID
-        return parsed_url.path.lstrip('/')
+        return parsed_url.path.lstrip("/")
     else:
         return None
 
@@ -415,7 +417,7 @@ def send_response(
     respond: Callable[[str], discord.Message],
     message: str,
     guild_id: int,
-    silent: bool = False
+    silent: bool = False,
 ) -> None:
     if silent:
         return
@@ -423,44 +425,40 @@ def send_response(
         asyncio.create_task(respond(message))
     except discord.errors.HTTPException:
         logging.error(
-            f"Failed to send response for guild {guild_id}. "
-            "Invalid Webhook Token."
+            f"Failed to send response for guild {guild_id}. Invalid Webhook Token."
         )
 
 
 async def upload(
-    bot: discord.Bot,
-    ctx: discord.ApplicationContext,
-    file_path: Path,
-    filename: str
+    bot: discord.Bot, ctx: discord.ApplicationContext, file_path: Path, filename: str
 ) -> None:
     size = os.path.getsize(file_path)
     size_limit = ctx.guild.filesize_limit if ctx.guild else 26214400
     try:
         if size < size_limit:
             await ctx.edit(
-                content="Here you go !",
-                file=discord.File(file_path, filename=filename)
+                content="Here you go !", file=discord.File(file_path, filename=filename)
             )
             return
     except discord.errors.HTTPException as e:
         if e.status == 413:
-            logging.error(
-                f"File not uploaded: {file_path} is too big: {size} bytes")
+            logging.error(f"File not uploaded: {file_path} is too big: {size} bytes")
 
     # Not uploaded, attempthing to upload in the premium channel
     if not PREMIUM_CHANNEL_ID:
-        await ctx.edit(content=f"Upload failed: file too big.")
+        await ctx.edit(content="Upload failed: file too big.")
         return
 
     try:
         channel = await bot.fetch_channel(PREMIUM_CHANNEL_ID)
         message = await channel.send(
             content="-# File requested by a user",
-            file=discord.File(file_path, filename=filename)
+            file=discord.File(file_path, filename=filename),
         )
     except (discord.errors.Forbidden, discord.errors.HTTPException):
-        await ctx.edit(content=f"Upload failed: file too big and invalid premium channel.")
+        await ctx.edit(
+            content="Upload failed: file too big and invalid premium channel."
+        )
         return
     await ctx.edit(content=f"Here you go ! [Direct URL]({message.attachments[0].url})")
 
@@ -470,25 +468,24 @@ def vocal_action_check(
     ctx: discord.ApplicationContext,
     respond_function,
     check_queue: bool = True,
-    silent: bool = False
+    silent: bool = False,
 ) -> bool:
     """Checks if a user is allowed to execute an operation in vc."""
     if not session:
         if not silent:
-            asyncio.create_task(respond_function(
-                content="No active session !"))
+            asyncio.create_task(respond_function(content="No active session !"))
         return False
 
-    if ctx.author.voice.channel != session.voice_client.channel:
+    if not ctx.author.voice or ctx.author.voice.channel != session.voice_client.channel:
         if not silent:
-            asyncio.create_task(respond_function(
-                content="You are not in an active voice channel !"))
+            asyncio.create_task(
+                respond_function(content="You are not in an active voice channel !")
+            )
         return False
 
     if check_queue and not session.queue:
         if not silent:
-            asyncio.create_task(respond_function(
-                content="No songs in the queue !"))
+            asyncio.create_task(respond_function(content="No songs in the queue !"))
         return False
 
     return True

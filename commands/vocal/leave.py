@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 
 from bot.vocal.session_manager import session_manager as sm
+from bot.vocal.server_session import ServerSession
 from bot.utils import vocal_action_check
 
 
@@ -10,10 +11,7 @@ class Leave(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(
-        name='leave',
-        description='Nooooo （＞人＜；）'
-    )
+    @commands.slash_command(name="leave", description="Nooooo （＞人＜；）")
     async def leave(self, ctx: discord.ApplicationContext) -> None:
         guild_id = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
@@ -21,10 +19,12 @@ class Leave(commands.Cog):
             return
 
         if session:
+            session: ServerSession
             await session.voice_client.disconnect()
-            asyncio.create_task(ctx.respond('Baibai~'))
+            asyncio.create_task(ctx.respond("Baibai~"))
             session.voice_client.cleanup()
             await session.close_streams()
+            session.auto_leave_task.cancel()
             del sm.server_sessions[guild_id]
 
 

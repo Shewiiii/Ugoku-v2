@@ -7,11 +7,11 @@ from config import (
     CHATBOT_WHITELIST,
     GEMINI_ENABLED,
     ALLOW_CHATBOT_IN_DMS,
-    CHATBOT_PREFIX
+    CHATBOT_PREFIX,
 )
 from google.generativeai.types.generation_types import (
     BlockedPromptException,
-    StopCandidateException
+    StopCandidateException,
 )
 
 if GEMINI_ENABLED:
@@ -30,8 +30,8 @@ if GEMINI_ENABLED:
             ),
             integration_types={
                 discord.IntegrationType.guild_install,
-                discord.IntegrationType.user_install
-            }
+                discord.IntegrationType.user_install,
+            },
         )
         async def reset_chatbot(self, ctx: discord.ApplicationContext) -> None:
             channel = ctx.channel
@@ -49,7 +49,9 @@ if GEMINI_ENABLED:
             id_ = server.id if server else message.channel.id
 
             # Only allow whitelisted servers / dms if enabled
-            if (not dm and id_ not in CHATBOT_WHITELIST) or (dm and not ALLOW_CHATBOT_IN_DMS):
+            if (not dm and id_ not in CHATBOT_WHITELIST) or (
+                dm and not ALLOW_CHATBOT_IN_DMS
+            ):
                 return
 
             # Ignore if the message is from Ugoku !
@@ -63,9 +65,9 @@ if GEMINI_ENABLED:
 
             # Neko arius
             p = CHATBOT_PREFIX
-            l = message.content.lower()
-            if any(l.startswith(neko) for neko in [f'{p}neko', f'{p} neko']):
-                await message.channel.send('Arius')
+            low = message.content.lower()
+            if any(low.startswith(neko) for neko in [f"{p}neko", f"{p} neko"]):
+                await message.channel.send("Arius")
                 return
 
             if await chat.is_interacting(message) or dm:
@@ -75,8 +77,7 @@ if GEMINI_ENABLED:
                         reply = await chat.send_message(*params)
                     except StopCandidateException:
                         await message.channel.send("*filtered*")
-                        logging.error(
-                            f"Response blocked by Gemini in {chat.id_}")
+                        logging.error(f"Response blocked by Gemini in {chat.id_}")
                         return
                     except BlockedPromptException:
                         logging.error(
@@ -100,10 +101,10 @@ if GEMINI_ENABLED:
                     id=id_,
                 ):
                     await first_msg.edit(
-                        "-# Ugoku will remember about this. "
-                        f"\n{chunked_message[-1]}"
+                        f"-# Ugoku will remember about this. \n{chunked_message[-1]}"
                     )
 else:
+
     class Chatbot(commands.Cog):
         def __init__(self, bot) -> None:
             self.bot = bot

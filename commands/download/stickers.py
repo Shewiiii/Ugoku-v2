@@ -12,22 +12,19 @@ class Stickers(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='get-stickers',
-        description='Download a LINE sticker pack from a given URL.',
+        name="get-stickers",
+        description="Download a LINE sticker pack from a given URL.",
         integration_types={
             discord.IntegrationType.guild_install,
-            discord.IntegrationType.user_install
-        }
+            discord.IntegrationType.user_install,
+        },
     )
     async def stickers(
         self,
         ctx: discord.ApplicationContext,
-        url: discord.Option(
-            str,
-            required=True
-        )  # type: ignore
+        url: discord.Option(str, required=True),  # type: ignore
     ) -> None:
-        asyncio.create_task(ctx.respond('Give me a second~'))
+        asyncio.create_task(ctx.respond("Give me a second~"))
 
         try:
             zip_file = await get_stickerpack(url, ctx=ctx)
@@ -40,10 +37,12 @@ class Stickers(commands.Cog):
             )
             return
 
-        asyncio.create_task(ctx.edit(
-            file=discord.File(zip_file),
-            content="Here's the sticker pack you requested~"
-        ))
+        asyncio.create_task(
+            ctx.edit(
+                file=discord.File(zip_file),
+                content="Here's the sticker pack you requested~",
+            )
+        )
         # Clean up the file after sending
         os.remove(zip_file)
 

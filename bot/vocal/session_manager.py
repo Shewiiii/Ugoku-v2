@@ -21,9 +21,7 @@ class SessionManager:
         self.server_sessions = {}
 
     def connect(
-        self,
-        ctx: discord.ApplicationContext,
-        bot: discord.Bot
+        self, ctx: discord.ApplicationContext, bot: discord.Bot
     ) -> Optional[ServerSession]:
         """
         Connect to a voice channel and create or retrieve a ServerSession.
@@ -57,12 +55,7 @@ class SessionManager:
 
         if guild_id not in self.server_sessions:
             self.server_sessions[guild_id] = ServerSession(
-                guild_id,
-                None,
-                bot,
-                ctx.channel_id,
-                self,
-                connect_task
+                guild_id, None, bot, ctx.channel_id, self, connect_task
             )
         return self.server_sessions[guild_id]
 

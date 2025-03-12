@@ -30,8 +30,8 @@ def token_sort_ratio(str1, str2):
     sorted_tokens1 = sorted(tokens1)
     sorted_tokens2 = sorted(tokens2)
 
-    sorted_str1 = ' '.join(sorted_tokens1)
-    sorted_str2 = ' '.join(sorted_tokens2)
+    sorted_str1 = " ".join(sorted_tokens1)
+    sorted_str2 = " ".join(sorted_tokens2)
 
     return SequenceMatcher(None, sorted_str1, sorted_str2).ratio()
 

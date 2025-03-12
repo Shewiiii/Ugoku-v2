@@ -5,7 +5,7 @@ import discord
 from discord.ui import View
 
 from bot.vocal.custom import get_cover_data_from_file
-from bot.utils import get_dominant_rgb_from_url, split_into_chunks
+from bot.utils import split_into_chunks
 from config import DEFAULT_EMBED_COLOR
 
 
@@ -18,7 +18,7 @@ class QueueView(View):
         last_played_time: datetime,
         time_elapsed: int,
         is_playing: bool,
-        page: int = 1
+        page: int = 1,
     ) -> None:
         super().__init__()
         self.queue = queue
@@ -34,103 +34,87 @@ class QueueView(View):
     def update_buttons(self) -> None:
         """Disable or enable 'next' and 'previous' buttons based on the current page."""
         self.children[0].disabled = self.page <= 1
-        self.children[1].disabled = len(
-            self.queue) <= self.page * self.max_per_page
+        self.children[1].disabled = len(self.queue) <= self.page * self.max_per_page
 
-    @discord.ui.button(
-        label="Previous",
-        style=discord.ButtonStyle.secondary
-    )
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
     async def previous_button(
-        self,
-        button: discord.ui.Button,
-        interaction: discord.Interaction
+        self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         """Update the page on 'previous' click."""
         self.page -= 1
         await self.update_view(interaction)
 
-    @discord.ui.button(
-        label="Next",
-        style=discord.ButtonStyle.secondary
-    )
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary)
     async def next_button(
-        self,
-        button: discord.ui.Button,
-        interaction: discord.Interaction
+        self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         """Update the page on 'Next' click."""
         self.page += 1
         await self.update_view(interaction)
 
-    async def on_button_click(
-        self,
-        interaction: discord.Interaction
-    ) -> None:
+    async def on_button_click(self, interaction: discord.Interaction) -> None:
         """Change the page of the embed."""
-        if interaction.custom_id == 'prev_page':
+        if interaction.custom_id == "prev_page":
             self.page -= 1
-        elif interaction.custom_id == 'next_page':
+        elif interaction.custom_id == "next_page":
             self.page += 1
 
         self.update_buttons()
         await interaction.response.edit_message(
-            embed=await self.create_embed(),
-            view=self
+            embed=await self.create_embed(), view=self
         )
 
     async def create_embed(self) -> discord.Embed:
         default_color = discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
         if not self.queue:
             embed = discord.Embed(
-                title='Queue Overview',
+                title="Queue Overview",
                 color=default_color,
-                description='No songs in queue!'
+                description="No songs in queue!",
             )
             return embed
 
         # Get cover and colors of the NOW PLAYING song
-        service: str = self.queue[0]['service']
-        track_info: dict = self.queue[0]['track_info']
-        if service == 'custom':
-            cover_data = await get_cover_data_from_file(track_info['id'])
+        service: str = self.queue[0]["service"]
+        track_info: dict = self.queue[0]["track_info"]
+        if service == "custom":
+            cover_data = await get_cover_data_from_file(track_info["id"])
         else:
-            if isinstance(track_info['embed'], Callable):
-                track_info['embed'] = await track_info['embed']()
-            embed = track_info['embed']
+            if isinstance(track_info["embed"], Callable):
+                track_info["embed"] = await track_info["embed"]()
+            embed = track_info["embed"]
             cover_data = {
-                'url': track_info['cover'],
-                'dominant_rgb': embed.color if embed and embed.color else default_color
+                "url": track_info["cover"],
+                "dominant_rgb": embed.color if embed and embed.color else default_color,
             }
 
         # Create the embed
         embed = discord.Embed(
             title="Queue Overview",
-            thumbnail=cover_data['url'],
-            color=cover_data['dominant_rgb']
+            thumbnail=cover_data["url"],
+            color=cover_data["dominant_rgb"],
         )
 
         # "Now playing" track section
-        now_playing = self.queue[0]['track_info']
-        title = now_playing['display_name']
-        url = now_playing['url']
+        now_playing = self.queue[0]["track_info"]
+        title = now_playing["display_name"]
+        url = now_playing["url"]
 
         # Time indication
         if self.is_playing:
             current_pos: int = (
-                self.time_elapsed +
-                (datetime.now() - self.last_played_time).seconds
+                self.time_elapsed + (datetime.now() - self.last_played_time).seconds
             )
         else:
             current_pos: int = self.time_elapsed
-        total_seconds: Union[int, str] = now_playing.get('duration', '?')
+        total_seconds: Union[int, str] = now_playing.get("duration", "?")
         time_string = f"{current_pos}s / {total_seconds}s"
 
         embed.add_field(
             # Now playing + time indication
             name=f"Now Playing - {time_string}",
             value=f"[{title}]({url})",
-            inline=False
+            inline=False,
         )
 
         # Queue section
@@ -146,17 +130,9 @@ class QueueView(View):
                 )
                 # Split the queue (if too long)
                 splitted: list = split_into_chunks(queue_details)
-                embed.add_field(
-                    name="Queue",
-                    value=splitted[0],
-                    inline=False
-                )
+                embed.add_field(name="Queue", value=splitted[0], inline=False)
                 for part in splitted[1:]:
-                    embed.add_field(
-                        name="",
-                        value=part,
-                        inline=False
-                    )
+                    embed.add_field(name="", value=part, inline=False)
 
         # Songs in loop section
         end_index = min(start_index + self.max_per_page, len(self.to_loop))
@@ -167,29 +143,18 @@ class QueueView(View):
                 f"({self.to_loop[i]['track_info']['url']})"
                 for i in range(start_index, end_index)
             )
-            embed.add_field(
-                name="Songs in Loop",
-                value=loop_details,
-                inline=False
-            )
+            embed.add_field(name="Songs in Loop", value=loop_details, inline=False)
 
         return embed
 
-    async def display(
-        self,
-        ctx: discord.ApplicationContext
-    ) -> None:
+    async def display(self, ctx: discord.ApplicationContext) -> None:
         """Display the queue view in response to a command."""
         embed = await self.create_embed()
         await ctx.respond(embed=embed, view=self)
 
-    async def update_view(
-        self,
-        interaction: discord.Interaction
-    ) -> None:
+    async def update_view(self, interaction: discord.Interaction) -> None:
         """Update the queue view in response to a button interaction."""
         self.update_buttons()
         await interaction.response.edit_message(
-            embed=await self.create_embed(),
-            view=self
+            embed=await self.create_embed(), view=self
         )

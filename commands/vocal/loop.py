@@ -1,4 +1,3 @@
-import asyncio
 from bot.utils import send_response
 
 import discord
@@ -12,10 +11,7 @@ class Loop(commands.Cog):
         self.bot = bot
 
     async def execute_loop(
-        self,
-        ctx: discord.ApplicationContext,
-        mode: str,
-        silent: bool = False
+        self, ctx: discord.ApplicationContext, mode: str, silent: bool = False
     ) -> None:
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
@@ -24,7 +20,7 @@ class Loop(commands.Cog):
 
         mode = mode.lower()
 
-        if mode == 'song':
+        if mode == "song":
             session.loop_current = not session.loop_current
             response = (
                 "You are now looping the current song!"
@@ -32,7 +28,7 @@ class Loop(commands.Cog):
                 else "You are not looping the current song anymore."
             )
 
-        elif mode == 'queue':
+        elif mode == "queue":
             session.loop_queue = not session.loop_queue
             if session.loop_queue:
                 session.loop_current = False
@@ -48,17 +44,12 @@ class Loop(commands.Cog):
         await session.now_playing_view.update_buttons()
 
     @commands.slash_command(
-        name='loop',
-        description='Loop/Unloop what you are listening to in VC.'
+        name="loop", description="Loop/Unloop what you are listening to in VC."
     )
     async def loop(
         self,
         ctx: discord.ApplicationContext,
-        mode: discord.Option(
-            str,
-            choices=['Song', 'Queue'],
-            default='Queue'
-        )  # type: ignore
+        mode: discord.Option(str, choices=["Song", "Queue"], default="Queue"),  # type: ignore
     ) -> None:
         await self.execute_loop(ctx, mode)
 

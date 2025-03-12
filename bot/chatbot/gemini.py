@@ -21,7 +21,7 @@ from config import (
     CHATBOT_EMOTES,
     CHATBOT_MAX_OUTPUT_TOKEN,
     CHATBOT_MAX_CONTENT_SIZE,
-    CHATBOT_EMOTE_FREQUENCY
+    CHATBOT_EMOTE_FREQUENCY,
 )
 
 import discord
@@ -31,16 +31,14 @@ from bot.chatbot.vector_recall import memory
 from bot.search import link_grabber
 
 load_dotenv()
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
-global_model = genai.GenerativeModel(
-    model_name=GEMINI_MODEL
-)
+global_model = genai.GenerativeModel(model_name=GEMINI_MODEL)
 active_chats = {}
 
 
 class Prompts:
-    system = '''
+    system = """
 Respect ALL the following:
 You are now roleplaying as Ugoku,
 a nekomimi character with the following traits.
@@ -83,16 +81,14 @@ Never skip or jump lines
 Don't greet in every message
 You are not on any image sent
 When explaining, treat your conversation partner as an equal, don't act superior, but more like a friend
-'''
+"""
     # end = (
     #     'End the conversation.'
     # )
-    summarize = (
-        '''
+    summarize = """
         Make a complete summary of the following, in less than 1800 caracters.
         Try to be concise:
-        '''
-    )
+        """
     # single_question = (
     #     '''
     #     (This is an unique question, not a dialog.
@@ -102,18 +98,13 @@ When explaining, treat your conversation partner as an equal, don't act superior
 
 
 class Gembot:
-    def __init__(
-        self,
-        id_,
-        gemini_model=GEMINI_MODEL
-    ) -> None:
+    def __init__(self, id_, gemini_model=GEMINI_MODEL) -> None:
         self.id_: int = id_
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.last_prompt = datetime.now()
         self.message_count = 0
         self.model = genai.GenerativeModel(
-            model_name=gemini_model,
-            system_instruction=self.with_emotes(Prompts.system)
+            model_name=gemini_model, system_instruction=self.with_emotes(Prompts.system)
         )
         self.chat = self.model.start_chat()
         active_chats[id_] = self
@@ -129,7 +120,7 @@ class Gembot:
         model: genai.GenerativeModel = global_model,
         temperature: float = CHATBOT_TEMPERATURE,
         max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
-        safety_settings=GEMINI_SAFETY_SETTINGS
+        safety_settings=GEMINI_SAFETY_SETTINGS,
     ) -> Optional[str]:
         try:
             response = await model.generate_content_async(
@@ -137,17 +128,17 @@ class Gembot:
                 generation_config=genai.types.GenerationConfig(
                     candidate_count=1,
                     temperature=temperature,
-                    max_output_tokens=max_output_tokens
+                    max_output_tokens=max_output_tokens,
                 ),
-                safety_settings=safety_settings
+                safety_settings=safety_settings,
             )
             logging.info(
-                "Gemini API call, simple prompt: "
-                f"{response.usage_metadata}".replace('\n', ', ')
+                f"Gemini API call, simple prompt: {response.usage_metadata}".replace(
+                    "\n", ", "
+                )
             )
         except Exception as e:
-            logging.error(
-                f"An error occured when generating a Gemini response: {e}")
+            logging.error(f"An error occured when generating a Gemini response: {e}")
             return
 
         return response.text
@@ -159,9 +150,8 @@ class Gembot:
         extra_content: Optional[List[str]] = None,
         r_text: str = "",
         temperature: float = 2.0,
-        max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN
+        max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
     ) -> Optional[str]:
-
         # Update variables
         self.last_prompt = datetime.now()
         self.message_count += 1
@@ -169,18 +159,15 @@ class Gembot:
 
         # Recall from memory
         recall = await self.memory.recall(
-            f"{author}: {user_query}",
-            id=self.id_,
-            author=author,
-            date_hour=date_hour
+            f"{author}: {user_query}", id=self.id_, author=author, date_hour=date_hour
         )
 
         # Create message
         infos = [
             f"Time in Kyoto: {date_hour}",
-            f"Pinecone recall: {recall}" if recall else 'No Pinecone recall',
+            f"Pinecone recall: {recall}" if recall else "No Pinecone recall",
             r_text,
-            f"{author} says to you:"
+            f"{author} says to you:",
         ]
         message = f"[{', '.join(infos)}] {user_query}"
 
@@ -197,13 +184,14 @@ class Gembot:
             generation_config=genai.types.GenerationConfig(
                 candidate_count=1,
                 temperature=temperature,
-                max_output_tokens=max_output_tokens
+                max_output_tokens=max_output_tokens,
             ),
-            safety_settings=self.safety_settings
+            safety_settings=self.safety_settings,
         )
         logging.info(
-            "Gemini API call, "
-            f"{response.usage_metadata}. Text: {message}".replace('\n', ', ')
+            f"Gemini API call, {response.usage_metadata}. Text: {message}".replace(
+                "\n", ", "
+            )
         )
 
         # Limit history length
@@ -213,49 +201,45 @@ class Gembot:
 
     async def get_base64_bytes(self, url: str) -> Optional[bytes]:
         """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
-        timeouts = httpx.Timeout(
-            connect=5.0,
-            read=3.0,
-            write=5.0,
-            pool=2.0
-        )
+        timeouts = httpx.Timeout(connect=5.0, read=3.0, write=5.0, pool=2.0)
         try:
             async with httpx.AsyncClient(timeout=timeouts) as client:
                 response = await client.get(url)
                 response.raise_for_status()
-                mime_type = response.headers.get('content-type', '')
+                mime_type = response.headers.get("content-type", "")
                 content_type = mime_type.split("/")[0]  # E.g: audio, text..
                 max_size = CHATBOT_MAX_CONTENT_SIZE.get(content_type, 0)
 
-                if content_type == 'text':
+                if content_type == "text":
                     raw = BeautifulSoup(response.text, "html.parser")
                     to_encode = raw.get_text(strip=True).encode()
 
-                elif content_type in ['image', 'audio', 'application']:
+                elif content_type in ["image", "audio", "application"]:
                     to_encode = response.content
 
                 else:
                     self.status = -1
                     logging.warning(
-                        f"{url} has not been processed: mime_type not allowed")
+                        f"{url} has not been processed: mime_type not allowed"
+                    )
                     return
 
-                b64_bytes = base64.b64encode(to_encode).decode('utf-8')
+                b64_bytes = base64.b64encode(to_encode).decode("utf-8")
 
                 # Size check
                 if len(b64_bytes) > max_size:
                     self.status = -2
-                    logging.warning(
-                        f"{url} has not been processed: File too big")
+                    logging.warning(f"{url} has not been processed: File too big")
                     return
 
-                content = {'mime_type': mime_type, 'data': b64_bytes}
+                content = {"mime_type": mime_type, "data": b64_bytes}
                 return content
 
         except (ReadTimeout, ConnectTimeout, HTTPStatusError):
             self.status = -3
             logging.warning(
-                f"{url} has not been processed due to timeout or incompatibility")
+                f"{url} has not been processed due to timeout or incompatibility"
+            )
             return
 
         except Exception as e:
@@ -265,7 +249,7 @@ class Gembot:
     async def is_interacting(self, message: discord.Message) -> bool:
         """Determine if the bot should interact based on the message content.
         Status hint:
-            0 = No chat; 
+            0 = No chat;
             1 = Continuous chat enabled;
             2 = Chatting;
             3 = End of chat.
@@ -281,18 +265,20 @@ class Gembot:
             self.chatters = []
 
         # Check enable continuous chat with ugoku
-        if message.content.startswith(CHATBOT_PREFIX*2) and not dm:
+        if message.content.startswith(CHATBOT_PREFIX * 2) and not dm:
             self.status = 2 if self.interacting else 1
             self.interacting = True
             self.current_channel_id = channel_id
-            if not author in self.chatters:
+            if author not in self.chatters:
                 self.chatters.append(author)
             return True
 
         # Check if an user is still interacting in the same channel
-        elif (self.interacting
-              and channel_id == self.current_channel_id
-              and author in self.chatters):
+        elif (
+            self.interacting
+            and channel_id == self.current_channel_id
+            and author in self.chatters
+        ):
             if message.content.endswith(CHATBOT_PREFIX):
                 self.status = 3
                 self.chatters = []
@@ -313,11 +299,8 @@ class Gembot:
     def format_reply(self, reply: str) -> str:
         """Format the reply based on the current status."""
         # Remove default emoticons (face emojis)
-        emoticon_pattern = re.compile(
-            "[\U0001F600-\U0001F64F]",
-            flags=re.UNICODE
-        )
-        reply = emoticon_pattern.sub(r'', reply)
+        emoticon_pattern = re.compile("[\U0001f600-\U0001f64f]", flags=re.UNICODE)
+        reply = emoticon_pattern.sub(r"", reply)
 
         # Add custom emote snowflakes (to properly show up in Discord)
         reply = self.convert_emotes(reply)
@@ -327,14 +310,14 @@ class Gembot:
         error_body = "File/url has not been processed:"
         messages = {
             1: (
-                '-# Continuous chat mode enabled! '
+                "-# Continuous chat mode enabled! "
                 f'End it by putting "{CHATBOT_PREFIX}" '
-                f'at the end of your message.\n{reply}'
+                f"at the end of your message.\n{reply}"
             ),
-            3: f'{reply}\n-# End of chat.',
-            -1: f'-# {error_body} mime_type not allowed.\n{reply}',
-            -2: f'-# {error_body} file too big.\n{reply}',
-            -3: f'-# {error_body} timeout or access forbidden.\n{reply}',
+            3: f"{reply}\n-# End of chat.",
+            -1: f"-# {error_body} mime_type not allowed.\n{reply}",
+            -2: f"-# {error_body} file too big.\n{reply}",
+            -3: f"-# {error_body} timeout or access forbidden.\n{reply}",
         }
 
         reply = messages.get(status, reply)
@@ -356,9 +339,7 @@ class Gembot:
             msg_text = msg_text[:-1]
 
         # Process URLs in message body
-        extra_content.extend(
-            match[0] for match in re.findall(link_grabber, msg_text)
-        )
+        extra_content.extend(match[0] for match in re.findall(link_grabber, msg_text))
 
         # Process attachments
         for attachment in message.attachments:
@@ -371,20 +352,17 @@ class Gembot:
             extra_content.append(sticker.url)
 
         # Process custom emojis
-        match = re.search(
-            r'<:(?P<name>[^:]+):(?P<snowflake>\d+)>', msg_text)
+        match = re.search(r"<:(?P<name>[^:]+):(?P<snowflake>\d+)>", msg_text)
         if match:
-            name = match.group('name')
-            snowflake = match.group('snowflake')
+            name = match.group("name")
+            snowflake = match.group("snowflake")
             emote_full = match.group(0)
 
             # Replace the full emote with its name in the message
-            msg_text = msg_text.replace(
-                emote_full, f":{name}:")
+            msg_text = msg_text.replace(emote_full, f":{name}:")
 
             # Append the first emote to the image list
-            extra_content.append(
-                f'https://cdn.discordapp.com/emojis/{snowflake}.png')
+            extra_content.append(f"https://cdn.discordapp.com/emojis/{snowflake}.png")
 
         # Process message reference (if any)
         rtext = ""
@@ -394,27 +372,17 @@ class Gembot:
             rauthor = rmessage.author.global_name
             rcontent = rmessage.content
             urls = [
-                attachment.url
-                for attachment in rmessage.attachments
-                if attachment.url
+                attachment.url for attachment in rmessage.attachments if attachment.url
             ]
             extra_content.extend(urls)
             rtext = f"Message referencing {rauthor}: {rcontent}"
 
         # Wrap parameters
-        params = (
-            msg_text,
-            message.author.global_name,
-            extra_content,
-            rtext
-        )
+        params = (msg_text, message.author.global_name, extra_content, rtext)
         return params
 
     @staticmethod
-    def convert_emotes(
-        msg: str,
-        bot_emotes: dict = CHATBOT_EMOTES
-    ) -> str:
+    def convert_emotes(msg: str, bot_emotes: dict = CHATBOT_EMOTES) -> str:
         """Convert and filter emotes in the message."""
         msg = msg.strip()
         # Find all emotes
@@ -424,16 +392,16 @@ class Gembot:
         for emote in emotes:
             # Do not remove the emote is the message is only this
             if emote_count == 1 and msg == f":{emote}:":
-                replacement = bot_emotes.get(emote, '')
+                replacement = bot_emotes.get(emote, "")
             else:
                 if random() < CHATBOT_EMOTE_FREQUENCY:
-                    replacement = bot_emotes.get(emote, '')
+                    replacement = bot_emotes.get(emote, "")
                 else:
-                    replacement = ''
+                    replacement = ""
             msg = msg.replace(f":{emote}:", replacement)
 
         # Remove double spaces
-        msg = msg.replace('  ', ' ')
+        msg = msg.replace("  ", " ")
         return msg
 
     @staticmethod
@@ -443,9 +411,8 @@ class Gembot:
         if not bot_emotes:
             return prompt
 
-        emote_prompt = (
-            "\n# Emotes\nYou can use the following discord emotes only at the end of a message.\n")
-        emote_list = '\n'.join([f":{emote}:" for emote in bot_emotes.keys()])
+        emote_prompt = "\n# Emotes\nYou can use the following discord emotes only at the end of a message.\n"
+        emote_list = "\n".join([f":{emote}:" for emote in bot_emotes.keys()])
         final_prompt = prompt + emote_prompt + emote_list
         return final_prompt
 
@@ -453,17 +420,14 @@ class Gembot:
     async def translate(
         query: str,
         language: str,
-        nuance: str = '',
-        model: genai.GenerativeModel = global_model
+        nuance: str = "",
+        model: genai.GenerativeModel = global_model,
     ) -> str:
-        prompt = f'''
+        prompt = f"""
             Translate the following text to {nuance} {language}.
             If there is no text, return nothing.
             Don't change emoji strings (<:Example:1200797674031566958>).
             Don't add ANY extra text:
-        '''
-        response = await Gembot.simple_prompt(
-            query=prompt+query,
-            model=model
-        )
+        """
+        response = await Gembot.simple_prompt(query=prompt + query, model=model)
         return response

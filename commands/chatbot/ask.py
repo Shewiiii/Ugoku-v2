@@ -2,11 +2,7 @@ import asyncio
 import discord
 import logging
 from discord.ext import commands
-from config import (
-    LANGUAGES,
-    CHATBOT_WHITELIST,
-    GEMINI_ENABLED
-)
+from config import CHATBOT_WHITELIST, GEMINI_ENABLED
 from google.generativeai.types.generation_types import BlockedPromptException
 
 if GEMINI_ENABLED:
@@ -18,18 +14,15 @@ class Ask(commands.Cog):
         self.bot = bot
 
     @commands.slash_command(
-        name='ask',
-        description='Ask Ugoku anything !',
+        name="ask",
+        description="Ask Ugoku anything !",
         integration_types={
             discord.IntegrationType.user_install,
-            discord.IntegrationType.guild_install
-        }
+            discord.IntegrationType.guild_install,
+        },
     )
     async def ask(
-        self,
-        ctx: discord.ApplicationContext,
-        query: str,
-        ephemeral: bool = True
+        self, ctx: discord.ApplicationContext, query: str, ephemeral: bool = True
     ) -> None:
         guild_id = ctx.guild.id
         author_name = ctx.author.global_name
@@ -54,34 +47,25 @@ class Ask(commands.Cog):
 
         # Create response
         try:
-            reply = await chat.send_message(
-                user_query=query,
-                author=author_name
-            )
+            reply = await chat.send_message(user_query=query, author=author_name)
 
         except BlockedPromptException:
-            await ctx.respond("*filtered*",ephemeral=ephemeral)
+            await ctx.respond("*filtered*", ephemeral=ephemeral)
             logging.error(f"Response blocked by Gemini in {chat.id_}")
             return
 
         except BlockedPromptException:
             logging.error(
-                "Prompt against Gemini's policies! "
-                "Please change it and try again."
+                "Prompt against Gemini's policies! Please change it and try again."
             )
             return
 
         # Response
-        formatted_reply = (
-            f"-# {author_name}: {query}\n{chat.format_reply(reply)}")
+        formatted_reply = f"-# {author_name}: {query}\n{chat.format_reply(reply)}"
         asyncio.create_task(ctx.respond(formatted_reply, ephemeral=ephemeral))
 
         # Memory
-        await chat.memory.store(
-            query,
-            author=author_name,
-            id=guild_id
-        )
+        await chat.memory.store(query, author=author_name, id=guild_id)
 
 
 def setup(bot):
