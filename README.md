@@ -114,19 +114,25 @@ python3 -m pip install -r requirements.txt
 - Create an .env file in the root directory.
 - Set the environment variables for the services you want to use, based on the template.
 - Restart the IDE (to update the env variables).
+- On linux machines, you may want to switch the protobuf implementation to Python if the .env variable has been ignored by doing so:
+```bash
+echo 'export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python' >> ~/.bashrc
+source ~/.bashrc
+```
+You can now restart your instance.
 - Configure and activate the features in the config.py file.
 - Run `main.py`.
 - If Spotify is enabled, log in to Librespot from your Spotify client (it should appear in the device list)\*.
 - Done !
 
-> [!TIP] 
+> [!TIP]
 > \*This action will create a `credentials.json` file in the root folder. If you are having trouble creating it on a remote machine, try creating it on your local machine and exporting it.
 
 <h2>Special Thanks</h2>
 
-- Chinono智乃乃, for helping me with this project and inspiring me  
-- Neutrixia, for providing improvement ideas for the music player  
-- Nothes, for allowing me to use your public server as a platform for Ugoku  
+- Chinono 智乃乃, for helping me with this project and inspiring me
+- Neutrixia, for providing improvement ideas for the music player
+- Nothes, for allowing me to use your public server as a platform for Ugoku
 - Everyone actively using my bot!
 
 <h2>Random screenshots</h2>

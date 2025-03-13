@@ -1,7 +1,17 @@
-import asyncio
-from bot.vocal.spotify import SpotifySessions, Spotify
-from bot.vocal.youtube import Youtube
-from config import (
+from dotenv import load_dotenv
+
+load_dotenv()
+
+import asyncio  # noqa: E402
+import logging  # noqa: E402
+import os  # noqa: E402
+
+import discord  # noqa: E402
+
+from bot.vocal.spotify import SpotifySessions, Spotify  # noqa: E402
+from bot.vocal.youtube import Youtube  # noqa: E402
+from bot.utils import cleanup_cache  # noqa: E402
+from config import (  # noqa: E402
     COMMANDS_FOLDER,
     SPOTIFY_API_ENABLED,
     GEMINI_ENABLED,
@@ -9,12 +19,6 @@ from config import (
     DEEZER_ENABLED,
     TEMP_FOLDER,
 )
-import discord
-from dotenv import load_dotenv
-import logging
-import os
-
-from bot.utils import cleanup_cache
 
 
 if GEMINI_ENABLED:
@@ -22,7 +26,6 @@ if GEMINI_ENABLED:
 if DEEZER_ENABLED:
     from deezer_decryption.api import Deezer
 
-load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 
