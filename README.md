@@ -53,7 +53,7 @@ Chatbot features are disabled, but you can still play with the bot !
 
 <h2>Requirements</h2>
 
-- Python >= 3.10.x, <= 3.12.x (It has not been tested on Python 3.9, but it should work as well.)
+- Python 3.12.x
 - A Discord bot token (get one [here](https://discord.com/developers/applications))
 - FFmpeg
 
