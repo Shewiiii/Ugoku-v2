@@ -8,6 +8,7 @@ from librespot.audio.decoders import AudioQuality
 
 from config import SPOTIFY_ENABLED
 from bot.utils import tag_ogg_file, get_cache_path, upload
+from bot.vocal.track_dataclass import Track
 from mutagen.oggvorbis import OggVorbisHeaderError
 
 
@@ -56,15 +57,15 @@ class SpotifyDownload(commands.Cog):
         if not tracks:
             await ctx.edit(content="No track has been found!")
             return
-        track = tracks[0]
+        track: Track = tracks[0]
 
         # Update cached files
-        cache_id = f"spotify{track['id']}"
+        cache_id = f"spotify{track.id}"
         file_path = get_cache_path(cache_id.encode("utf-8"))
 
         if not file_path.is_file():
             # Get track data
-            stream = await track["source"]()
+            stream = await track.stream_source()
             data = await asyncio.to_thread(stream.read)
             # Download
             async with aiofiles.open(file_path, "wb") as file:
@@ -73,18 +74,18 @@ class SpotifyDownload(commands.Cog):
                 # Tag
                 await tag_ogg_file(
                     file_path=file_path,
-                    title=track["title"],
-                    artist=track["artist"],
-                    date=track["date"],
-                    album_cover_url=track["cover"],
-                    album=track["album"],
-                    track_number=track["track_number"],
-                    disc_number=track["disc_number"],
+                    title=track.title,
+                    artist=track.artist,
+                    date=track.date,
+                    album_cover_url=track.cover_url,
+                    album=track.album,
+                    track_number=track.track_number,
+                    disc_number=track.disc_number,
                 )
             except OggVorbisHeaderError:
                 logging.warning(f"Unable to read the full header of {file_path}")
 
-        await upload(self.bot, ctx, file_path, f"{track['display_name']}.ogg")
+        await upload(self.bot, ctx, file_path, f"{track}.ogg")
 
 
 def setup(bot):

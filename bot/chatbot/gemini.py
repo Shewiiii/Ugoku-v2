@@ -201,9 +201,8 @@ class Gembot:
 
     async def get_base64_bytes(self, url: str) -> Optional[bytes]:
         """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
-        timeouts = httpx.Timeout(connect=5.0, read=3.0, write=5.0, pool=2.0)
         try:
-            async with httpx.AsyncClient(timeout=timeouts) as client:
+            async with httpx.AsyncClient(http2=True) as client:
                 response = await client.get(url)
                 response.raise_for_status()
                 mime_type = response.headers.get("content-type", "")

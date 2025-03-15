@@ -1,4 +1,4 @@
-from aiohttp import ClientSession
+from aiohttp_client_cache import CachedSession, SQLiteBackend
 import aiofiles
 from pathlib import Path
 from PIL import Image
@@ -41,7 +41,7 @@ async def convert_to_gif(sticker_count: int, path: Path) -> None:
 
 
 async def fetch_sticker_image(
-    session: ClientSession, link: str, file_path: Path
+    session: CachedSession, link: str, file_path: Path
 ) -> None:
     async with session.get(link) as response:
         response.raise_for_status()
@@ -52,7 +52,7 @@ async def fetch_sticker_image(
 
 async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> str:
     try:
-        async with ClientSession() as session:
+        async with CachedSession(cache=SQLiteBackend("cache")) as session:
             async with session.get(link) as response:
                 response.raise_for_status()
                 raw = BeautifulSoup(await response.text(), features="html.parser")
@@ -72,6 +72,9 @@ async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> s
     # Setup the folders
     folder_path = TEMP_FOLDER / pack_name
     folder_path.mkdir(parents=True, exist_ok=True)
+    zip_file = TEMP_FOLDER / f"{pack_name}.zip"
+    if zip_file.is_file():
+        return zip_file
 
     # Get HTML elements of the stickers
     stickers = raw.find_all("li", {"class": "FnStickerPreviewItem"})
@@ -88,7 +91,7 @@ async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> s
     if ctx:
         await ctx.edit(content="Saving the stickers...")
 
-    async with ClientSession() as session:
+    async with CachedSession(cache=SQLiteBackend("cache")) as session:
         tasks = []
         for i, sticker in enumerate(stickers):
             preview_link = get_link(sticker["data-preview"])

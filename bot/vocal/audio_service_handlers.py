@@ -1,23 +1,20 @@
+import asyncio
 import logging
 import re
 from typing import Optional
 from urllib.parse import unquote
 
 
-from aiohttp.client_exceptions import ClientResponseError
+from aiohttp.client_exceptions import ClientResponseError, InvalidUrlClientError
 import discord
 from spotipy.exceptions import SpotifyException
 from yt_dlp.utils import DownloadError
 
-from bot.vocal.custom import fetch_audio_stream, upload_cover, generate_info_embed
+from bot.vocal.custom import fetch_audio_stream, upload_cover
 from bot.vocal.server_session import ServerSession
-from bot.utils import (
-    get_metadata,
-    extract_cover_art,
-    extract_number,
-    get_dominant_rgb_from_url,
-)
+from bot.utils import get_metadata, extract_cover_art, extract_number, respond, edit
 from bot.vocal.session_manager import onsei
+from bot.vocal.track_dataclass import Track
 from config import DEFAULT_EMBED_COLOR
 
 
@@ -30,17 +27,18 @@ async def play_spotify(
     artist_mode: bool = False,
     album: bool = False,
     play_next: bool = False,
+    defer_task: Optional[asyncio.Task] = None,
 ) -> None:
     """
     Handles playback of Spotify tracks.
     This function searches for Spotify tracks based on the given query,
     adds them to the session's queue, and starts playback if not already playing.
     """
+    response_params = [ctx, "", interaction, defer_task]
     if len(query) >= 250:
-        await ctx.respond("Query too long!")
+        response_params[1] = "Query too long!"
+        await respond(*response_params)
         return
-
-    edit = interaction.edit_original_message if interaction else ctx.edit
 
     try:
         if artist_mode:
@@ -59,22 +57,21 @@ async def play_spotify(
             )
 
         if not tracks_info:
-            content = "Track not found!"
-            await edit(content=content)
+            response_params[1] = "Track not found!"
+            await edit(*response_params)
             return
 
     except SpotifyException as e:
         if e.http_status == 404:
-            await edit(
-                content="Content not found! Perhaps you are trying to play a private playlist?"
+            response_params[1] = (
+                "Content not found! Perhaps you are trying to play a private playlist?"
             )
+            await edit(*response_params)
         else:
             logging.error(e)
         return
 
-    await session.add_to_queue(
-        ctx, tracks_info, "spotify/deezer", interaction, play_next=play_next
-    )
+    await session.add_to_queue(ctx, tracks_info, interaction, play_next=play_next)
 
 
 def get_display_name_from_query(query: str) -> str:
@@ -88,13 +85,19 @@ async def play_custom(
     query: str,
     session: ServerSession,
     play_next: bool = False,
+    defer_task: Optional[asyncio.Task] = None,
 ) -> None:
     """Handles playback of other URLs."""
+    response_params = [ctx, "", None, defer_task]
     # Request and cache
     try:
         audio_path = await fetch_audio_stream(query)
+    except InvalidUrlClientError:
+        response_params[1] = "Invalid URL !"
+        await respond(*response_params)
     except Exception as e:
-        await ctx.edit(content=f"Error fetching audio: {repr(e)}")
+        await logging.error(content=f"Error fetching audio: {repr(e)}")
+        await ctx.respond(f"Oops! Something went wrong.\n-# {repr(e)}")
         return
 
     # Extract the metadata
@@ -103,55 +106,37 @@ async def play_custom(
 
     # Convert to list to sync with ID3 tags
     metadata = get_metadata(audio_path)
-    titles = list(metadata.get("title", []))
-    artists = list(metadata.get("artist", []))
-    albums = list(metadata.get("album", []))
-
-    artist = first_item(artists, default="?")
-    album = first_item(albums, default="?")
-    has_title = len(titles) > 0
-
-    if has_title:
-        title = titles[0]
-        display_name = f"{artist} - {title}"
-    else:
-        display_name = get_display_name_from_query(query)
-        title = display_name
+    if not metadata:
+        response_params[1] = "Track not found !"
+        await respond(*response_params)
+        return
+    titles = list(metadata.get("title"))
+    artists = list(metadata.get("artist", "?"))
+    albums = list(metadata.get("album", "?"))
 
     # Extract the cover art
     cover_bytes = extract_cover_art(audio_path)
+    cover_url = None
+    dominant_rgb = DEFAULT_EMBED_COLOR
     if cover_bytes and (cover_dict := await upload_cover(cover_bytes)):
         cover_url = cover_dict.get("url")
-        id = cover_dict.get("cover_hash")
         dominant_rgb = cover_dict.get("dominant_rgb")
-    else:
-        cover_url = id = None
-        dominant_rgb = DEFAULT_EMBED_COLOR
 
-    def embed():
-        return generate_info_embed(
-            url=query,
-            title=title,
-            album=album,
-            artists=artists,
-            cover_url=cover_url,
-            dominant_rgb=dominant_rgb,
-        )
+    track = Track(
+        service="custom",
+        title=titles[0]
+        if titles[0] is not None
+        else get_display_name_from_query(query),
+        album=first_item(albums, default="?"),
+        source_url=query,
+        stream_source=audio_path,
+        cover_url=cover_url or "",
+        dominant_rgb=dominant_rgb,
+    )
+    track.set_artists(artists)
+    track.create_embed()
 
-    track_info = {
-        "display_name": display_name,
-        "title": title,
-        "artist": artists,
-        "album": album,
-        "cover": cover_url,
-        # 'duration': ???
-        "source": audio_path,
-        "url": query,
-        "embed": embed,
-        "id": id,
-    }
-
-    await session.add_to_queue(ctx, [track_info], "custom", play_next=play_next)
+    await session.add_to_queue(ctx, [track], play_next=play_next)
 
 
 async def play_onsei(
@@ -159,64 +144,29 @@ async def play_onsei(
     query: str,
     session: ServerSession,
     play_next: bool = False,
+    defer_task: Optional[asyncio.Task] = None,
 ) -> None:
     """
     Handles playback of Onsei audio tracks.
     This function fetches track information from Onsei API, processes the data,
     and adds the tracks to the session's queue.
     """
+    response_params = [ctx, "", None, defer_task]
     work_id = extract_number(query)
 
-    # API requests
     try:
-        tracks_api: dict = await onsei.get_tracks_api(work_id)
-        work_api: dict = await onsei.get_work_api(work_id)
-        cover_url = onsei.get_cover(work_id)
-        dominant_rgb = await get_dominant_rgb_from_url(cover_url)
+        tracks: list[Track] = await onsei.get_all_tracks(work_id)
     except ClientResponseError as e:
         if e.status == 404:
-            await ctx.edit(content="No onsei has been found!")
+            response_params[1] = "No onsei has been found !"
+            await respond(*response_params)
             return
         else:
-            await ctx.edit(content=f"An error occurred: {e.message}")
+            response_params[1] = f"An error occurred.\n-# {repr(e)}"
+            await respond(*response_params)
             return
 
-    # Grab the data needed
-    tracks = onsei.get_all_tracks(tracks_api)
-    work_title = work_api.get("title")
-    artists = [i["name"] for i in work_api["vas"]]
-
-    # Prepare the tracks
-    tracks_info = []
-    for track_title, track_api in tracks.items():
-        stream_url = track_api["media_stream_url"]
-
-        # Explicit parameters are necessary to not give the same embed to all tracks
-        def embed(track_title=track_title, stream_url=stream_url):
-            return generate_info_embed(
-                url=stream_url,
-                title=track_title,
-                album=work_title,
-                artists=artists,
-                cover_url=cover_url,
-                dominant_rgb=dominant_rgb,
-            )
-
-        track_info = {
-            "display_name": track_title,
-            "title": track_title,
-            "artist": artists,
-            "source": stream_url,
-            "album": work_title,
-            "cover": cover_url,
-            "duration": round(track_api["duration"]),
-            "url": stream_url,
-            "embed": embed,
-            "id": work_id,
-        }
-
-        tracks_info.append(track_info)
-    await session.add_to_queue(ctx, tracks_info, "onsei", play_next=play_next)
+    await session.add_to_queue(ctx, tracks, play_next=play_next)
 
 
 async def play_youtube(
@@ -225,22 +175,19 @@ async def play_youtube(
     session: ServerSession,
     interaction: Optional[discord.Interaction] = None,
     play_next: bool = False,
+    defer_task: Optional[asyncio.Task] = None,
 ) -> None:
-    if interaction:
-        edit = interaction.edit_original_message
-    else:
-        edit = ctx.edit
-
+    response_params = [ctx, "", interaction, defer_task]
     try:
-        tracks_info = await ctx.bot.youtube.get_track_info(query)
+        track: Track = await ctx.bot.youtube.get_track(query)
     except DownloadError:
-        await edit(content="Download failed: Ugoku has been detected as a bot.")
+        response_params[1] = "Download failed: Ugoku has been detected as a bot."
+        await respond(*response_params)
         return
 
-    if not tracks_info:
-        await edit(content="No video has been found!")
+    if not track:
+        response_params[1] = "No video has been found!"
+        await respond(*response_params)
         return
 
-    await session.add_to_queue(
-        ctx, [tracks_info], "youtube", interaction, play_next=play_next
-    )
+    await session.add_to_queue(ctx, [track], interaction, play_next=play_next)

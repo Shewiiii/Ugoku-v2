@@ -1,6 +1,7 @@
 import mutagen.ogg
 import mutagen.oggvorbis
 import asyncio
+from aiohttp_client_cache import CachedSession, SQLiteBackend
 from typing import Dict, Optional, Tuple, List, Union, Callable
 import discord
 import base64
@@ -14,7 +15,6 @@ from pathlib import Path
 from time import time
 from urllib.parse import urlparse, parse_qs
 
-import httpx
 import mutagen
 from PIL import Image
 from mutagen.flac import FLAC
@@ -169,10 +169,12 @@ def get_accent_color(image_bytes: bytes, threshold: int = 50) -> Tuple[int, int,
 
 async def get_dominant_rgb_from_url(image_url: str) -> Tuple[int, int, int]:
     """Fetch an image from a URL and extract its accent color."""
-    async with httpx.AsyncClient(follow_redirects=True) as session:
+    async with CachedSession(
+        follow_redirects=True, cache=SQLiteBackend("cache")
+    ) as session:
         response = await session.get(image_url)
         response.raise_for_status()
-        cover_bytes = response.content
+        cover_bytes = await response.read()
         dominant_rgb = get_accent_color(cover_bytes)
 
     return dominant_rgb
@@ -336,10 +338,12 @@ async def tag_ogg_file(
 
     # Fetch the album cover
     if album_cover_url:
-        async with httpx.AsyncClient(follow_redirects=True) as session:
-            response = await session.get(album_cover_url)
-            response.raise_for_status()
-            cover_bytes = response.content
+        async with CachedSession(
+            follow_redirects=True, cache=SQLiteBackend("cache")
+        ) as session:
+            async with session.get(album_cover_url) as response:
+                response.raise_for_status()
+                cover_bytes = await response.read()
         picture.data = cover_bytes
         # Encode the picture data in base64
         picture_encoded = base64.b64encode(picture.write()).decode("ascii")
@@ -489,3 +493,27 @@ def vocal_action_check(
         return False
 
     return True
+
+
+async def respond(
+    ctx: discord.ApplicationContext,
+    content: str,
+    interaction: Optional[discord.Interaction] = None,
+    defer_task: Optional[asyncio.Task] = None,
+) -> None:
+    if defer_task:
+        defer_task.cancel()
+    respond = interaction.respond if interaction else ctx.respond
+    await respond(content=content)
+
+
+async def edit(
+    ctx: discord.ApplicationContext,
+    content: str,
+    interaction: Optional[discord.Interaction] = None,
+    defer_task: Optional[asyncio.Task] = None,
+) -> None:
+    if defer_task:
+        defer_task.cancel()
+    edit = interaction.edit_original_message if interaction else ctx.edit
+    await edit(content=content)

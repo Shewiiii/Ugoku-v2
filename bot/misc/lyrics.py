@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 
 from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL
+from bot.vocal.track_dataclass import Track
 
 if GEMINI_ENABLED:
     from bot.chatbot.gemini import Gembot
@@ -19,7 +20,7 @@ MUSIXMATCH_TOKEN = os.getenv("MUSIXMATCH_TOKEN")
 
 class BotLyrics:
     @staticmethod
-    async def get(track_info: dict) -> Optional[str]:
+    async def get(track: Track) -> Optional[str]:
         """Get the lyrics of a song from a track info dictionary."""
         base_url = (
             "https://apic-desktop.musixmatch.com/ws/1.1/macro.subtitles.get"
@@ -29,11 +30,11 @@ class BotLyrics:
         )
 
         params = {
-            "q_album": track_info.get("album", ""),
-            "q_artist": track_info.get("artist", ""),
-            "q_artists": track_info.get("artist", ""),
-            "q_track": track_info.get("title", ""),
-            "track_spotify_id": track_info.get("id", ""),
+            "q_album": track.album,
+            "q_artist": track.artist,
+            "q_artists": track.artist,
+            "q_track": track.title,
+            "track_spotify_id": track.id,
             "usertoken": MUSIXMATCH_TOKEN,
         }
 

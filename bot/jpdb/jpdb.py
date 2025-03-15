@@ -1,7 +1,7 @@
 import asyncio
-import httpx
 from typing import Optional
 import discord
+import httpx
 import time
 from config import DEFAULT_EMBED_COLOR
 

@@ -8,17 +8,18 @@ from typing import Optional
 from bot.utils import get_dominant_rgb_from_url, split_into_chunks
 from bot.vocal.server_session import ServerSession
 from bot.vocal.session_manager import session_manager as sm
-from config import DEFAULT_STREAMING_SERVICE, IMPULSE_RESPONSE_PARAMS
+from bot.vocal.track_dataclass import Track
+from config import IMPULSE_RESPONSE_PARAMS
 
 
-class PlayPrompt(commands.Cog):
+class Search(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
     @commands.slash_command(
-        name="play-prompt", description="Search a song from Spotify to play in vc."
+        name="search", description="Search a song from Spotify to play in vc."
     )
-    async def play_prompt(
+    async def search(
         self,
         ctx: discord.ApplicationContext,
         type: discord.Option(
@@ -60,7 +61,7 @@ class PlayPrompt(commands.Cog):
 
         if type == "artist":
             artist = (await spotify.search(query, type="artist", limit=1))[0]
-            track_infos = await spotify.get_tracks(
+            tracks: list[Track] = await spotify.get_tracks(
                 id_=artist["id"], offset=offset, type="artist"
             )
             cover = artist["images"][0]["url"] if artist.get("images") else None
@@ -97,13 +98,10 @@ class PlayPrompt(commands.Cog):
                 )
                 cover = artist["images"][0]["url"] if artist.get("images") else None
 
-            track_infos = [spotify.get_track_info(item) for item in items]
+            tracks = [spotify.get_track(item) for item in items]
 
         dominant_rgb = await get_dominant_rgb_from_url(cover)
-        display_names = [
-            f"[{track_info['display_name']}]({track_info['url']})"
-            for track_info in track_infos
-        ]
+        display_names = [f"{track:markdown}" for track in tracks]
 
         search_embed = (
             discord.Embed(
@@ -111,7 +109,7 @@ class PlayPrompt(commands.Cog):
             )
             .set_author(
                 name=f"Play prompt - {embed_title}",
-                icon_url=track_infos[0].get("cover"),
+                icon_url=tracks[0].cover_url,
             )
             .set_thumbnail(url=cover)
         )
@@ -150,14 +148,12 @@ class PlayPrompt(commands.Cog):
                 # Select menu
                 self.children[3].max_values = end_index - start_index
                 self.children[3].options = [
-                    discord.SelectOption(
-                        label=f"{i + 1}. {track_infos[i]['display_name'][:95]}"
-                    )
+                    discord.SelectOption(label=f"{i + 1}. {str(tracks[i])[:95]}")
                     for i in range(start_index, end_index)
                 ]
 
             async def play(
-                self, interaction: discord.Interaction, track_infos: list[dict]
+                self, interaction: discord.Interaction, tracks: list[Track]
             ) -> None:
                 interaction_voice = interaction.user.voice
                 if not interaction_voice or (
@@ -173,8 +169,7 @@ class PlayPrompt(commands.Cog):
                 asyncio.create_task(
                     session.add_to_queue(
                         ctx,
-                        track_infos,
-                        service=DEFAULT_STREAMING_SERVICE,
+                        tracks,
                         interaction=interaction,
                         play_next=play_next,
                     )
@@ -207,7 +202,7 @@ class PlayPrompt(commands.Cog):
             ) -> None:
                 """Update the page on 'previous' click."""
                 asyncio.create_task(interaction.response.defer())
-                await self.play(interaction, track_infos)
+                await self.play(interaction, tracks)
 
             @discord.ui.select(
                 placeholder="Select songs !",
@@ -223,7 +218,7 @@ class PlayPrompt(commands.Cog):
                 await self.play(
                     interaction,
                     [
-                        track_infos[int(re.findall(r"\d+", tn)[0]) - 1]
+                        tracks[int(re.findall(r"\d+", tn)[0]) - 1]
                         for tn in selected_track_names
                     ],
                 )
@@ -233,4 +228,4 @@ class PlayPrompt(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(PlayPrompt(bot))
+    bot.add_cog(Search(bot))

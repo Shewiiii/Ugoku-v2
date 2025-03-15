@@ -1,11 +1,12 @@
 from datetime import datetime
-from typing import List, Union, Callable
+from typing import List, Union
 
 import discord
 from discord.ui import View
 
 from bot.vocal.custom import get_cover_data_from_file
 from bot.utils import split_into_chunks
+from bot.vocal.track_dataclass import Track
 from config import DEFAULT_EMBED_COLOR
 
 
@@ -75,30 +76,26 @@ class QueueView(View):
             return embed
 
         # Get cover and colors of the NOW PLAYING song
-        service: str = self.queue[0]["service"]
-        track_info: dict = self.queue[0]["track_info"]
-        if service == "custom":
-            cover_data = await get_cover_data_from_file(track_info["id"])
+        track: Track = self.queue[0]
+        if track.service == "custom":
+            cover_data = await get_cover_data_from_file(track.id)
         else:
-            if isinstance(track_info["embed"], Callable):
-                track_info["embed"] = await track_info["embed"]()
-            embed = track_info["embed"]
+            if track.unloaded_embed:
+                await track.generate_embed()
+            embed = track.embed
             cover_data = {
-                "url": track_info["cover"],
+                "cover_url": track.cover_url,
                 "dominant_rgb": embed.color if embed and embed.color else default_color,
             }
 
         # Create the embed
         embed = discord.Embed(
             title="Queue Overview",
-            thumbnail=cover_data["url"],
+            thumbnail=cover_data["cover_url"],
             color=cover_data["dominant_rgb"],
         )
 
         # "Now playing" track section
-        now_playing = self.queue[0]["track_info"]
-        title = now_playing["display_name"]
-        url = now_playing["url"]
 
         # Time indication
         if self.is_playing:
@@ -107,13 +104,13 @@ class QueueView(View):
             )
         else:
             current_pos: int = self.time_elapsed
-        total_seconds: Union[int, str] = now_playing.get("duration", "?")
+        total_seconds: Union[int, str] = track.duration
         time_string = f"{current_pos}s / {total_seconds}s"
 
         embed.add_field(
             # Now playing + time indication
             name=f"Now Playing - {time_string}",
-            value=f"[{title}]({url})",
+            value=f"{track:markdown}",
             inline=False,
         )
 
@@ -124,8 +121,7 @@ class QueueView(View):
         if len(self.queue) > 1:
             if start_index < end_index:
                 queue_details = "\n".join(
-                    f"{i}. [{self.queue[i]['track_info']['display_name']}]"
-                    f"({self.queue[i]['track_info']['url']})"
+                    f"{i}. {self.queue[i]:markdown}"
                     for i in range(start_index + 1, end_index)
                 )
                 # Split the queue (if too long)
@@ -139,8 +135,7 @@ class QueueView(View):
 
         if self.to_loop:
             loop_details = "\n".join(
-                f"{i + 1}. [{self.to_loop[i]['track_info']['display_name']}]"
-                f"({self.to_loop[i]['track_info']['url']})"
+                f"{i + 1}. {self.to_loop[i]:markdown}"
                 for i in range(start_index, end_index)
             )
             embed.add_field(name="Songs in Loop", value=loop_details, inline=False)

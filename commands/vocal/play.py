@@ -38,13 +38,13 @@ class Play(commands.Cog):
         effect: str = "default",
         play_next: bool = False,
     ) -> None:
-        if not interaction:
-            asyncio.create_task(ctx.defer())
+        defer_task = None if interaction else asyncio.create_task(ctx.defer())
         respond = interaction.response.send_message if interaction else ctx.respond
 
         # Connect to the voice channel
         session: Optional[ServerSession] = sm.connect(ctx, self.bot)
         if not session:
+            defer_task.cancel()
             await ctx.respond(content="You are not in an active voice channel !")
             return
 
@@ -67,24 +67,33 @@ class Play(commands.Cog):
         spotify_domains = ["open.spotify.com"]
 
         if service == "onsei" or is_onsei(query):
-            await play_onsei(ctx, query, session, play_next)
+            await play_onsei(ctx, query, session, play_next, defer_task)
 
         elif service == "custom" or (
             is_url(query) and not is_url(query, from_=spotify_domains + youtube_domains)
         ):
-            await play_custom(ctx, query, session, play_next)
+            await play_custom(ctx, query, session, play_next, defer_task)
 
         elif service == "youtube" or is_url(query, from_=youtube_domains):
-            await play_youtube(ctx, query, session, interaction, play_next)
+            await play_youtube(ctx, query, session, interaction, play_next, defer_task)
 
         elif service == "spotify/deezer":
-            if not SPOTIFY_API_ENABLED or (not SPOTIFY_ENABLED and not DEEZER_ENABLED):
+            if not (SPOTIFY_API_ENABLED and (SPOTIFY_ENABLED or DEEZER_ENABLED)):
+                defer_task.cancel()
                 await respond(
-                    content="Spotify API or no audio streaming service is enabled."
+                    content="Spotify API or no music streaming service is enabled."
                 )
                 return
             await play_spotify(
-                ctx, query, session, interaction, offset, artist_mode, album, play_next
+                ctx,
+                query,
+                session,
+                interaction,
+                offset,
+                artist_mode,
+                album,
+                play_next,
+                defer_task,
             )
         else:
             await respond(content="wut duh")

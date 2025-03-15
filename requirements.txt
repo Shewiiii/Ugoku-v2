@@ -17,3 +17,4 @@ pinecone[grpc]
 httpx[http2]
 aiofiles
 pycryptodome
+aiohttp-client-cache[all]

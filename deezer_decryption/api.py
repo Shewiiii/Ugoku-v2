@@ -24,9 +24,9 @@ class Deezer:
 
     async def setup(self) -> None:
         await self.set_api_token()
-        logging.info("API Token set")
+        logging.info("Deezer API Token set")
         await self.set_user_data()
-        logging.info("User data set")
+        logging.info("Deezer User data set")
 
     async def set_api_token(self) -> None:
         p = {"api_version": "1.0", "api_token": "null", "method": "deezer.getUserData"}

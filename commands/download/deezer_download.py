@@ -1,7 +1,6 @@
 import asyncio
 import discord
 from discord.ext import commands
-import httpx
 
 from bot.search import is_url
 from config import DEEZER_ENABLED
@@ -42,7 +41,7 @@ class DeezerDownload(commands.Cog):
             path = await self.download.track_from_query(
                 query, upload_=True, bot=self.bot, ctx=ctx, track_id=is_spotify_url
             )
-        except httpx.ConnectTimeout:
+        except asyncio.TimeoutError:
             await ctx.edit(content="Connection timed out, please try again !")
             return
 

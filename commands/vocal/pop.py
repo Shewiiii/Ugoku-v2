@@ -17,7 +17,7 @@ async def autocomplete(ctx: discord.AutocompleteContext) -> list:
         return []
 
     song = ctx.options["song"].lower()
-    songs = [element["track_info"]["display_name"] for element in session.queue]
+    songs = [str(element) for element in session.queue]
     if song:
         search = []
         for s in songs:
@@ -57,8 +57,8 @@ class PopSong(commands.Cog):
         queue = session.queue
         # If a song is specified, find its index in the queue
         if song:
-            for i, track_info in enumerate([e["track_info"] for e in queue]):
-                if track_info["display_name"] == song:
+            for i, track in enumerate(queue):
+                if str(track) == song:
                     index = i
                     break
 
@@ -76,9 +76,8 @@ class PopSong(commands.Cog):
 
         # Send message
         c = len(removed_tracks)
-        r_tracks_info = [track["track_info"] for track in removed_tracks]
         titles = ", ".join(
-            f"[{t['display_name']}](<{t['url']}>)" for t in r_tracks_info[:3]
+            f"{track:markdown}" for track in removed_tracks[:3]
         )
         message = (
             f"Removed: {titles}{' !' if c <= 3 else f', and {c - 3} more songs !'}"

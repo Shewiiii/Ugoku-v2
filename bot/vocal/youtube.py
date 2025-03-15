@@ -1,3 +1,4 @@
+from aiohttp_client_cache import CachedSession, SQLiteBackend
 import asyncio
 import os
 import re
@@ -9,11 +10,10 @@ import yt_dlp
 from yt_dlp.postprocessor.common import PostProcessor
 
 from typing import Optional
-import aiohttp
 
 from bot.search import is_url
 from bot.utils import get_cache_path, get_dominant_rgb_from_url
-from bot.vocal.custom import generate_info_embed
+from bot.vocal.track_dataclass import Track
 from config import YT_COOKIES_PATH
 
 
@@ -66,7 +66,7 @@ class Youtube:
             print("")
         return metadata
 
-    async def get_track_info(self, query: str) -> Optional[dict]:
+    async def get_track(self, query: str) -> Optional[Track]:
         url = await self.validate_url(query)
         if not url:
             return
@@ -81,50 +81,36 @@ class Youtube:
             metadata = metadata["entries"][0]
 
         # Extract the metadata
-        title = metadata.get("title", "Unknown Title")
-        album = "Youtube"
-        display_name = title
-        id = metadata.get("id", "Unknown ID")
         artist = metadata.get("uploader", "Unknown uploader")
         artist_url = metadata.get("uploader_url")
-        artist_string = f"[{artist}]({artist_url})" if artist_url else artist
         cover_url = metadata.get("thumbnail", None)
+
         if cover_url:
             dominant_rgb = await get_dominant_rgb_from_url(cover_url)
         else:
             dominant_rgb = None
-        # Duration in seconds
-        duration = metadata.get("duration", 0)
 
-        # Prepare the track/video
-        def embed():
-            return generate_info_embed(
-                url=url,
-                title=title,
-                album=album,
-                artists=[artist_string],
-                cover_url=cover_url,
-                dominant_rgb=dominant_rgb,
-            )
+        track = Track(
+            service="youtube",
+            id=metadata.get("id", "Unknown ID"),
+            title=metadata.get("title", "Unknown Title"),
+            album="Youtube",
+            cover_url=cover_url,
+            duration=metadata.get("duration", "?"),
+            stream_source=file_path,
+            source_url=url,
+            dominant_rgb=dominant_rgb,
+        )
+        track.set_artist(artist)
+        track.create_embed(artist_urls=[artist_url])
 
-        track_info = {
-            "display_name": display_name,
-            "title": title,
-            "artist": artist,
-            "album": album,
-            "cover": cover_url,
-            "duration": duration,
-            "source": file_path,
-            "url": url,
-            "embed": embed,
-            "id": id,
-        }
-
-        return track_info
+        return track
 
     async def validate_url(self, query: str) -> Optional[str]:
         if is_url(query, from_=["youtube.com", "youtu.be"]):
-            async with aiohttp.ClientSession() as session:
+            async with CachedSession(
+                follow_redirects=True, cache=SQLiteBackend("cache")
+            ) as session:
                 async with session.get(query) as response:
                     if response.status != 200:
                         return
@@ -136,7 +122,9 @@ class Youtube:
             search = "https://www.youtube.com/results?search_query="
             watch = "https://www.youtube.com/watch?v="
 
-            async with aiohttp.ClientSession() as session:
+            async with CachedSession(
+                follow_redirects=True, cache=SQLiteBackend("cache")
+            ) as session:
                 async with session.get(search + query) as response:
                     response_content = await response.read()
                     search_results = re.findall(

@@ -14,6 +14,7 @@ from discord.ext import commands
 from bot.misc.lyrics import BotLyrics
 from bot.vocal.session_manager import session_manager
 from bot.utils import get_dominant_rgb_from_url, split_into_chunks
+from bot.vocal.track_dataclass import Track
 from commands.vocal.play import Play
 
 
@@ -24,17 +25,17 @@ logger = logging.getLogger(__name__)
 
 class lyricsView(discord.ui.View):
     def __init__(
-        self, bot: discord.bot, ctx: discord.ApplicationContext, track_info: dict
+        self, bot: discord.bot, ctx: discord.ApplicationContext, track: Track
     ) -> None:
         super().__init__(timeout=None)
         self.bot = bot
         self.ctx = ctx
-        self.track_info = track_info
+        self.track: Track = track
 
         spotify_button = discord.ui.Button(
             label="Spotify Link",
             style=discord.ButtonStyle.link,
-            url=self.track_info["url"],
+            url=self.track.source_url,
         )
         self.add_item(spotify_button)
 
@@ -49,7 +50,7 @@ class lyricsView(discord.ui.View):
         asyncio.create_task(
             play_cog.execute_play(
                 self.ctx,
-                self.track_info["url"],
+                self.track.source_url,
                 DEFAULT_STREAMING_SERVICE,
                 interaction=interaction,
             )
@@ -77,32 +78,24 @@ class Lyrics(commands.Cog):
         # artist: str = Optional[str]
     ) -> None:
         asyncio.create_task(ctx.defer())
+
         if not query:
             guild_id = ctx.guild.id
             session = session_manager.server_sessions.get(guild_id)
-
-            if session and session.queue:
-                track_info = session.queue[0]["track_info"]
-            else:
+            if not (session and session.queue):
                 await ctx.respond("No song is playing !")
                 return
-        else:
-            if SPOTIFY_API_ENABLED:
-                # Use Spotify features for more precise results
-                tracks_info = await self.bot.spotify.get_tracks(query)
+            track: Track = session.queue[0]
 
-                if not tracks_info:
-                    await ctx.respond("No lyrics found!")
-                    return
-                track_info = tracks_info[0]
-            else:
-                track_info = {
-                    "title": query,
-                    # Uncomment the following if Spotify features are disabled
-                    # 'artist': artist
-                }
+        elif SPOTIFY_API_ENABLED:
+            # Use Spotify features for more precise results
+            tracks: Track = await self.bot.spotify.get_tracks(query)
+            if not tracks:
+                await ctx.respond("No lyrics found!")
+                return
+            track: Track = tracks[0]
 
-        lyrics = await BotLyrics.get(track_info)
+        lyrics = await BotLyrics.get(track)
         if not lyrics:
             await ctx.respond(lyrics or "No lyrics found!")
             return
@@ -122,20 +115,21 @@ class Lyrics(commands.Cog):
         splitted_lyrics: list = split_into_chunks(lyrics)
 
         # Create the embed
-        if "cover" in track_info:
-            dominant_rgb = await get_dominant_rgb_from_url(track_info["cover"])
+        if track.cover_url:
+            dominant_rgb = await get_dominant_rgb_from_url(track.cover_url)
             color = discord.Colour.from_rgb(*dominant_rgb)
         else:
             color = discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR)
-        embed = discord.Embed(title=track_info.get("display_name", query), color=color)
+
+        embed = discord.Embed(title=str(track), color=color)
         for part in splitted_lyrics:
             embed.add_field(name="", value=part, inline=False)
 
         if SPOTIFY_API_ENABLED:
             # Add a cover to the embed
-            embed.set_author(name="Lyrics", icon_url=track_info["cover"])
+            embed.set_author(name="Lyrics", icon_url=track.cover_url)
             asyncio.create_task(
-                ctx.respond(embed=embed, view=lyricsView(self.bot, ctx, track_info))
+                ctx.respond(embed=embed, view=lyricsView(self.bot, ctx, track))
             )
         else:
             asyncio.create_task(ctx.respond(embed=embed))

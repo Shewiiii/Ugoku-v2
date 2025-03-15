@@ -1,3 +1,4 @@
+from aiohttp_client_cache import CachedSession, SQLiteBackend
 import aiofiles
 import asyncio
 from deezer_decryption.api import Deezer
@@ -7,7 +8,6 @@ from deezer_decryption.crypto import decrypt_chunk
 import discord
 import logging
 from deezer_decryption.search import get_closest_string
-import httpx
 from mutagen.flac import FLAC
 from mutagen.flac import Picture
 from pathlib import Path
@@ -122,10 +122,12 @@ class Download:
         picture.desc = "Cover"
         album_cover_url = native_track_api["album"]["cover_xl"]
         if native_track_api["album"].get("cover_xl"):
-            async with httpx.AsyncClient(follow_redirects=True) as session:
-                response = await session.get(album_cover_url)
-                response.raise_for_status()
-                cover_bytes = response.content
+            async with CachedSession(
+                follow_redirects=True, cache=SQLiteBackend("cache")
+            ) as session:
+                async with session.get(album_cover_url) as response:
+                    response.raise_for_status()
+                    cover_bytes = await response.read()
             picture.data = cover_bytes
 
         audio["title"] = native_track_api["title"]

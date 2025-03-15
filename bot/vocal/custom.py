@@ -1,3 +1,4 @@
+from aiohttp_client_cache import CachedSession, SQLiteBackend
 from typing import Optional
 
 from config import CACHE_EXPIRY, TEMP_FOLDER, DEFAULT_EMBED_COLOR
@@ -8,7 +9,6 @@ from pathlib import Path
 from time import time
 import hashlib
 import logging
-import aiohttp
 import json
 import os
 
@@ -44,7 +44,9 @@ async def upload_cover(cover_bytes: bytes) -> dict:
     url = "https://api.imgur.com/3/upload"
     headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
 
-    async with aiohttp.ClientSession() as session:
+    async with CachedSession(
+        follow_redirects=True, cache=SQLiteBackend("cache")
+    ) as session:
         data = {
             "image": cover_bytes,
             "type": "file",  # Imgur expects the file type
@@ -102,17 +104,15 @@ async def generate_info_embed(
     Generate a Discord Embed with track information."""
     artist_string = ", ".join(artists)
 
-    embed = (
-        discord.Embed(
-            title=title,
-            url=url,
-            description=f"By {artist_string}",
-            color=discord.Colour.from_rgb(*dominant_rgb),
-        )
-        .add_field(name="Part of the album", value=album, inline=True)
-        .set_author(name="Now playing")
-        .set_thumbnail(url=cover_url)
+    embed = discord.Embed(
+        title=title,
+        url=url,
+        description=f"By {artist_string}",
+        color=discord.Colour.from_rgb(*dominant_rgb),
     )
+    embed.add_field(name="Part of the album", value=album, inline=True)
+    embed.set_author(name="Now playing")
+    embed.set_thumbnail(url=cover_url)
 
     return embed
 
@@ -130,7 +130,9 @@ async def fetch_audio_stream(url: str) -> Path:
             cache_path.unlink()  # Remove expired file
 
     # Fetch the audio file from the URL asynchronously
-    async with aiohttp.ClientSession() as session:
+    async with CachedSession(
+        follow_redirects=True, cache=SQLiteBackend("cache")
+    ) as session:
         async with session.get(url) as response:
             if response.status != 200:
                 raise Exception(f"Failed to fetch audio: {response.status}")

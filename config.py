@@ -154,3 +154,4 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)

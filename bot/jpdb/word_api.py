@@ -1,13 +1,13 @@
-from typing import Optional
-import httpx
-import re
+from aiohttp_client_cache import CachedSession, SQLiteBackend
 from bs4 import BeautifulSoup
-import typing_extensions as typing
 import json
+import re
+from typing import Optional
+import typing_extensions as typing
 
 
-from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL
 from bot.chatbot.gemini import Gembot
+from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL
 import google.generativeai as genai
 
 
@@ -18,7 +18,6 @@ class SentenceLanguage(typing.TypedDict):
 
 class JpdbWordApi:
     def __init__(self):
-        self.session = httpx.AsyncClient(follow_redirects=True)
         self.gembot = Gembot(0, GEMINI_UTILS_MODEL) if GEMINI_ENABLED else None
 
     @staticmethod
@@ -83,9 +82,12 @@ class JpdbWordApi:
 
     async def get(self, word: str) -> Optional[dict]:
         base_url = "https://jpdb.io/search?q="
-        request = await self.session.get(f"{base_url}{word}")
-        request.raise_for_status()
-        raw = BeautifulSoup(request.text, features="html.parser")
+        async with CachedSession(
+            follow_redirects=True, cache=SQLiteBackend("cache")
+        ) as session:
+            request = await session.get(f"{base_url}{word}")
+            request.raise_for_status()
+            raw = BeautifulSoup(request.text, features="html.parser")
         first_result = raw.find(attrs={"class": "vbox"})
         if not first_result:
             return

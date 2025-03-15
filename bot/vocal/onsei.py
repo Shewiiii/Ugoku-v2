@@ -1,11 +1,13 @@
+import asyncio
+from aiohttp_client_cache import CachedSession, SQLiteBackend
 import json
 import os
-from pathlib import Path
+from typing import Literal, Union, Optional
 import logging
-from typing import Literal, Optional
-import aiohttp
-
-from config import ONSEI_BLACKLIST, ONSEI_WHITELIST
+from pathlib import Path
+from bot.vocal.track_dataclass import Track
+from bot.utils import get_dominant_rgb_from_url
+from config import ONSEI_BLACKLIST, ONSEI_WHITELIST, DEFAULT_EMBED_COLOR
 
 
 class Onsei:
@@ -23,7 +25,7 @@ class Onsei:
         url = f"https://api.asmr.one/api/{api}/{work_id}"
         logging.info(f"Requesting URL: {url}")
 
-        async with aiohttp.ClientSession() as session:
+        async with CachedSession(cache=SQLiteBackend("cache")) as session:
             async with session.get(url) as response:
                 response.raise_for_status()
                 content = await response.text()
@@ -35,15 +37,21 @@ class Onsei:
     async def get_work_api(self, work_id: str) -> list:
         return await self.request(work_id, "workInfo")
 
-    @staticmethod
     def process_file(
-        tracks_api: list, path: Path, ignore_whitelist: bool = False
+        self,
+        track_api: dict,
+        work_api: dict,
+        path: Path,
+        ignore_whitelist: bool = False,
+        track_number: int = 1,
+        dominant_rgb: tuple = DEFAULT_EMBED_COLOR,
     ) -> dict[dict]:
-        file_type = tracks_api.get("type")
-        duration = tracks_api.get("duration")
-        title = os.path.splitext(tracks_api.get("title", ""))[0]
-        media_stream_url = tracks_api.get("mediaStreamUrl")
-        media_download_url = tracks_api.get("mediaDownloadUrl", "")
+        # track_api
+        file_type = track_api.get("type")
+        duration = track_api.get("duration")
+        title = os.path.splitext(track_api.get("title", ""))[0]
+        media_stream_url = track_api.get("mediaStreamUrl")
+        media_download_url = track_api.get("mediaDownloadUrl", "")
         extension = os.path.splitext(media_download_url)[1][1:].lower()
 
         def is_valid_file_type() -> bool:
@@ -60,69 +68,86 @@ class Onsei:
             return not any(word.lower() in title.lower() for word in ONSEI_BLACKLIST)
 
         if is_valid_file_type() and has_valid_path() and is_not_blacklisted():
-            track_api = {
-                title: {"media_stream_url": media_stream_url, "duration": duration}
-            }
-            return track_api
+            id = work_api.get("id", 0)
+            track = Track(
+                service="onsei",
+                id=id,
+                cover_url=self.get_cover(id),
+                title=title,
+                album=work_api.get("title", "?"),
+                duration=duration,
+                stream_source=media_stream_url,
+                source_url=media_stream_url,
+                track_number=track_number,
+                dominant_rgb=dominant_rgb,
+            )
+            track.set_artists([i["name"] for i in work_api["vas"]])
+            track.create_embed()
+            return track
 
         return None
 
     def get_tracks(
         self,
-        tracks_api: list,
-        path: Path = Path("."),
-        final_tracks: Optional[dict] = None,
+        track_api: Union[list, dict],
+        work_api: dict,
+        final_tracks: Optional[list] = None,
         ignore_whitelist: bool = False,
+        dominant_rgb: tuple = DEFAULT_EMBED_COLOR,
+        path: Path = Path("."),
     ) -> list:
         """Recursively retrieve tracks from API data."""
         if final_tracks is None:
-            final_tracks = {}
+            final_tracks = []
 
-        if "error" in tracks_api:
-            logging.error(tracks_api["error"])
+        params = (work_api, final_tracks, ignore_whitelist, dominant_rgb)
+
+        if "error" in track_api:
+            logging.error(track_api["error"])
             return final_tracks
 
-        if isinstance(tracks_api, list):
-            for element in tracks_api:
-                self.get_tracks(element, path, final_tracks, ignore_whitelist)
+        if isinstance(track_api, list):
+            for element in track_api:
+                self.get_tracks(element, *params, path)
 
-        elif isinstance(tracks_api, dict):
-            if tracks_api.get("type") == "folder":
-                folder_name = tracks_api.get("title", "Unknown Folder")
+        elif isinstance(track_api, dict):
+            if track_api.get("type") == "folder":
+                folder_name = track_api.get("title", "Unknown Folder")
                 folder_path = path / folder_name
                 self.get_tracks(
-                    tracks_api.get("children", []),
+                    track_api.get("children", []),
+                    *params,
                     folder_path,
-                    final_tracks,
-                    ignore_whitelist,
                 )
             else:
-                file_info = self.process_file(tracks_api, path, ignore_whitelist)
+                file_info = self.process_file(
+                    track_api,
+                    work_api,
+                    path,
+                    ignore_whitelist,
+                    len(final_tracks) + 1,
+                    dominant_rgb,
+                )
                 if file_info:
-                    final_tracks.update(file_info)
+                    final_tracks.append(file_info)
 
         return final_tracks
 
-    def get_title(self, tracks_api: list) -> str:
-        if isinstance(tracks_api, list):
-            for children in tracks_api:
-                result = self.get_title(children)
-                if result:
-                    return result
+    async def get_all_tracks(self, work_id: str) -> list:
+        tracks_api, work_api, dominant_rgb = await asyncio.gather(
+            self.get_tracks_api(work_id),
+            self.get_work_api(work_id),
+            get_dominant_rgb_from_url(self.get_cover(work_id)),
+        )
 
-        elif isinstance(tracks_api, dict):
-            if "workTitle" in tracks_api:
-                return tracks_api["workTitle"]
-
-        return "?"
-
-    def get_all_tracks(self, tracks_api: list) -> dict[str, str]:
-        tracks = self.get_tracks(tracks_api)
+        tracks = self.get_tracks(tracks_api, work_api, dominant_rgb=dominant_rgb)
 
         if not tracks:
             logging.info(
                 "No tracks found with whitelist filters. Retrying without whitelist."
             )
-            tracks = self.get_tracks(tracks_api, ignore_whitelist=True)
+            tracks = self.get_tracks(
+                tracks_api, work_api, dominant_rgb=dominant_rgb, ignore_whitelist=True
+            )
 
         return tracks

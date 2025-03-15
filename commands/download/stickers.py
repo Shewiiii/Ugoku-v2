@@ -2,8 +2,6 @@ import asyncio
 import discord
 from discord.ext import commands
 
-import os
-
 from bot.misc.line import get_stickerpack
 
 
@@ -43,8 +41,6 @@ class Stickers(commands.Cog):
                 content="Here's the sticker pack you requested~",
             )
         )
-        # Clean up the file after sending
-        os.remove(zip_file)
 
 
 def setup(bot):
