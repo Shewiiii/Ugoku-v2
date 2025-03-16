@@ -32,7 +32,6 @@ class DeezerChunkedInputStream:
         self.track: "Track" = track
         self.stream_url: str = stream_url
         self.track_token: str = track_token
-        self.buffer: bytes = b""
         self.blowfish_key: bytes = generate_blowfish_key(str(deezer_id))
         self.headers: dict = HEADERS
         self.chunk_size: int = CHUNK_SIZE
@@ -44,6 +43,10 @@ class DeezerChunkedInputStream:
 
     def __repr__(self):
         return f"DeezerChunkedInputStream of {self.track}"
+
+    def create_buffer(self) -> None:
+        if not hasattr(self, "buffer"):
+            self.buffer = b""
 
     async def set_async_chunks(self) -> None:
         """Set chunks in self.async_chunks for download."""
@@ -60,7 +63,9 @@ class DeezerChunkedInputStream:
         if self.chunks is not None:
             return
 
+        self.create_buffer()
         headers = self.headers.copy()
+
         if start_position > 0:
             headers["Range"] = f"bytes={start_position}-"
 
@@ -92,7 +97,7 @@ class DeezerChunkedInputStream:
                 logging.error(
                     f"First reading of {self} failed, requesting a new stream URL..."
                 )
-                new_stream_url = self.bot.deezer.get_track_url_sync(self.track_token)
+                new_stream_url = self.bot.deezer.get_stream_url_sync(self.track_token)
                 if not new_stream_url:
                     logging.error(f"New stream URL request failed for {self}")
                 self.stream_url = new_stream_url
@@ -131,6 +136,7 @@ class DeezerChunkedInputStream:
             await self.async_stream_ctx.__aexit__(None, None, None)
         if self.stream:
             self.stream.close()
+        if hasattr(self, "buffer"):
+            del self.buffer
+            logging.info(f"Buffer of {self.track} deleted")
         self.chunks = None
-        self.buffer = b""
-        logging.info(f"Buffer of {self} cleared")

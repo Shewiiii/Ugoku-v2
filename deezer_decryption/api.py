@@ -102,7 +102,7 @@ class Deezer:
             },
         )
 
-    async def get_track_urls(
+    async def get_stream_urls(
         self,
         track_tokens: list,
         tracks_format: Literal["MP3_128", "MP3_320", "FLAC"] = "FLAC",
@@ -142,7 +142,7 @@ class Deezer:
                 result.append(None)
         return result
 
-    def get_track_url_sync(
+    def get_stream_url_sync(
         self,
         track_token: str,
         tracks_format: Literal["MP3_128", "MP3_320", "FLAC"] = "FLAC",

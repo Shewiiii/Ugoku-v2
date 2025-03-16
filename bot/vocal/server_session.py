@@ -1,19 +1,22 @@
 import asyncio
 from copy import deepcopy
 from collections import deque
-from pathlib import Path
-import logging
-import random
 from datetime import datetime, timedelta
+import gc
 import itertools
+import logging
+from pathlib import Path
+import random
 from time import perf_counter
 from typing import Optional, List, Union
 
 import discord
 from librespot.audio import AbsChunkedInputStream
 
+from bot.utils import get_cache_path
 from bot.vocal.queue_view import QueueView
 from bot.vocal.now_playing_view import nowPlayingView
+from bot.vocal.track_dataclass import Track
 from config import (
     AUTO_LEAVE_DURATION,
     DEFAULT_AUDIO_VOLUME,
@@ -26,9 +29,6 @@ from config import (
 from deezer_decryption.chunked_input_stream import DeezerChunkedInputStream
 from deezer_decryption.api import Deezer
 from deezer_decryption.download import Download
-from bot.utils import get_cache_path
-from bot.vocal.track_dataclass import Track
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -239,7 +239,7 @@ class ServerSession:
 
         # Load the stream
         track_token = gw_track_api["TRACK_TOKEN"]
-        stream_url = (await deezer.get_track_urls([track_token]))[0]
+        stream_url = (await deezer.get_stream_urls([track_token]))[0]
         if not stream_url:
             # Track not found at desired bitrate and no alternative found
             return
@@ -557,14 +557,11 @@ class ServerSession:
             self.to_loop.append(played_track)
 
         if not self.loop_current:
-            if (
-                isinstance(played_track.stream_source, DeezerChunkedInputStream)
-                and not self.previous
-                and not self.loop_current
-            ):
-                # The user is unlikely to /previous the song, so we free the memory
-                logging.info(f"Deezer stream {played_track} has been closed")
-                asyncio.create_task(played_track.stream_source.close())
+            if not (self.previous or self.loop_current):
+                if isinstance(played_track.stream_source, DeezerChunkedInputStream):
+                    # The user is unlikely to /previous the song, so we free the memory
+                    logging.info(f"Deezer stream {played_track} has been closed")
+                    asyncio.create_task(played_track.stream_source.close())
             self.queue.pop(0)
 
         # After pop
@@ -615,5 +612,7 @@ class ServerSession:
                 close_tasks.append(source.close())
             elif isinstance(source, AbsChunkedInputStream):
                 close_tasks.append(asyncio.to_thread(source.close))
+            del source
         if close_tasks:
             await asyncio.gather(*close_tasks)
+        gc.collect()

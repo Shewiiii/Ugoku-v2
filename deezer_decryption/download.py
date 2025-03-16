@@ -31,13 +31,13 @@ class Download:
         tracks_format: Literal["MP3_128", "MP3_320", "FLAC"] = "FLAC",
         tag: bool = True,
     ) -> list[Path]:
-        track_urls = await self.api.get_track_urls(
+        stream_urls = await self.api.get_stream_urls(
             [track["TRACK_TOKEN"] for track in gw_track_apis], tracks_format
         )
         paths = []
 
-        for i in range(len(track_urls)):
-            if track_urls[i] is None:
+        for i in range(len(stream_urls)):
+            if stream_urls[i] is None:
                 paths.append(None)
                 continue
 
@@ -50,20 +50,38 @@ class Download:
                 continue
 
             input_ = DeezerChunkedInputStream(
-                track_id, track_urls[i], gw_track_apis[i]["TRACK_TOKEN"], bot=self.bot
+                track_id, stream_urls[i], gw_track_apis[i]["TRACK_TOKEN"], bot=self.bot
             )
-            await input_.set_async_chunks()
 
-            async with aiofiles.open(file_path, "wb") as file:
-                async for chunk in input_.async_chunks:
-                    if chunk is None:
-                        break
-                    if len(chunk) >= 2048:
-                        decrypted = decrypt_chunk(input_.blowfish_key, chunk[:2048])
-                        chunk = decrypted + chunk[2048:]
+            # Retry 10 times get stream data
+            for attempt in range(10):
+                await input_.set_async_chunks()
+                wrote_chunk = False
+                async with aiofiles.open(file_path, "wb") as file:
+                    async for chunk in input_.async_chunks:
+                        if chunk is None:
+                            break
+                        if len(chunk) >= 2048:
+                            chunk = (
+                                decrypt_chunk(input_.blowfish_key, chunk[:2048])
+                                + chunk[2048:]
+                            )
+                        await file.write(chunk)
+                        wrote_chunk = True
+                if wrote_chunk:
+                    await input_.close()
+                    break
+                logging.error(
+                    f"First reading of {track_id} failed, requesting a new stream URL..."
+                )
+                stream_url = await self.api.get_stream_urls(
+                    [gw_track_apis[i]["TRACK_TOKEN"]], tracks_format
+                )
+                input_.stream_url = stream_url[0]
+            else:
+                paths.append(None)
+                continue
 
-                    await file.write(chunk)
-            await input_.close()
             display_name = f"{api['ART_NAME']} - {api['SNG_TITLE']}"
             logging.info(f"Downloaded {display_name}")
 
