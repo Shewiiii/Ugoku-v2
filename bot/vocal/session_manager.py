@@ -54,9 +54,12 @@ class SessionManager:
             self.server_sessions.pop(guild_id, None)
 
         if guild_id not in self.server_sessions:
-            self.server_sessions[guild_id] = ServerSession(
+            session = ServerSession(
                 guild_id, None, bot, ctx.channel_id, self, connect_task
             )
+            self.server_sessions[guild_id] = session
+            # Define the voice client when it's done
+            asyncio.create_task(session.wait_for_connect_task())
         return self.server_sessions[guild_id]
 
 

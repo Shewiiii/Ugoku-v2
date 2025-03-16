@@ -501,8 +501,8 @@ async def respond(
     interaction: Optional[discord.Interaction] = None,
     defer_task: Optional[asyncio.Task] = None,
 ) -> None:
-    if defer_task:
-        defer_task.cancel()
+    if defer_task and not defer_task.done():
+        await defer_task
     respond = interaction.respond if interaction else ctx.respond
     await respond(content=content)
 
@@ -513,7 +513,7 @@ async def edit(
     interaction: Optional[discord.Interaction] = None,
     defer_task: Optional[asyncio.Task] = None,
 ) -> None:
-    if defer_task:
-        defer_task.cancel()
+    if defer_task and not defer_task.done():
+        await defer_task
     edit = interaction.edit_original_message if interaction else ctx.edit
     await edit(content=content)

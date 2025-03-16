@@ -44,7 +44,7 @@ class Play(commands.Cog):
         # Connect to the voice channel
         session: Optional[ServerSession] = sm.connect(ctx, self.bot)
         if not session:
-            defer_task.cancel()
+            await defer_task
             await ctx.respond(content="You are not in an active voice channel !")
             return
 
@@ -79,7 +79,7 @@ class Play(commands.Cog):
 
         elif service == "spotify/deezer":
             if not (SPOTIFY_API_ENABLED and (SPOTIFY_ENABLED or DEEZER_ENABLED)):
-                defer_task.cancel()
+                await defer_task
                 await respond(
                     content="Spotify API or no music streaming service is enabled."
                 )

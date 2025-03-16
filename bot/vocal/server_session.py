@@ -576,9 +576,11 @@ class ServerSession:
 
     async def check_auto_leave(self) -> None:
         """Checks for inactivity and automatically disconnects from the voice channel if inactive for too long."""
+        await asyncio.sleep(1)
+        await self.wait_for_connect_task()
+
         while self.voice_client.is_connected():
             if not self.voice_client.is_playing():
-                await asyncio.sleep(1)
                 time_since_last_played = datetime.now() - self.last_played_time
                 time_until_disconnect = (
                     timedelta(seconds=AUTO_LEAVE_DURATION) - time_since_last_played
