@@ -558,12 +558,13 @@ class ServerSession:
 
         if not self.loop_current:
             if not (self.previous or self.loop_current):
-                if isinstance(played_track.stream_source, DeezerChunkedInputStream):
+                source = played_track.stream_source
+                if isinstance(source, DeezerChunkedInputStream):
                     # The user is unlikely to /previous the song, so we free the memory
                     logging.info(f"Deezer stream {played_track} has been closed")
-                    asyncio.create_task(played_track.stream_source.close())
-            self.queue.pop(0)
+                    asyncio.create_task(source.close())
 
+            self.queue.pop(0)
         # After pop
         if not self.queue:
             # Can reset the skipped status if there is no more tracks
@@ -606,13 +607,19 @@ class ServerSession:
 
     async def close_streams(self) -> None:
         close_tasks = []
-        for stream in itertools.chain(self.queue, self.stack_previous, self.to_loop):
+        chain = itertools.chain(self.queue, self.stack_previous, self.to_loop)
+
+        # Close streams
+        for stream in chain:
             source = stream.stream_source
             if isinstance(source, (DeezerChunkedInputStream)):
                 close_tasks.append(source.close())
             elif isinstance(source, AbsChunkedInputStream):
                 close_tasks.append(asyncio.to_thread(source.close))
-            del source
         if close_tasks:
             await asyncio.gather(*close_tasks)
+
+        # Free the memory
+        for source in chain:
+            del source
         gc.collect()
