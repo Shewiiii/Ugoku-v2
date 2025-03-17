@@ -2,8 +2,9 @@ import asyncio
 from discord.ext import commands
 import discord
 
-from bot.vocal.session_manager import session_manager as sm
 from bot.utils import vocal_action_check
+from bot.vocal.session_manager import session_manager as sm
+from bot.vocal.server_session import ServerSession
 
 
 class NowPlaying(commands.Cog):
@@ -18,9 +19,11 @@ class NowPlaying(commands.Cog):
         if not vocal_action_check(session, ctx, ctx.respond):
             return
 
+        session: ServerSession
         if notify:
             asyncio.create_task(ctx.respond("Sending !", ephemeral=True))
-        await session.now_playing_message.delete()
+        if session.now_playing_message:
+            await session.now_playing_message.delete()
         session.now_playing_message = None
         asyncio.create_task(session.update_now_playing(ctx))
 
