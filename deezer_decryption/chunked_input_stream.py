@@ -63,9 +63,7 @@ class DeezerChunkedInputStream:
         if self.chunks is not None:
             return
 
-        self.create_buffer()
         headers = self.headers.copy()
-
         if start_position > 0:
             headers["Range"] = f"bytes={start_position}-"
 
@@ -81,6 +79,9 @@ class DeezerChunkedInputStream:
             )
 
     def read(self, size: Optional[int] = None) -> bytes:
+        # Generate a buffer if not existing
+        self.create_buffer()
+
         # Chunk in buffer
         if self.current_position < len(self.buffer):
             end_position = self.current_position + self.chunk_size
@@ -91,6 +92,7 @@ class DeezerChunkedInputStream:
         # New chunk
         try:
             chunk = next(self.chunks)
+
         except StopIteration:
             # Failed reading the first chunk
             if len(self.buffer) <= CHUNK_SIZE and self.bot:
@@ -109,13 +111,16 @@ class DeezerChunkedInputStream:
             logging.info(f"Finished reading stream of {self}, closing")
             self.stream.close()
             return b""
+
         except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError) as e:
             logging.error(f"{repr(e)}, requesting a new stream...")
             self.chunks = None
             self.set_chunks(start_position=self.current_position)
             return self.read()
+
         except http.client.IncompleteRead as e:
             chunk = e.partial
+
         except Exception as e:
             logging.error(repr(e))
             return b""

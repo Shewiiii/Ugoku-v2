@@ -145,7 +145,7 @@ class Librespot:
                         # Simulate a track play
                         stream = await self.get_stream(track_id)
                         await asyncio.to_thread(stream.read, 1)
-                        await asyncio.sleep(60)
+                        await asyncio.sleep(180)
                     except Exception as e:
                         logging.error(f"Stream read error: {repr(e)}")
                         await self.refresh_librespot()
