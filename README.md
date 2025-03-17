@@ -131,7 +131,7 @@ You can now restart your instance.
 <h2>Special Thanks</h2>
 
 - Chinono 智乃乃, for helping me with this project and inspiring me
-- Neutrixia, for providing improvement ideas for the music player
+- Neutrixia, for providing improvement ideas for the music player and extensively testing it!
 - Nothes, for allowing me to use your public server as a platform for Ugoku
 - Everyone actively using my bot!
 
