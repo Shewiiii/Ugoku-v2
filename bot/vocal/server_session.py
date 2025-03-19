@@ -362,6 +362,7 @@ class ServerSession:
         ctx: discord.ApplicationContext,
         tracks: List[Track],
         play_next: bool = False,
+        show_wrong_track_embed: bool = False,
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing."""
 
@@ -378,7 +379,11 @@ class ServerSession:
         c = len(tracks)
         titles = ", ".join(f"{t:markdown}" for t in tracks[:3])
         content = f"Added to queue: {titles}{' !' if c <= 3 else f', and {c - 3} more songs !'}"
-        view = WrongTrackView(ctx, tracks[0], self, content) if c == 1 else None
+        view = (
+            WrongTrackView(ctx, tracks[0], self, content)
+            if c == 1 and show_wrong_track_embed
+            else None
+        )
         asyncio.create_task(
             respond(
                 ctx,

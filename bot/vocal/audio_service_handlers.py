@@ -13,6 +13,7 @@ from yt_dlp.utils import DownloadError
 from bot.vocal.custom import fetch_audio_stream, upload_cover
 from bot.vocal.server_session import ServerSession
 from bot.utils import get_metadata, extract_cover_art, extract_number, respond, edit
+from bot.search import is_url
 from bot.vocal.session_manager import onsei
 from bot.vocal.track_dataclass import Track
 from config import DEFAULT_EMBED_COLOR
@@ -71,7 +72,12 @@ async def play_spotify(
             logging.error(e)
         return
 
-    await session.add_to_queue(ctx, tracks_info, play_next=play_next)
+    await session.add_to_queue(
+        ctx,
+        tracks_info,
+        play_next=play_next,
+        show_wrong_track_embed=not is_url(query, ["open.spotify.com"]),
+    )
 
 
 def get_display_name_from_query(query: str) -> str:
