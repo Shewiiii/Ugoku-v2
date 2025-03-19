@@ -16,11 +16,12 @@ class Seek(commands.Cog):
     )
     async def seek(self, ctx: discord.ApplicationContext, position: int) -> None:
         guild_id = ctx.guild.id
-        session: ServerSession | None = sm.server_sessions.get(guild_id)
+        session = sm.server_sessions.get(guild_id)
         if not vocal_action_check(session, ctx, ctx.respond):
             return
-
+        
         asyncio.create_task(ctx.respond(f"Seeking to {position} seconds."))
+        session: ServerSession
         await session.seek(position, quiet=True)
 
 

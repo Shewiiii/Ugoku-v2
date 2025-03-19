@@ -1,6 +1,5 @@
 from discord.ext import commands
 import discord
-from typing import Optional
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
@@ -15,16 +14,16 @@ class Shuffle(commands.Cog):
         self, ctx: discord.ApplicationContext, silent: bool = False
     ) -> None:
         guild_id: int = ctx.guild.id
-        session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
+        session = sm.server_sessions.get(guild_id)
         if not vocal_action_check(session, ctx, ctx.respond, silent=True):
             return
 
+        session: ServerSession
         await session.shuffle_queue()
         response_message = (
             "Queue shuffled!" if session.shuffle else "Original queue order restored."
         )
         send_response(ctx.respond, response_message, guild_id, silent)
-        await session.now_playing_view.update_buttons()
         await session.prepare_next_track()
 
     @commands.slash_command(name="shuffle", description="Shuffle the queue.")

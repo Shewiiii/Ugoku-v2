@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import List, Union
+import asyncio
+from typing import List
 
 import discord
 from discord.ui import View
@@ -16,8 +16,6 @@ class QueueView(View):
         queue: List[dict],
         to_loop: List[dict],
         bot: discord.Bot,
-        last_played_time: datetime,
-        time_elapsed: int,
         is_playing: bool,
         page: int = 1,
     ) -> None:
@@ -25,8 +23,6 @@ class QueueView(View):
         self.queue = queue
         self.to_loop = to_loop
         self.bot = bot
-        self.time_elapsed = time_elapsed
-        self.last_played_time = last_played_time
         self.is_playing = is_playing
         self.page = page
         self.max_per_page = 7
@@ -91,22 +87,14 @@ class QueueView(View):
         # Create the embed
         embed = discord.Embed(
             title="Queue Overview",
-            thumbnail=cover_data["cover_url"],
+            thumbnail=cover_data.get("cover_url"),
             color=cover_data["dominant_rgb"],
         )
 
-        # "Now playing" track section
-
         # Time indication
-        if self.is_playing:
-            current_pos: int = (
-                self.time_elapsed + (datetime.now() - self.last_played_time).seconds
-            )
-        else:
-            current_pos: int = self.time_elapsed
-        total_seconds: Union[int, str] = track.duration
-        time_string = f"{current_pos}s / {total_seconds}s"
+        time_string = f"{track.timer.get()}s / {track.duration}s"
 
+        # "Now playing" track section
         embed.add_field(
             # Now playing + time indication
             name=f"Now Playing - {time_string}",
@@ -142,9 +130,12 @@ class QueueView(View):
 
         return embed
 
-    async def display(self, ctx: discord.ApplicationContext) -> None:
+    async def display(
+        self, ctx: discord.ApplicationContext, defer_task: asyncio.Task
+    ) -> None:
         """Display the queue view in response to a command."""
         embed = await self.create_embed()
+        await defer_task
         await ctx.respond(embed=embed, view=self)
 
     async def update_view(self, interaction: discord.Interaction) -> None:

@@ -1,3 +1,4 @@
+import asyncio
 from discord.ext import commands
 import discord
 
@@ -11,16 +12,18 @@ class Queue(commands.Cog):
 
     @commands.slash_command(name="queue", description="Show the current queue.")
     async def queue(self, ctx: discord.ApplicationContext):
+        defer_task = asyncio.create_task(ctx.defer())
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
         if not vocal_action_check(session, ctx, ctx.respond):
             return
 
         if not session:
+            await defer_task
             await ctx.respond("No active session !")
             return
 
-        await session.display_queue(ctx)
+        await session.display_queue(ctx, defer_task)
 
 
 def setup(bot):

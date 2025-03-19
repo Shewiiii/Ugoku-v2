@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from bot.utils import upload, get_cache_path
+from config import CACHE_EXPIRY
 
 
 class Download:
@@ -72,7 +73,7 @@ class Download:
                     await input_.close()
                     break
                 logging.error(
-                    f"First reading of {track_id} failed, requesting a new stream URL..."
+                    f"Reading of {track_id} failed, requesting a new stream URL..."
                 )
                 stream_url = await self.api.get_stream_urls(
                     [gw_track_apis[i]["TRACK_TOKEN"]], tracks_format
@@ -141,7 +142,7 @@ class Download:
         album_cover_url = native_track_api["album"]["cover_xl"]
         if native_track_api["album"].get("cover_xl"):
             async with CachedSession(
-                follow_redirects=True, cache=SQLiteBackend("cache")
+                follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
             ) as session:
                 async with session.get(album_cover_url) as response:
                     response.raise_for_status()

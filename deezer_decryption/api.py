@@ -111,7 +111,7 @@ class Deezer:
             await self.setup()
         license_token = self.user_data["USER"]["OPTIONS"]["license_token"]
         if not license_token:
-            return []
+            return [None] * len(track_tokens)
         # Cannot stream lossless => Free account (with 128kbps as the max mp3 bitrate)
         if not self.can_stream_lossless() and tracks_format != "MP3_128":
             raise ValueError

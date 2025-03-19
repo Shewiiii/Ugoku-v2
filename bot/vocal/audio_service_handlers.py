@@ -71,7 +71,7 @@ async def play_spotify(
             logging.error(e)
         return
 
-    await session.add_to_queue(ctx, tracks_info, interaction, play_next=play_next)
+    await session.add_to_queue(ctx, tracks_info, play_next=play_next)
 
 
 def get_display_name_from_query(query: str) -> str:
@@ -106,11 +106,7 @@ async def play_custom(
 
     # Convert to list to sync with ID3 tags
     metadata = get_metadata(audio_path)
-    if not metadata:
-        response_params[1] = "Track not found !"
-        await respond(*response_params)
-        return
-    titles = list(metadata.get("title"))
+    titles = list(metadata.get("title", [None]))
     artists = list(metadata.get("artist", "?"))
     albums = list(metadata.get("album", "?"))
 
@@ -190,4 +186,4 @@ async def play_youtube(
         await respond(*response_params)
         return
 
-    await session.add_to_queue(ctx, [track], interaction, play_next=play_next)
+    await session.add_to_queue(ctx, [track], play_next=play_next)

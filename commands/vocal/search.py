@@ -9,46 +9,24 @@ from bot.utils import get_dominant_rgb_from_url, split_into_chunks
 from bot.vocal.server_session import ServerSession
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.track_dataclass import Track
-from config import IMPULSE_RESPONSE_PARAMS
 
 
 class Search(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(
-        name="search", description="Search a song from Spotify to play in vc."
-    )
-    async def search(
+    async def execute_search(
         self,
         ctx: discord.ApplicationContext,
-        type: discord.Option(
-            str,
-            description="The song to search. You can paste Spotify playlist URLs",
-            choices=["track", "artist"],
-            required=True,
-        ),  # type: ignore
-        query: discord.Option(str, description="The song to search.", required=True),  # type: ignore
-        max_number_of_results: discord.Option(
-            int,
-            description="Fixed to 10 for artists. Default and max is 100 for tracks.",
-            default=100,
-        ),  # type: ignore
-        play_next: discord.Option(
-            bool,
-            description="Add the song at the beginning of the queue.",
-            default=False,
-        ),  # type: ignore
-        offset: discord.Option(
-            int, description="Offset the search results.", default=0
-        ),  # type: ignore
-        effect: discord.Option(
-            str,
-            description="The audio effect to apply.",
-            choices=["default"] + [effect for effect in IMPULSE_RESPONSE_PARAMS],
-            default="default",
-        ),  # type: ignore
+        type: str,
+        query: str,
+        max_number_of_results: int = 100,
+        play_next: bool = False,
+        offset: int = 0,
+        interaction: Optional[discord.Interaction] = None,
     ) -> None:
+        defer_task = None if interaction else asyncio.create_task(ctx.defer())
+        respond = interaction.channel.send if interaction else ctx.respond
         spotify = self.bot.spotify
         bot = self.bot
         embed_title = query
@@ -57,7 +35,6 @@ class Search(commands.Cog):
             r"playlist/(?P<ID>[0-9a-zA-Z]{22})",
             query,
         )
-        asyncio.create_task(ctx.defer())
 
         if type == "artist":
             artist = (await spotify.search(query, type="artist", limit=1))[0]
@@ -85,7 +62,9 @@ class Search(commands.Cog):
                     )
                     embed_title = playlist_info["name"]
                 except spotipy.exceptions.SpotifyException:
-                    await ctx.respond(
+                    if defer_task:
+                        await defer_task
+                    await respond(
                         "Content not found! Perhaps you are trying to play a private playlist?"
                     )
                     return
@@ -170,7 +149,6 @@ class Search(commands.Cog):
                     session.add_to_queue(
                         ctx,
                         tracks,
-                        interaction=interaction,
                         play_next=play_next,
                     )
                 )
@@ -224,7 +202,38 @@ class Search(commands.Cog):
                 )
 
         view = SelectView()
-        sent_embed = await ctx.respond(embed=search_embed, view=view)
+        if defer_task:
+            await defer_task
+        sent_embed = await respond(embed=search_embed, view=view)
+
+    @commands.slash_command(
+        name="search", description="Search a song from Spotify to play in vc."
+    )
+    async def search(
+        self,
+        ctx: discord.ApplicationContext,
+        type: discord.Option(
+            str,
+            description="The song to search. You can paste Spotify playlist URLs",
+            choices=["track", "artist"],
+            required=True,
+        ),  # type: ignore
+        query: discord.Option(str, description="The song to search.", required=True),  # type: ignore
+        max_number_of_results: discord.Option(
+            int,
+            description="Fixed to 10 for artists. Default and max is 100 for tracks.",
+            default=100,
+        ),  # type: ignore
+        play_next: discord.Option(
+            bool,
+            description="Add the song at the beginning of the queue.",
+            default=False,
+        ),  # type: ignore
+        offset: discord.Option(
+            int, description="Offset the search results.", default=0
+        ),  # type: ignore
+    ) -> None:
+        await self.execute_search(ctx, type, query, max_number_of_results, play_next, offset)
 
 
 def setup(bot):

@@ -1,6 +1,5 @@
 import asyncio
 from datetime import datetime
-from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -18,19 +17,22 @@ class Pause(commands.Cog):
         self, ctx: discord.ApplicationContext, silent: bool = False
     ) -> None:
         guild_id = ctx.guild.id
-        session: Optional[ServerSession] = sm.server_sessions.get(guild_id)
+        session = sm.server_sessions.get(guild_id)
         if not vocal_action_check(session, ctx, ctx.respond, silent=silent):
             return
 
         # Pause
+        session: ServerSession
         session.voice_client.pause()
-        current_time = datetime.now()
-        elapsed_time = (current_time - session.last_played_time).seconds
-        session.time_elapsed += elapsed_time
-        session.last_played_time = current_time
+        session.last_played_time = datetime.now()
+        track = session.queue[0]
+        track.timer.stop()
 
         send_response(
-            ctx.respond, f"Paused at {session.time_elapsed}s!", guild_id, silent
+            ctx.respond,
+            f"Paused at {track.timer.get()}s!",
+            guild_id,
+            silent,
         )
         asyncio.create_task(session.now_playing_view.update_buttons())
 

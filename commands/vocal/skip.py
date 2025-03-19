@@ -1,3 +1,4 @@
+import asyncio
 from discord.ext import commands
 import discord
 from typing import Optional
@@ -35,10 +36,10 @@ class Skip(commands.Cog):
             session.now_playing_message = None
 
         if not len(session.queue) == 1:
-            # Avoid the music player to softlock,
-            # ie. when an error occurs and "after playing" has been canceled
             session.voice_client.pause()
-            session.after_playing(ctx, None)
+            track = session.queue[0]
+            asyncio.create_task(session.post_process(track))
+            await session.play_next(ctx)
         else:
             session.voice_client.stop()
 

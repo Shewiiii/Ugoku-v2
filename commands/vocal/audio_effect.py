@@ -1,7 +1,6 @@
 import asyncio
 import discord
 from discord.ext import commands
-from datetime import datetime
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
@@ -69,9 +68,6 @@ class AudioEffects(commands.Cog):
             for attr, value in attrs.items():
                 setattr(session.audio_effect, attr, value)
 
-        current_pos = session.time_elapsed + int(
-            (datetime.now() - session.last_played_time).total_seconds()
-        )
         asyncio.create_task(
             ctx.respond(
                 f"Applying the {effect} effect!\n"
@@ -81,7 +77,10 @@ class AudioEffects(commands.Cog):
                 f"> Effect only: {effect_only}"
             )
         )
-        await session.seek(current_pos, quiet=True)
+
+        track = session.queue[0]
+        track.timer.stop()
+        await session.seek(track.timer.get(), quiet=True)
 
 
 def setup(bot):

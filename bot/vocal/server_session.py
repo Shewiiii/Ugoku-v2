@@ -7,15 +7,16 @@ import itertools
 import logging
 from pathlib import Path
 import random
-from time import perf_counter
+from time import perf_counter, time
 from typing import Optional, List, Union
 
 import discord
 from librespot.audio import AbsChunkedInputStream
 
-from bot.utils import get_cache_path
+from bot.utils import get_cache_path, respond
 from bot.vocal.queue_view import QueueView
 from bot.vocal.now_playing_view import nowPlayingView
+from bot.vocal.wrong_track_view import WrongTrackView
 from bot.vocal.track_dataclass import Track
 from config import (
     AUTO_LEAVE_DURATION,
@@ -64,7 +65,6 @@ class ServerSession:
         self.queue: List[Track] = []
         self.to_loop: List[Optional[dict]] = []
         self.last_played_time: datetime = datetime.now()
-        self.time_elapsed: int = 0
         self.loop_current: bool = False
         self.loop_queue: bool = False
         self.skipped: bool = False
@@ -91,23 +91,22 @@ class ServerSession:
         self.audio_effect = AudioEffect()
         self.bitrate = DEFAULT_AUDIO_BITRATE
         self.deezer_download = Download(bot.deezer) if DEEZER_ENABLED else None
-        self.load_args = (self.bot, self.deezer_blacklist)
 
     async def wait_for_connect_task(self) -> None:
         if self.connect_task:
             self.voice_client = await self.connect_task
 
-    async def display_queue(self, ctx: discord.ApplicationContext) -> None:
+    async def display_queue(
+        self, ctx: discord.ApplicationContext, defer_task: asyncio.Task
+    ) -> None:
         """Displays the current queue."""
         view = QueueView(
             self.queue,
             self.to_loop,
             self.bot,
-            self.last_played_time,
-            self.time_elapsed,
             self.voice_client.is_playing(),
         )
-        await view.display(ctx)
+        await view.display(ctx, defer_task)
 
     async def update_now_playing(
         self,
@@ -189,15 +188,25 @@ class ServerSession:
         """Seeks to a specific position in the current track.
         Returns True if successful."""
         # No audio is playing
-        if not self.voice_client or not self.voice_client.is_playing():
+        if not (self.voice_client and self.queue):
             return
 
         self.is_seeking = True
-        self.time_elapsed = position
         self.voice_client.pause()
 
         if not quiet and self.last_context:
             await self.last_context.send(f"Seeking to {position} seconds")
+
+        track = self.queue[0]
+        stream_source = self.queue[0].stream_source
+        if isinstance(stream_source, DeezerChunkedInputStream):
+            await asyncio.to_thread(stream_source.seek, position)
+            # Position changed within the stream class
+            position = 0
+        else:
+            # Timer
+            track.timer._start_time = time()
+            track.timer._elapsed_time_accumulator = position
 
         await self.start_playing(self.last_context, start_position=position)
 
@@ -225,7 +234,7 @@ class ServerSession:
         if track.service == "spotify/deezer" and not isinstance(
             track.stream_source, (Path, str)
         ):
-            await track.load_stream(*self.load_args)
+            await track.load_stream(self)
             if track.stream_source is None:
                 asyncio.create_task(ctx.send(f"{str(track)} is not available!"))
                 # Wait for the voice_client to be set before continuing
@@ -284,7 +293,7 @@ class ServerSession:
 
         # Playback State Management
         now = datetime.now()
-        self.time_elapsed = start_position
+        track.timer.start()
         self.last_played_time = now
         self.playback_start_time = now.isoformat()
 
@@ -341,7 +350,7 @@ class ServerSession:
             track: Track = self.queue[index]
 
         # Stream task
-        asyncio.create_task(track.load_stream(*self.load_args))
+        asyncio.create_task(track.load_stream(self))
 
         # Embed task
         if track.unloaded_embed:
@@ -352,17 +361,9 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext,
         tracks: List[Track],
-        interaction: Optional[discord.Interaction] = None,
         play_next: bool = False,
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing."""
-
-        async def respond(content: str):
-            edit_func = interaction.respond if interaction else ctx.respond
-            try:
-                await edit_func(content=content)
-            except discord.errors.NotFound as e:
-                logging.error(repr(e))
 
         # Add elements to the queue
         original_length = len(self.queue)
@@ -376,9 +377,13 @@ class ServerSession:
         # Tell the user what has been added
         c = len(tracks)
         titles = ", ".join(f"{t:markdown}" for t in tracks[:3])
+        content = f"Added to queue: {titles}{' !' if c <= 3 else f', and {c - 3} more songs !'}"
+        view = WrongTrackView(ctx, tracks[0], self, content) if c == 1 else None
         asyncio.create_task(
             respond(
-                content=f"Added to queue: {titles}{' !' if c <= 3 else f', and {c - 3} more songs !'}"
+                ctx,
+                content=content,
+                view=view,
             )
         )
 
@@ -391,17 +396,28 @@ class ServerSession:
             asyncio.create_task(self.update_now_playing(ctx, edit_only=True))
 
         # Preload next tracks if the queue has only one track
+        # Or is played next
         # (prepare_next_track method has not been called before)
-        if original_length == 1:
+        if original_length == 1 or play_next:
             await self.prepare_next_track()
 
     async def play_previous(self, ctx: discord.ApplicationContext) -> None:
         self.previous = True
+        self.voice_client.pause()
+        if self.queue:
+            track = self.queue[0]
+            asyncio.create_task(self.post_process(track))
         self.queue.insert(0, self.stack_previous.pop())
-        if self.voice_client.is_playing():
-            # Do not change ! Pause to not trigger the after_playing callback
-            self.voice_client.pause()
-        await self.start_playing(ctx)
+        await self.start_playing(self.last_context)
+
+    async def post_process(self, track: Optional[Track] = None) -> None:
+        """Postprocess a track in the queue. Defaults to the first one"""
+        if not track:
+            track = self.queue[0]
+        track.timer.reset()
+        self.last_played_time = datetime.now()
+        if isinstance(track.stream_source, DeezerChunkedInputStream):
+            await track.stream_source.close()
 
     def get_queue(self) -> List[dict]:
         """Returns a simplified version of the current queue."""
@@ -437,7 +453,7 @@ class ServerSession:
             self.queue = [current_song] + self.shuffled_queue
 
         self.shuffle = not self.shuffle
-        asyncio.create_task(self.update_now_playing(self.last_context))
+        asyncio.create_task(self.update_now_playing(self.last_context, edit_only=True))
         return True
 
     def after_playing(
@@ -445,8 +461,9 @@ class ServerSession:
     ) -> None:
         """Callback function executed after a track finishes playing."""
         self.last_played_time = datetime.now()
+
         if error:
-            raise error
+            logging.error(repr(error))
 
         if self.is_seeking:
             return
@@ -456,6 +473,7 @@ class ServerSession:
     async def play_next(self, ctx: discord.ApplicationContext) -> None:
         """Plays the next track in the queue, handling looping and previous track logic."""
         played_track: Track = self.queue[0]
+        played_track.timer.reset()
         self.previous_track_id = played_track.id
 
         if not (self.loop_current or self.previous):
@@ -464,14 +482,9 @@ class ServerSession:
         if self.loop_queue and not self.loop_current:
             self.to_loop.append(played_track)
 
-        if not self.loop_current:
-            if not (self.previous or self.loop_current):
-                source = played_track.stream_source
-                if isinstance(source, DeezerChunkedInputStream):
-                    # The user is unlikely to /previous the song, so we free the memory
-                    logging.info(f"Deezer stream {played_track} has been closed")
-                    asyncio.create_task(source.close())
+        asyncio.create_task(self.post_process(played_track))
 
+        if not self.loop_current:
             self.queue.pop(0)
 
         # After pop

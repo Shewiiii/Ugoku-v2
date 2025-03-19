@@ -2,6 +2,7 @@ from aiohttp_client_cache import CachedSession, SQLiteBackend
 from bs4 import BeautifulSoup
 
 import discord
+from config import CACHE_EXPIRY
 
 
 class Danbooru:
@@ -12,7 +13,7 @@ class Danbooru:
         search = ctx.options["tag"].replace(" ", "_")
         params = {"search[query]": search, "search[type]": "tag_query", "limit": 10}
         async with CachedSession(
-            follow_redirects=True, cache=SQLiteBackend("cache")
+            follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
         ) as session:
             response = await session.get(
                 "https://danbooru.donmai.us/autocomplete", params=params
@@ -29,7 +30,7 @@ class Danbooru:
         """Get Danboru posts from a tag."""
         params = {"limit": limit, "tags": tag, "random": random}
         async with CachedSession(
-            follow_redirects=True, cache=SQLiteBackend("cache")
+            follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
         ) as session:
             response = await session.get(self.base_url, params=params)
             response.raise_for_status()

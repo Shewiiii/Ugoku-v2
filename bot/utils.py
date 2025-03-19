@@ -170,7 +170,8 @@ def get_accent_color(image_bytes: bytes, threshold: int = 50) -> Tuple[int, int,
 async def get_dominant_rgb_from_url(image_url: str) -> Tuple[int, int, int]:
     """Fetch an image from a URL and extract its accent color."""
     async with CachedSession(
-        follow_redirects=True, cache=SQLiteBackend("cache")
+        follow_redirects=True,
+        cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
     ) as session:
         response = await session.get(image_url)
         response.raise_for_status()
@@ -339,7 +340,8 @@ async def tag_ogg_file(
     # Fetch the album cover
     if album_cover_url:
         async with CachedSession(
-            follow_redirects=True, cache=SQLiteBackend("cache")
+            follow_redirects=True,
+            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
         ) as session:
             async with session.get(album_cover_url) as response:
                 response.raise_for_status()
@@ -500,11 +502,15 @@ async def respond(
     content: str,
     interaction: Optional[discord.Interaction] = None,
     defer_task: Optional[asyncio.Task] = None,
+    view: Optional[discord.ui.View] = None,
 ) -> None:
     if defer_task and not defer_task.done():
         await defer_task
     respond = interaction.respond if interaction else ctx.respond
-    await respond(content=content)
+    if view:
+        await respond(content=content, view=view)
+    else:
+        await respond(content=content)
 
 
 async def edit(
@@ -512,8 +518,12 @@ async def edit(
     content: str,
     interaction: Optional[discord.Interaction] = None,
     defer_task: Optional[asyncio.Task] = None,
+    view: Optional[discord.ui.View] = None,
 ) -> None:
     if defer_task and not defer_task.done():
         await defer_task
     edit = interaction.edit_original_message if interaction else ctx.edit
-    await edit(content=content)
+    if view:
+        await edit(content=content, view=view)
+    else:
+        await edit(content=content)

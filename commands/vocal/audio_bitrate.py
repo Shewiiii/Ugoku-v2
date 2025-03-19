@@ -1,7 +1,6 @@
 import asyncio
 import discord
 from discord.ext import commands
-from datetime import datetime
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
@@ -28,11 +27,10 @@ class AudioBitrate(commands.Cog):
             return
 
         session.bitrate = bitrate
-        current_pos = session.time_elapsed + int(
-            (datetime.now() - session.last_played_time).total_seconds()
-        )
+        track = session.queue[0]
+        track.timer.stop()
         asyncio.create_task(ctx.respond(f"Changing the bitrate to {bitrate} kbps !"))
-        await session.seek(current_pos, quiet=True)
+        await session.seek(track.timer.get(), quiet=True)
 
 
 def setup(bot):

@@ -14,7 +14,7 @@ import imageio.v3
 
 from bot.search import link_grabber
 from bot.utils import sanitize_filename
-from config import TEMP_FOLDER
+from config import TEMP_FOLDER, CACHE_EXPIRY
 
 
 def get_link(string: str) -> str:
@@ -52,7 +52,7 @@ async def fetch_sticker_image(
 
 async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> str:
     try:
-        async with CachedSession(cache=SQLiteBackend("cache")) as session:
+        async with CachedSession(cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),) as session:
             async with session.get(link) as response:
                 response.raise_for_status()
                 raw = BeautifulSoup(await response.text(), features="html.parser")
@@ -91,7 +91,7 @@ async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> s
     if ctx:
         await ctx.edit(content="Saving the stickers...")
 
-    async with CachedSession(cache=SQLiteBackend("cache")) as session:
+    async with CachedSession(cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),) as session:
         tasks = []
         for i, sticker in enumerate(stickers):
             preview_link = get_link(sticker["data-preview"])

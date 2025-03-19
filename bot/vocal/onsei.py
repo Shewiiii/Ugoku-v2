@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from bot.vocal.track_dataclass import Track
 from bot.utils import get_dominant_rgb_from_url
-from config import ONSEI_BLACKLIST, ONSEI_WHITELIST, DEFAULT_EMBED_COLOR
+from config import ONSEI_BLACKLIST, ONSEI_WHITELIST, DEFAULT_EMBED_COLOR, CACHE_EXPIRY
 
 
 class Onsei:
@@ -25,7 +25,9 @@ class Onsei:
         url = f"https://api.asmr.one/api/{api}/{work_id}"
         logging.info(f"Requesting URL: {url}")
 
-        async with CachedSession(cache=SQLiteBackend("cache")) as session:
+        async with CachedSession(
+            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+        ) as session:
             async with session.get(url) as response:
                 response.raise_for_status()
                 content = await response.text()

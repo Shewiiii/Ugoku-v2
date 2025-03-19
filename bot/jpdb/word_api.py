@@ -7,7 +7,7 @@ import typing_extensions as typing
 
 
 from bot.chatbot.gemini import Gembot
-from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL
+from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL, CACHE_EXPIRY
 import google.generativeai as genai
 
 
@@ -83,7 +83,8 @@ class JpdbWordApi:
     async def get(self, word: str) -> Optional[dict]:
         base_url = "https://jpdb.io/search?q="
         async with CachedSession(
-            follow_redirects=True, cache=SQLiteBackend("cache")
+            follow_redirects=True,
+            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
         ) as session:
             request = await session.get(f"{base_url}{word}")
             request.raise_for_status()

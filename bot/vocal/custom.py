@@ -45,7 +45,8 @@ async def upload_cover(cover_bytes: bytes) -> dict:
     headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
 
     async with CachedSession(
-        follow_redirects=True, cache=SQLiteBackend("cache")
+        follow_redirects=True,
+        cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
     ) as session:
         data = {
             "image": cover_bytes,
@@ -79,7 +80,10 @@ async def get_cover_data_from_file(filename: str) -> dict[str, discord.Colour]:
 
     # Returns the default embed color
     if not cache_file_path.exists():
-        return {"url": "", "dominant_rgb": DEFAULT_EMBED_COLOR}
+        return {
+            "url": "",
+            "dominant_rgb": discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR),
+        }
 
     with open(cache_file_path, "r") as cache_file:
         cached_data: dict = json.load(cache_file)
@@ -122,16 +126,10 @@ async def fetch_audio_stream(url: str) -> Path:
     Fetch an audio file from a URL and cache it locally."""
     cache_path = get_cache_path(url.encode("utf-8"))
 
-    # If the file exists and is not expired, return it
-    if cache_path.is_file():
-        if time() - cache_path.stat().st_mtime < CACHE_EXPIRY:
-            return cache_path
-        else:
-            cache_path.unlink()  # Remove expired file
-
     # Fetch the audio file from the URL asynchronously
     async with CachedSession(
-        follow_redirects=True, cache=SQLiteBackend("cache")
+        follow_redirects=True,
+        cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
     ) as session:
         async with session.get(url) as response:
             if response.status != 200:

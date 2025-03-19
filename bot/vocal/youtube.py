@@ -14,7 +14,7 @@ from typing import Optional
 from bot.search import is_url
 from bot.utils import get_cache_path, get_dominant_rgb_from_url
 from bot.vocal.track_dataclass import Track
-from config import YT_COOKIES_PATH
+from config import YT_COOKIES_PATH, CACHE_EXPIRY
 
 
 class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
@@ -109,7 +109,7 @@ class Youtube:
     async def validate_url(self, query: str) -> Optional[str]:
         if is_url(query, from_=["youtube.com", "youtu.be"]):
             async with CachedSession(
-                follow_redirects=True, cache=SQLiteBackend("cache")
+                follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
             ) as session:
                 async with session.get(query) as response:
                     if response.status != 200:
@@ -123,7 +123,7 @@ class Youtube:
             watch = "https://www.youtube.com/watch?v="
 
             async with CachedSession(
-                follow_redirects=True, cache=SQLiteBackend("cache")
+                follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
             ) as session:
                 async with session.get(search + query) as response:
                     response_content = await response.read()
