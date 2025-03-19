@@ -1,5 +1,6 @@
 from pathlib import Path
 import logging
+import sys
 
 #  ===FEATURES===
 # I strongly recommend enabling the Spotify API to ensure the music bot functions properly.
