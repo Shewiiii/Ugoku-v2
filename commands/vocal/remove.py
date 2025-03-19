@@ -28,12 +28,12 @@ async def autocomplete(ctx: discord.AutocompleteContext) -> list:
         return songs
 
 
-class PopSong(commands.Cog):
+class RemoveSong(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.slash_command(name="pop", description="Pop a song in the queue.")
-    async def pop(
+    @commands.slash_command(name="remove", description="Remove songs in the queue.")
+    async def remove(
         self,
         ctx: discord.ApplicationContext,
         mode: discord.Option(
@@ -41,12 +41,12 @@ class PopSong(commands.Cog):
             description="Select what song to remove.",
             choices=["Single", "After (included)", "Before (included)"],
         ),  # type: ignore
+        song: discord.Option(str, autocomplete=autocomplete, default=None),  # type: ignore
         index: discord.Option(
             int,
             description="The index of the song to point. -1 to point to the last song.",
             default=None,
         ),  # type: ignore
-        song: discord.Option(str, autocomplete=autocomplete, default=None),  # type: ignore
     ) -> None:
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
@@ -54,6 +54,7 @@ class PopSong(commands.Cog):
             return
 
         removed_tracks = []
+        embed_updated = False
         queue = session.queue
         # If a song is specified, find its index in the queue
         if song:
@@ -63,11 +64,16 @@ class PopSong(commands.Cog):
                     break
 
         # Remove tracks
-        if not index or not -1 <= index < len(queue):
+        if index is None or not -1 <= index < len(queue):
             await ctx.respond("No song has been removed !")
             return
         elif mode == "Single":
             removed_tracks: list[Optional[dict]] = [session.queue.pop(index)]
+            if index == 0:
+                # Track currently playing
+                skip_cog = session.bot.get_cog("Skip")
+                asyncio.create_task(skip_cog.execute_skip(ctx, silent=True))
+                embed_updated = True
         elif mode == "Before (included)":
             removed_tracks, session.queue = queue[:index], queue[index:]
         elif mode == "After (included)":
@@ -76,15 +82,14 @@ class PopSong(commands.Cog):
 
         # Send message
         c = len(removed_tracks)
-        titles = ", ".join(
-            f"{track:markdown}" for track in removed_tracks[:3]
-        )
+        titles = ", ".join(f"{track:markdown}" for track in removed_tracks[:3])
         message = (
             f"Removed: {titles}{' !' if c <= 3 else f', and {c - 3} more songs !'}"
         )
         asyncio.create_task(ctx.respond(message))
-        asyncio.create_task(session.update_now_playing(ctx))
+        if not embed_updated:
+            asyncio.create_task(session.update_now_playing(ctx))
 
 
 def setup(bot):
-    bot.add_cog(PopSong(bot))
+    bot.add_cog(RemoveSong(bot))
