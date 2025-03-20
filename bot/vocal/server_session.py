@@ -72,7 +72,6 @@ class ServerSession:
         self.original_queue: List[Track] = []
         self.shuffled_queue: List[Track] = []
         self.deezer_blacklist: set[Union[str, int]] = set()
-        self.previous_track_id: Optional[Union[int, str]] = None
         self.previous: bool = False
         self.stack_previous: deque = deque([])
         self.is_seeking: bool = False
@@ -413,15 +412,17 @@ class ServerSession:
             track = self.queue[0]
             asyncio.create_task(self.post_process(track))
         self.queue.insert(0, self.stack_previous.pop())
-        await self.start_playing(self.last_context)
+        await self.start_playing(ctx)
 
-    async def post_process(self, track: Optional[Track] = None) -> None:
+    async def post_process(
+        self, track: Optional[Track] = None, close: bool = True
+    ) -> None:
         """Postprocess a track in the queue. Defaults to the first one"""
         if not track:
             track = self.queue[0]
         track.timer.reset()
         self.last_played_time = datetime.now()
-        if isinstance(track.stream_source, DeezerChunkedInputStream):
+        if isinstance(track.stream_source, DeezerChunkedInputStream) and close:
             await track.stream_source.close()
 
     def get_queue(self) -> List[dict]:
@@ -479,15 +480,21 @@ class ServerSession:
         """Plays the next track in the queue, handling looping and previous track logic."""
         played_track: Track = self.queue[0]
         played_track.timer.reset()
-        self.previous_track_id = played_track.id
+        stream_source = played_track.stream_source
+        killed = False
 
         if not (self.loop_current or self.previous):
             self.stack_previous.append(played_track)
+            if isinstance(stream_source, DeezerChunkedInputStream):
+                asyncio.create_task(stream_source.kill())
+                killed = True
+                # Will take more time to regenerate the stream,
+                # But the user is more likely to not play this track again
 
         if self.loop_queue and not self.loop_current:
             self.to_loop.append(played_track)
 
-        asyncio.create_task(self.post_process(played_track))
+        asyncio.create_task(self.post_process(played_track, close=not killed))
 
         if not self.loop_current:
             self.queue.pop(0)
@@ -525,17 +532,13 @@ class ServerSession:
                     channel = self.bot.get_channel(self.channel_id)
                     if channel:
                         await channel.send("Baibai~")
-                    await self.voice_client.cleanup()
-                    await self.close_streams()
-                    del self.session_manager.server_sessions[self.guild_id]
-                    logging.info(
-                        f"Deleted audio session in {self.guild_id} due to inactivity."
-                    )
+                    await self.clean_session()
+                    await asyncio.to_thread(gc.collect)
                     break
 
             await asyncio.sleep(17)
 
-    async def close_streams(self) -> None:
+    async def close_streams(self, gc_collect: bool = True) -> None:
         close_tasks = []
         chain = itertools.chain(self.queue, self.stack_previous, self.to_loop)
 
@@ -543,7 +546,7 @@ class ServerSession:
         for stream in chain:
             source = stream.stream_source
             if isinstance(source, (DeezerChunkedInputStream)):
-                close_tasks.append(source.close())
+                close_tasks.append(source.kill())
             elif isinstance(source, AbsChunkedInputStream):
                 close_tasks.append(asyncio.to_thread(source.close))
         if close_tasks:
@@ -552,4 +555,50 @@ class ServerSession:
         # Free the memory
         for source in chain:
             del source
-        gc.collect()
+
+        self.queue.clear()
+        self.original_queue.clear()
+        self.to_loop.clear()
+        self.stack_previous.clear()
+
+        if gc_collect:
+            await asyncio.to_thread(gc.collect)
+
+    async def clean_session(self) -> None:
+        if self.voice_client:
+            self.voice_client.cleanup()
+            self.voice_client = None
+
+        tasks_to_cancel = []
+        if self.auto_leave_task and not self.auto_leave_task.done():
+            self.auto_leave_task.cancel()
+            tasks_to_cancel.append(self.auto_leave_task)
+        if self.connect_task and not self.connect_task.done():
+            self.connect_task.cancel()
+            tasks_to_cancel.append(self.connect_task)
+
+        if tasks_to_cancel:
+            try:
+                await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
+            except Exception as e:
+                logging.error(repr(e))
+        self.auto_leave_task = None
+        self.connect_task = None
+
+        await self.close_streams(gc_collect=False)
+        self.queue.clear()
+        self.original_queue.clear()
+        self.to_loop.clear()
+        self.stack_previous.clear()
+        self.now_playing_view = None
+        self.now_playing_message = None
+        self.old_message = None
+        self.last_context = None
+        self.session_manager.server_sessions.pop(self.guild_id, None)
+        del self.queue, self.original_queue, self.to_loop, self.stack_previous
+        del (
+            self.now_playing_view,
+            self.now_playing_message,
+            self.old_message,
+            self.last_context,
+        )

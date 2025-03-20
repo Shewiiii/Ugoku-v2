@@ -27,10 +27,6 @@ class Clear(commands.Cog):
         # Important to await here
         await session.close_streams()
         voice_client = session.voice_client
-        session.queue.clear()
-        session.original_queue.clear()
-        session.to_loop.clear()
-        session.stack_previous.clear()
         session.loop_current = False
         session.loop_queue = False
         session.shuffle = False

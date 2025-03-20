@@ -1,6 +1,7 @@
 import asyncio
 import discord
 from discord.ext import commands
+import gc
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
@@ -22,10 +23,9 @@ class Leave(commands.Cog):
             session: ServerSession
             await session.voice_client.disconnect()
             asyncio.create_task(ctx.respond("Baibai~"))
-            session.voice_client.cleanup()
-            await session.close_streams()
-            session.auto_leave_task.cancel()
-            del sm.server_sessions[guild_id]
+            await session.clean_session()
+            del session
+            await asyncio.to_thread(gc.collect)
 
 
 def setup(bot):

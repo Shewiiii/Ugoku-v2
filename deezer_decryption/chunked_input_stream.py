@@ -40,6 +40,7 @@ class DeezerChunkedInputStream:
         self.stream = None
         self.async_stream = None
         self.chunks = None
+        self.async_chunks = None
         self.seek_table = {}  # Second: byte
         self.seek_start = -1
         self.bot = bot
@@ -68,6 +69,7 @@ class DeezerChunkedInputStream:
         """Set chunks in self.chunks for streaming.
         start_position is the position in the stream in bytes."""
         if self.chunks is not None and self.seek_start == -1:
+            print(self)
             return
 
         if start_position is None:
@@ -83,7 +85,7 @@ class DeezerChunkedInputStream:
         self.stream.raise_for_status()
         self.chunks = self.stream.iter_content(self.chunk_size)
 
-    def set_headers(self, first_bytes: bytes) -> None:
+    def set_stream_headers(self, first_bytes: bytes) -> None:
         if first_bytes[:4] != b"fLaC":
             raise ValueError("Invalid FLAC file: Missing 'fLaC' marker")
 
@@ -176,7 +178,7 @@ class DeezerChunkedInputStream:
             )
             # Set the seek table at first reading
             if self.current_position == 0 and not self.header_cache:
-                self.set_headers(decrypted_chunk)
+                self.set_stream_headers(decrypted_chunk)
 
             # After seeking: prepend cached header
             if self.current_position == self.seek_start and self.header_cache:
@@ -192,7 +194,31 @@ class DeezerChunkedInputStream:
 
     async def close(self):
         if self.async_stream:
-            await self.async_stream_ctx.__aexit__(None, None, None)
+            try:
+                await self.async_stream_ctx.__aexit__(None, None, None)
+            except Exception as e:
+                logging.error(repr(e))
+            finally:
+                self.async_stream = None
+                self.async_stream_ctx = None
+
         if self.stream:
-            self.stream.close()
+            try:
+                self.stream.close()
+            except Exception as e:
+                logging.error(repr(e))
+            finally:
+                self.stream = None
+
         self.reset_status()
+
+    async def kill(self) -> None:
+        logging.info(f"Killing {self}")
+        await self.close()
+        self.chunks = None
+        self.async_chunks = None
+        self.header_cache = b""
+        self.seek_table.clear()
+        self.track.stream_source = None
+        self.track = None
+        self.bot = None

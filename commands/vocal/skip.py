@@ -38,7 +38,8 @@ class Skip(commands.Cog):
         if not len(session.queue) == 1:
             session.voice_client.pause()
             track = session.queue[0]
-            asyncio.create_task(session.post_process(track))
+            asyncio.create_task(session.post_process(track, close=False))
+            # Deezer streams are killed by the play_next methods
             await session.play_next(ctx)
         else:
             session.voice_client.stop()
