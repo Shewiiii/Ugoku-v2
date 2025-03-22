@@ -22,7 +22,7 @@ class Ask(commands.Cog):
         },
     )
     async def ask(
-        self, ctx: discord.ApplicationContext, query: str, ephemeral: bool = True
+        self, ctx: discord.ApplicationContext, query: str, ephemeral: bool = False
     ) -> None:
         guild_id = ctx.guild.id
         author_name = ctx.author.global_name
@@ -34,7 +34,7 @@ class Ask(commands.Cog):
             await ctx.respond("This server is not allowed to use that command.")
             return
 
-        asyncio.create_task(ctx.defer())
+        defer_task = asyncio.create_task(ctx.defer(ephemeral=ephemeral))
 
         # Create/Use a chat
         if guild_id not in active_chats:
@@ -50,6 +50,7 @@ class Ask(commands.Cog):
             reply = await chat.send_message(user_query=query, author=author_name)
 
         except BlockedPromptException:
+            defer_task.cancel()
             await ctx.respond("*filtered*", ephemeral=ephemeral)
             logging.error(f"Response blocked by Gemini in {chat.id_}")
             return
@@ -62,10 +63,11 @@ class Ask(commands.Cog):
 
         # Response
         formatted_reply = f"-# {author_name}: {query}\n{chat.format_reply(reply)}"
-        asyncio.create_task(ctx.respond(formatted_reply, ephemeral=ephemeral))
-
-        # Memory
-        await chat.memory.store(query, author=author_name, id=guild_id)
+        tasks = []
+        tasks.append(ctx.respond(formatted_reply, ephemeral=ephemeral))
+        tasks.append(chat.memory.store(query, author=author_name, id=guild_id))
+        defer_task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def setup(bot):

@@ -136,3 +136,6 @@ class nowPlayingView(discord.ui.View):
 
         shuffle_cog = self.bot.get_cog("Shuffle")
         await shuffle_cog.execute_shuffle(self.ctx, silent=True)
+
+    def close(self) -> None:
+        self.server_session = self.bot = self.ctx = self.voice_client = None

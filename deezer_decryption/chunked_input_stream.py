@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import httpx
 import http.client
@@ -16,7 +17,7 @@ from deezer_decryption.constants import HEADERS, CHUNK_SIZE
 from deezer_decryption.crypto import generate_blowfish_key, decrypt_chunk
 
 if TYPE_CHECKING:
-    from bot.vocal.track_dataclass import Track
+    from bot.vocal.track_dataclass import Timer
 
 async_client = httpx.AsyncClient(http2=True)
 
@@ -28,9 +29,11 @@ class DeezerChunkedInputStream:
         stream_url: str,
         track_token: str,
         bot: Optional[discord.Bot] = None,
-        track: Optional["Track"] = None,
+        display_name: Optional[str] = None,
+        timer: Optional["Timer"] = None,
     ) -> None:
-        self.track: "Track" = track
+        self.display_name = display_name
+        self.timer = timer
         self.stream_url: str = stream_url
         self.track_token: str = track_token
         self.blowfish_key: bytes = generate_blowfish_key(str(deezer_id))
@@ -47,12 +50,15 @@ class DeezerChunkedInputStream:
         self.header_cache: bytes = b""
 
     def __repr__(self):
-        return f"DeezerChunkedInputStream of {self.track}"
+        return f"DeezerChunkedInputStream of {self.display_name}"
 
     def reset_status(self) -> None:
         self.seek_start = -1
         self.current_position = 0
         self.chunks = None
+        if self.stream:
+            self.stream.close()
+            self.stream = None
 
     async def set_async_chunks(self) -> None:
         """Set chunks in self.async_chunks for download."""
@@ -63,21 +69,28 @@ class DeezerChunkedInputStream:
         self.async_chunks = self.async_stream.aiter_bytes(self.chunk_size)
 
     def set_chunks(
-        self,
-        start_position: Optional[int] = None,
+        self, start_position: Optional[int] = None, force: bool = False
     ) -> None:
         """Set chunks in self.chunks for streaming.
         start_position is the position in the stream in bytes."""
-        if self.chunks is not None and self.seek_start == -1:
-            print(self)
-            return
+        # If not seeking
+        if self.seek_start == -1:
+            # If chunks have already been loaded
+            if not force and self.chunks is not None:
+                return
+
+            # Else, check if there is already a stream, but it should not be the case
+            elif self.stream is not None:
+                self.reset_status()
 
         if start_position is None:
             start_position = self.current_position
 
-        headers = self.headers.copy()
         if start_position > 0:
+            headers = self.headers.copy()
             headers["Range"] = f"bytes={start_position}-"
+        else:
+            headers = self.headers
 
         self.stream = requests.get(
             url=self.stream_url, headers=headers, timeout=10, stream=True
@@ -125,7 +138,9 @@ class DeezerChunkedInputStream:
     def seek(self, second: int) -> None:
         """Seek in the track based on the seek table."""
         if not self.seek_table:
-            raise ValueError(f"Trying to seek with an empty seek table in {self.track}")
+            raise ValueError(
+                f"Trying to seek with an empty seek table in {self.display_name}"
+            )
 
         # Find the appropriate anchor
         nearest_anchor = max([key for key in self.seek_table.keys() if key <= second])
@@ -133,8 +148,8 @@ class DeezerChunkedInputStream:
         self.seek_start = self.current_position = aligned_position
 
         # Timer
-        self.track.timer._start_time = time()
-        self.track.timer._elapsed_time_accumulator = nearest_anchor
+        self.timer._start_time = time()
+        self.timer._elapsed_time_accumulator = nearest_anchor
 
     def read(self, size: Optional[int] = None) -> bytes:
         try:
@@ -150,13 +165,12 @@ class DeezerChunkedInputStream:
                 if not new_stream_url:
                     logging.error(f"New stream URL request failed for {self}")
                 self.stream_url = new_stream_url
-                self.chunks = None
-                self.set_chunks()
+                self.set_chunks(force=True)
                 return self.read()
 
             # Finished reading
             logging.info(f"Finished reading stream of {self}, closing")
-            self.stream.close()
+            self.reset_status()
             return b""
 
         except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError) as e:
@@ -192,7 +206,7 @@ class DeezerChunkedInputStream:
             self.current_position += len(chunk)
             return chunk
 
-    async def close(self):
+    async def close_streams(self):
         if self.async_stream:
             try:
                 await self.async_stream_ctx.__aexit__(None, None, None)
@@ -204,7 +218,7 @@ class DeezerChunkedInputStream:
 
         if self.stream:
             try:
-                self.stream.close()
+                await asyncio.to_thread(self.stream.close)
             except Exception as e:
                 logging.error(repr(e))
             finally:
@@ -212,13 +226,9 @@ class DeezerChunkedInputStream:
 
         self.reset_status()
 
-    async def kill(self) -> None:
-        logging.info(f"Killing {self}")
-        await self.close()
-        self.chunks = None
-        self.async_chunks = None
-        self.header_cache = b""
+    async def close(self) -> None:
+        logging.info(f"Closing {self}")
+        await self.close_streams()
         self.seek_table.clear()
-        self.track.stream_source = None
-        self.track = None
-        self.bot = None
+        self.timer = None
+        self.__dict__.clear()

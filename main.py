@@ -66,7 +66,7 @@ async def on_ready() -> None:
     bot.youtube = Youtube()
     if GEMINI_ENABLED:
         tasks.append(memory.init_pinecone(PINECONE_INDEX_NAME))
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*tasks, return_exceptions=True)
 
     # Party !
     logging.info(f"{bot.user} is running !")

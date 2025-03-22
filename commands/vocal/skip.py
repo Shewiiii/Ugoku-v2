@@ -1,4 +1,3 @@
-import asyncio
 from discord.ext import commands
 import discord
 from typing import Optional
@@ -35,11 +34,7 @@ class Skip(commands.Cog):
             session.old_message = session.now_playing_message
             session.now_playing_message = None
 
-        if not len(session.queue) == 1:
-            session.voice_client.pause()
-            track = session.queue[0]
-            asyncio.create_task(session.post_process(track, close=False))
-            # Deezer streams are killed by the play_next methods
+        if not len(session.queue) == 1 and not session.voice_client.is_playing():
             await session.play_next(ctx)
         else:
             session.voice_client.stop()

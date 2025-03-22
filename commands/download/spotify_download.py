@@ -4,7 +4,6 @@ import logging
 
 import discord
 from discord.ext import commands
-from librespot.audio.decoders import AudioQuality
 
 from config import SPOTIFY_ENABLED
 from bot.utils import tag_ogg_file, get_cache_path, upload
@@ -24,16 +23,7 @@ class SpotifyDownload(commands.Cog):
             discord.IntegrationType.user_install,
         },
     )
-    async def spdl(
-        self,
-        ctx: discord.ApplicationContext,
-        query: str,
-        quality: discord.Option(
-            str,
-            choices=["High (OGG 320kbps)", "Normal (OGG 160kbps)", "Low (OGG 96kbps)"],
-            default="High (OGG 320kbps)",
-        ),  # type: ignore
-    ) -> None:
+    async def spdl(self, ctx: discord.ApplicationContext, query: str) -> None:
         # The following is a proof of concept code~
         # TODO:
         # - Add album/playlist support
@@ -45,15 +35,8 @@ class SpotifyDownload(commands.Cog):
 
         asyncio.create_task(ctx.respond("Give me a second~"))
 
-        # Quality dict
-        quality_dict = {
-            "High (OGG 320kbps)": AudioQuality.VERY_HIGH,
-            "Normal (OGG 160kbps)": AudioQuality.HIGH,
-            "Low (OGG 96kbps)": AudioQuality.NORMAL,
-        }
-
         # Get the tracks, pick the first one
-        tracks = await ctx.bot.spotify.get_tracks(query=query, aq=quality_dict[quality])
+        tracks = await ctx.bot.spotify.get_tracks(query=query)
         if not tracks:
             await ctx.edit(content="No track has been found!")
             return

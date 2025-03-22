@@ -25,6 +25,7 @@ class Clear(commands.Cog):
 
         session: ServerSession
         # Important to await here
+        await session.stop_playback()
         await session.close_streams()
         voice_client = session.voice_client
         session.loop_current = False

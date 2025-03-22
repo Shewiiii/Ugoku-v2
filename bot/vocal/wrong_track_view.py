@@ -2,7 +2,6 @@ import asyncio
 import discord
 from discord.ui import View
 
-from bot.vocal.track_dataclass import Track
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,15 +12,15 @@ class WrongTrackView(View):
     def __init__(
         self,
         ctx: discord.ApplicationContext,
-        track: Track,
+        display_name: str,
         session: "ServerSession",
         original_message: str,
     ) -> None:
         super().__init__()
         self.ctx: discord.ApplicationContext = ctx
-        self.track: Track = track
         self.session: "ServerSession" = session
         self.original_message = original_message
+        self.display_name: str = display_name
 
     @discord.ui.button(label="Wrong track ?", style=discord.ButtonStyle.secondary)
     async def wrong_button_callback(
@@ -39,11 +38,11 @@ class WrongTrackView(View):
         if not self.session.queue:
             return
 
-        if self.session.queue[0] == self.track:
+        if str(self.session.queue[0]) == self.display_name:
             asyncio.create_task(skip_cog.execute_skip(self.ctx, silent=True))
         else:
             for i, track in enumerate(self.session.queue):
-                if track == self.track:
+                if str(track) == self.display_name:
                     self.session.queue.pop(i)
                     break
             asyncio.create_task(
@@ -54,7 +53,10 @@ class WrongTrackView(View):
             search_cog.execute_search(
                 self.ctx,
                 type="track",
-                query=str(self.track),
+                query=self.display_name,
                 interaction=interaction,
             )
         )
+
+    def close(self) -> None:
+        self.ctx = self.session = self.original_message = None

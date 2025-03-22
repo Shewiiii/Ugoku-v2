@@ -65,6 +65,7 @@ class Track:
     disc_number: int = 1
     dominant_rgb: tuple = DEFAULT_EMBED_COLOR
     timer: Timer = Timer()
+    stream_generator: Optional[Callable] = None
 
     def __eq__(self, other):
         return (self.id, self.service) == (other.id, other.service)
@@ -91,7 +92,7 @@ class Track:
 
     def create_embed(
         self, album_url: Optional[str] = None, artist_urls: Optional[list[str]] = None
-    ) -> Self:
+    ) -> discord.Embed:
         embed_artists, embed_album = self.artist, self.album
 
         if album_url:
@@ -113,10 +114,12 @@ class Track:
                 color=discord.Colour.from_rgb(*self.dominant_rgb),
             )
             .add_field(name="Part of the album", value=embed_album, inline=True)
+            .add_field(name="Remaining", value="", inline=True)  # fields index: 1
+            .add_field(name="Next", value="", inline=True)  # fields index: 2
             .set_author(name="Now playing")
             .set_thumbnail(url=self.cover_url)
         )
-        return self
+        return self.embed
 
     async def generate_embed(
         self, sp: Optional[spotipy.Spotify] = None
@@ -142,7 +145,7 @@ class Track:
 
         return self.embed
 
-    async def load_deezer_stream(self, session: "ServerSession") -> None:
+    async def load_deezer_stream(self, session: "ServerSession") -> bool:
         is_deezer_enabled = DEEZER_ENABLED
         is_service_valid = self.service == "spotify/deezer"
         is_stream_source_uncached = not isinstance(self.stream_source, (str, Path))
@@ -156,14 +159,14 @@ class Track:
         )
 
         if not should_load_stream:
-            return
+            return False
 
         deezer: Deezer = session.bot.deezer
 
         # Already a Deezer stream
         if isinstance(self.stream_source, DeezerChunkedInputStream):
             await asyncio.to_thread(self.stream_source.set_chunks)
-            return
+            return True
 
         # Try to get native track API (to grab the song from irsc)
         native_track_api = await deezer.parse_spotify_track(
@@ -184,40 +187,64 @@ class Track:
 
         if not stream_loaded:
             session.deezer_blacklist.add(self.id)
-            return
+            return False
 
         self.stream_source = DeezerChunkedInputStream(
             native_track_api["id"],
             stream_url,
             gw_track_api["TRACK_TOKEN"],
             session.bot,
-            self,
+            str(self),
+            self.timer,
         )
         await asyncio.to_thread(self.stream_source.set_chunks)
         logging.info(f"Loaded Deezer stream of {self}")
+        return True
 
-    async def load_spotify_stream(self) -> None:
+    async def load_spotify_stream(self) -> bool:
         if not SPOTIFY_ENABLED:
-            if isinstance(self.stream_source, Callable):
+            if isinstance(self.stream_generator, Callable):
                 self.stream_source = None
-            return
+            return False
+        elif self.stream_source:
+            return False
 
         # Handle Spotify stream generators
-        if callable(self.stream_source):
+        if callable(self.stream_generator):
             try:
-                self.stream_source = await self.stream_source()
+                self.stream_source = await self.stream_generator()
             except Exception as e:
                 logging.error(repr(e))
-                return
+                return False
             logging.info(f"Loaded Spotify stream of {self}")
 
         # Skip non-audio content in Spotify streams
-        if isinstance(self.stream_source, AbsChunkedInputStream):
-            await asyncio.to_thread(self.stream_source.seek, 167)
+        await asyncio.to_thread(self.stream_source.seek, 167)
+        return True
 
     async def load_stream(
         self, session: "ServerSession"
     ) -> Optional[Union[AbsChunkedInputStream, DeezerChunkedInputStream]]:
-        if self.service == "spotify/deezer":
+        if self.service == "spotify/deezer" and not isinstance(
+            self.stream_source, (Path, str)
+        ):
             await self.load_deezer_stream(session) or await self.load_spotify_stream()
         return self.stream_source
+
+    async def close_stream(self) -> None:
+        source = self.stream_source
+        try:
+            if isinstance(source, DeezerChunkedInputStream):
+                # Built-in stream (re)generator
+                await source.close_streams()
+            elif isinstance(source, AbsChunkedInputStream):
+                await asyncio.to_thread(source.close)
+                self.stream_source = None
+            logging.info(f"Closed stream of {self}")
+        except Exception as e:
+            logging.error(f"Error closing stream of {self}: {repr(e)}")
+
+    async def close(self) -> None:
+        if self.stream_source is not None:
+            await self.stream_source.close()
+        self.stream_source = self.stream_generator = self.embed = self.timer = None

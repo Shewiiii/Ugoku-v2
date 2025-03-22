@@ -21,10 +21,8 @@ class Leave(commands.Cog):
 
         if session:
             session: ServerSession
-            await session.voice_client.disconnect()
             asyncio.create_task(ctx.respond("Baibai~"))
             await session.clean_session()
-            del session
             await asyncio.to_thread(gc.collect)
 
 

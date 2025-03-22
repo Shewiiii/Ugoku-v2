@@ -98,7 +98,7 @@ async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> s
             file_path = folder_path / f"{i + 1}.png"
             tasks.append(fetch_sticker_image(session, preview_link, file_path))
 
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     # Convert APNGs to GIFs if needed
     if sticker_type in ["animation-sticker", "popup-sticker"]:

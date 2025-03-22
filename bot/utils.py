@@ -225,7 +225,7 @@ async def cleanup_cache() -> None:
             remove_tasks.append(asyncio.to_thread(os.remove, file))
 
     if remove_tasks:
-        await asyncio.gather(*remove_tasks)
+        await asyncio.gather(*remove_tasks, return_exceptions=True)
 
 
 def extract_cover_art(file_path) -> Optional[bytes]:
