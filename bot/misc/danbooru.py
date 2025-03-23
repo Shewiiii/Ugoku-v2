@@ -13,13 +13,14 @@ class Danbooru:
         search = ctx.options["tag"].replace(" ", "_")
         params = {"search[query]": search, "search[type]": "tag_query", "limit": 10}
         async with CachedSession(
-            follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+            follow_redirects=True,
+            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
         ) as session:
             response = await session.get(
                 "https://danbooru.donmai.us/autocomplete", params=params
             )
             response.raise_for_status()
-        raw = BeautifulSoup(response.text(), features="html.parser")
+        raw = BeautifulSoup(await response.text(), features="html.parser")
         suggestions = [
             li.get("data-autocomplete-value")
             for li in raw.find_all("li", class_="ui-menu-item")
@@ -28,12 +29,10 @@ class Danbooru:
 
     async def get_posts(self, tag: str, limit: int = 10, random: bool = True) -> list:
         """Get Danboru posts from a tag."""
-        params = {"limit": limit, "tags": tag, "random": random}
-        async with CachedSession(
-            follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-        ) as session:
+        params = {"limit": limit, "tags": tag, "random": str(random)}
+        async with CachedSession(follow_redirects=True) as session:
             response = await session.get(self.base_url, params=params)
             response.raise_for_status()
-        posts = response.json()
+        posts = await response.json()
 
         return posts

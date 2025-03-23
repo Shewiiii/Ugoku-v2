@@ -93,6 +93,8 @@ IMPULSE_RESPONSE_PARAMS = {
 # Onsei filters
 ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a folder name containing one of these words will be chosen
 ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blacklisted
+ONSEI_SERVER_WHITELIST= {} # All servers ids allowed to stream onsei
+
 # Chatbot settings
 CHATBOT_ENABLED = True
 CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot

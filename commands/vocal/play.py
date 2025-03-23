@@ -19,6 +19,7 @@ from config import (
     DEEZER_ENABLED,
     SPOTIFY_API_ENABLED,
     IMPULSE_RESPONSE_PARAMS,
+    ONSEI_SERVER_WHITELIST,
 )
 
 
@@ -45,8 +46,8 @@ class Play(commands.Cog):
         session: Optional[ServerSession] = sm.connect(ctx, self.bot)
         if not session:
             if defer_task:
-                    await defer_task
-            await ctx.respond(content="You are not in an active voice channel !")
+                await defer_task
+            await respond(content="You are not in an active voice channel !")
             return
 
         # Applying audio effects
@@ -68,6 +69,11 @@ class Play(commands.Cog):
         spotify_domains = ["open.spotify.com"]
 
         if service == "onsei" or is_onsei(query):
+            if defer_task:
+                await defer_task
+            if session.guild_id not in ONSEI_SERVER_WHITELIST:
+                await respond("You can't stream audio works here.")
+                return
             await play_onsei(ctx, query, session, play_next, defer_task)
 
         elif service == "custom" or (
