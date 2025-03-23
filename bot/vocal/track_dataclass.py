@@ -246,5 +246,5 @@ class Track:
 
     async def close(self) -> None:
         if self.stream_source is not None:
-            await self.stream_source.close()
+            await self.close_stream()
         self.stream_source = self.stream_generator = self.embed = self.timer = None

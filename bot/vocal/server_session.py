@@ -421,6 +421,7 @@ class ServerSession:
         self.stop_event = asyncio.Event()
         self.voice_client.stop()
         await self.stop_event.wait()  # ... Until its completely stopped
+        self.last_played_time = datetime.now()
         self.stop_event = None
 
     async def post_process(
@@ -552,7 +553,7 @@ class ServerSession:
                     channel = self.bot.get_channel(self.channel_id)
                     if channel:
                         await channel.send("Baibai~")
-                    await self.clean_session(cancel_check_auto_leave=False)
+                    await self.clean_session()
                     await asyncio.to_thread(gc.collect)
                     break
 
