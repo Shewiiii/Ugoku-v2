@@ -47,6 +47,7 @@ class lyricsView(discord.ui.View):
         self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         play_cog: Play = self.bot.get_cog("Play")
+        asyncio.create_task(interaction.response.defer())
         asyncio.create_task(
             play_cog.execute_play(
                 self.ctx,
