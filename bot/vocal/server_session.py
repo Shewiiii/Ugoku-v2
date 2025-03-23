@@ -572,7 +572,7 @@ class ServerSession:
         self.stack_previous.clear()
 
         if gc_collect:
-            print(await asyncio.to_thread(gc.collect))
+            await asyncio.to_thread(gc.collect)
 
     async def clean_session(self) -> None:
         await self.stop_playback()
