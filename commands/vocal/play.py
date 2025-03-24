@@ -101,8 +101,7 @@ class Play(commands.Cog):
                 artist_mode,
                 album,
                 play_next,
-                defer_task,
-                query
+                defer_task
             )
         else:
             await respond(content="wut duh")
