@@ -360,6 +360,7 @@ class ServerSession:
         tracks: List[Track],
         play_next: bool = False,
         show_wrong_track_embed: bool = False,
+        user_query: Optional[str] = None
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing."""
 
@@ -378,7 +379,7 @@ class ServerSession:
         content = f"Added to queue: {titles}{' !' if c <= 3 else f', and {c - 3} more songs !'}"
 
         if c == 1 and show_wrong_track_embed:
-            view = WrongTrackView(ctx, str(tracks[0]), self, content)
+            view = WrongTrackView(ctx, str(tracks[0]), self, content, user_query=user_query)
             self.wrong_track_views.append(view)
         else:
             view = None

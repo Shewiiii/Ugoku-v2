@@ -77,6 +77,7 @@ async def play_spotify(
         tracks_info,
         play_next=play_next,
         show_wrong_track_embed=not is_url(query, ["open.spotify.com"]),
+        user_query=query # For the prompt in the "wrong track" embed
     )
 
 
