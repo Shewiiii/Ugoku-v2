@@ -58,12 +58,13 @@ class nowPlayingView(discord.ui.View):
             )
 
         # Update previous and next
+        s = self.server_session
         previous = self.children[1]
         skip = self.children[2]
-        previous.disabled = len(self.server_session.stack_previous) == 0
-        skip.disabled = len(self.server_session.queue) == 0
-        if edit:
-            await self.server_session.now_playing_message.edit(view=self)
+        previous.disabled = len(s.stack_previous) == 0
+        skip.disabled = len(s.queue) == 0
+        if edit and s.now_playing_message:
+            await s.now_playing_message.edit(view=self)
 
     @discord.ui.button(
         label="Pause",

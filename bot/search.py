@@ -3,7 +3,7 @@ from difflib import SequenceMatcher
 from urllib.parse import urlparse
 
 # string from https://www.geeksforgeeks.org/python-check-url-string/
-link_grabber = (
+link_grabber = re.compile(
     r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2"
     r",4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+("
     r"?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\""
@@ -12,7 +12,7 @@ link_grabber = (
 
 
 def is_url(string: str, from_: list | None = None) -> bool:
-    search = re.match(link_grabber, string)
+    search = link_grabber.match(string)
     if not search:
         return False
     if from_:

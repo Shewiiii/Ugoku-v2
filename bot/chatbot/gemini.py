@@ -338,7 +338,7 @@ class Gembot:
             msg_text = msg_text[:-1]
 
         # Process URLs in message body
-        extra_content.extend(match[0] for match in re.findall(link_grabber, msg_text))
+        extra_content.extend(match[0] for match in link_grabber.findall(msg_text))
 
         # Process attachments
         for attachment in message.attachments:

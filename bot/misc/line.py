@@ -5,7 +5,6 @@ from PIL import Image
 import asyncio
 import shutil
 import logging
-import re
 import os
 
 from discord import ApplicationContext
@@ -18,7 +17,7 @@ from config import TEMP_FOLDER, CACHE_EXPIRY
 
 
 def get_link(string: str) -> str:
-    return re.findall(link_grabber, string)[-1][0]
+    return link_grabber.findall(string)[-1][0]
 
 
 async def convert_to_gif(sticker_count: int, path: Path) -> None:
