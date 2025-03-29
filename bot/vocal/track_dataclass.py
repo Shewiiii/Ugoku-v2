@@ -193,7 +193,6 @@ class Track:
             native_track_api["id"],
             stream_url,
             gw_track_api["TRACK_TOKEN"],
-            session.bot,
             str(self),
             self.timer,
         )
@@ -201,13 +200,19 @@ class Track:
         logging.info(f"Loaded Deezer stream of {self}")
         return True
 
-    async def load_spotify_stream(self) -> bool:
+    async def load_spotify_stream(self, session: "ServerSession") -> bool:
         if not SPOTIFY_ENABLED:
             if isinstance(self.stream_generator, Callable):
                 self.stream_source = None
             return False
         elif self.stream_source:
-            return False
+            if session.is_seeking:
+                # Reload a stream to avoid seeking issues
+                # but it's not the most optimized
+                old_source = self.stream_source
+                asyncio.create_task(asyncio.to_thread(old_source.close))
+            else:
+                return True
 
         # Handle Spotify stream generators
         if callable(self.stream_generator):
@@ -228,7 +233,7 @@ class Track:
         if self.service == "spotify/deezer" and not isinstance(
             self.stream_source, (Path, str)
         ):
-            await self.load_deezer_stream(session) or await self.load_spotify_stream()
+            await self.load_deezer_stream(session) or await self.load_spotify_stream(session)
         return self.stream_source
 
     async def close_stream(self) -> None:

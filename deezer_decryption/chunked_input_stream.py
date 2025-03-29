@@ -1,5 +1,4 @@
 import asyncio
-import discord
 import httpx
 import http.client
 import logging
@@ -28,7 +27,6 @@ class DeezerChunkedInputStream:
         deezer_id: Union[str, int],
         stream_url: str,
         track_token: str,
-        bot: Optional[discord.Bot] = None,
         display_name: Optional[str] = None,
         timer: Optional["Timer"] = None,
     ) -> None:
@@ -46,7 +44,6 @@ class DeezerChunkedInputStream:
         self.async_chunks = None
         self.seek_table = {}  # Second: byte
         self.seek_start = -1
-        self.bot = bot
         self.header_cache: bytes = b""
 
     def __repr__(self):

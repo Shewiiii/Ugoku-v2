@@ -50,27 +50,27 @@ class Download:
             if file_path.is_file():
                 continue
 
-            input_ = DeezerChunkedInputStream(
-                track_id, stream_urls[i], gw_track_apis[i]["TRACK_TOKEN"], bot=self.bot
+            stream = DeezerChunkedInputStream(
+                track_id, stream_urls[i], gw_track_apis[i]["TRACK_TOKEN"]
             )
 
             # Retry 10 times get stream data
             for attempt in range(10):
-                await input_.set_async_chunks()
+                await stream.set_async_chunks()
                 wrote_chunk = False
                 async with aiofiles.open(file_path, "wb") as file:
-                    async for chunk in input_.async_chunks:
+                    async for chunk in stream.async_chunks:
                         if chunk is None:
                             break
                         if len(chunk) >= 2048:
                             chunk = (
-                                decrypt_chunk(input_.blowfish_key, chunk[:2048])
+                                decrypt_chunk(stream.blowfish_key, chunk[:2048])
                                 + chunk[2048:]
                             )
                         await file.write(chunk)
                         wrote_chunk = True
                 if wrote_chunk:
-                    await input_.close()
+                    await stream.close()
                     break
                 logging.error(
                     f"Reading of {track_id} failed, requesting a new stream URL..."
@@ -78,7 +78,7 @@ class Download:
                 stream_url = await self.api.get_stream_urls(
                     [gw_track_apis[i]["TRACK_TOKEN"]], tracks_format
                 )
-                input_.stream_url = stream_url[0]
+                stream.stream_url = stream_url[0]
             else:
                 paths.append(None)
                 continue
@@ -142,7 +142,8 @@ class Download:
         album_cover_url = native_track_api["album"]["cover_xl"]
         if native_track_api["album"].get("cover_xl"):
             async with CachedSession(
-                follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+                follow_redirects=True,
+                cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
             ) as session:
                 async with session.get(album_cover_url) as response:
                     response.raise_for_status()
