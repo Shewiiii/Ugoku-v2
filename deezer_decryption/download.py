@@ -51,7 +51,10 @@ class Download:
                 continue
 
             stream = DeezerChunkedInputStream(
-                track_id, stream_urls[i], gw_track_apis[i]["TRACK_TOKEN"]
+                track_id,
+                stream_urls[i],
+                gw_track_apis[i]["TRACK_TOKEN"],
+                deezer=self.api,
             )
 
             # Retry 10 times get stream data

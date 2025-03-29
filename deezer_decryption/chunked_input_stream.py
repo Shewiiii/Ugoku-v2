@@ -12,6 +12,7 @@ import struct
 from time import time
 from typing import Union, Optional, TYPE_CHECKING
 
+from deezer_decryption.api import Deezer
 from deezer_decryption.constants import HEADERS, CHUNK_SIZE
 from deezer_decryption.crypto import generate_blowfish_key, decrypt_chunk
 
@@ -27,6 +28,7 @@ class DeezerChunkedInputStream:
         deezer_id: Union[str, int],
         stream_url: str,
         track_token: str,
+        deezer: Deezer,
         display_name: Optional[str] = None,
         timer: Optional["Timer"] = None,
     ) -> None:
@@ -45,6 +47,7 @@ class DeezerChunkedInputStream:
         self.seek_table = {}  # Second: byte
         self.seek_start = -1
         self.header_cache: bytes = b""
+        self.deezer: Deezer = deezer
 
     def __repr__(self):
         return f"DeezerChunkedInputStream of {self.display_name}"
@@ -154,11 +157,11 @@ class DeezerChunkedInputStream:
 
         except StopIteration:
             # Failed reading the first chunk
-            if self.current_position <= CHUNK_SIZE and self.bot:
+            if self.current_position <= CHUNK_SIZE:
                 logging.error(
                     f"Reading of {self} failed, requesting a new stream URL..."
                 )
-                new_stream_url = self.bot.deezer.get_stream_url_sync(self.track_token)
+                new_stream_url = self.deezer.get_stream_url_sync(self.track_token)
                 if not new_stream_url:
                     logging.error(f"New stream URL request failed for {self}")
                 self.stream_url = new_stream_url
