@@ -48,7 +48,7 @@ class SpotifyDownload(commands.Cog):
 
         if not file_path.is_file():
             # Get track data
-            stream = await track.stream_source()
+            stream = await track.stream_generator()
             data = await asyncio.to_thread(stream.read)
             # Download
             async with aiofiles.open(file_path, "wb") as file:
