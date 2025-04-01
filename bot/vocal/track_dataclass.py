@@ -193,6 +193,7 @@ class Track:
             native_track_api["id"],
             stream_url,
             gw_track_api["TRACK_TOKEN"],
+            session.bot.deezer,
             str(self),
             self.timer,
         )
@@ -206,7 +207,7 @@ class Track:
                 self.stream_source = None
             return False
         elif self.stream_source:
-            if session.is_seeking:
+            if session.is_seeking or session.loop_current:
                 # Reload a stream to avoid seeking issues
                 # but it's not the most optimized
                 old_source = self.stream_source
@@ -233,7 +234,9 @@ class Track:
         if self.service == "spotify/deezer" and not isinstance(
             self.stream_source, (Path, str)
         ):
-            await self.load_deezer_stream(session) or await self.load_spotify_stream(session)
+            await self.load_deezer_stream(session) or await self.load_spotify_stream(
+                session
+            )
         return self.stream_source
 
     async def close_stream(self) -> None:
