@@ -15,6 +15,7 @@ from google.generativeai.types.generation_types import (
 )
 
 if GEMINI_ENABLED:
+    from bot.chatbot.chat_dataclass import ChatbotMessage
     from bot.chatbot.gemini import Gembot, active_chats
     from bot.utils import split_into_chunks
 
@@ -61,7 +62,7 @@ if GEMINI_ENABLED:
             # Create/Use a chat
             if id_ not in active_chats:
                 chat = Gembot(id_)
-            chat = active_chats.get(id_)
+            chat: Gembot = active_chats.get(id_)
 
             # Neko arius
             p = CHATBOT_PREFIX
@@ -74,7 +75,9 @@ if GEMINI_ENABLED:
                 async with message.channel.typing():
                     params = await chat.get_params(message)
                     try:
-                        reply = await chat.send_message(*params)
+                        chatbot_message: ChatbotMessage = await chat.send_message(
+                            *params
+                        )
                     except StopCandidateException:
                         await message.channel.send("*filtered*")
                         logging.error(f"Response blocked by Gemini in {chat.id_}")
@@ -87,21 +90,18 @@ if GEMINI_ENABLED:
                         return
 
                     # Add chat status, remove default emoticons
-                    formatted_reply = chat.format_reply(reply)
-                chunked_message = split_into_chunks(formatted_reply, 2000)
+                    formatted_response = chat.format_response(chatbot_message.response)
+                chunked_message = split_into_chunks(formatted_response, 2000)
+
                 # Max the number of successive message to 5
-                for i in range(min(len(chunked_message), 5)):
-                    if i == 0:
-                        first_msg = await message.channel.send(chunked_message[i])
+                first_msg = await message.channel.send(chunked_message[0])
+                for i in range(1, min(len(chunked_message), 4)):
+                    await message.channel.send(chunked_message[i])
 
                 # Memory
-                if await chat.memory.store(
-                    params[0],
-                    author=message.author.global_name,
-                    id=id_,
-                ):
+                if await chat.memory.store(chatbot_message):
                     await first_msg.edit(
-                        f"-# Ugoku will remember about this. \n{chunked_message[-1]}"
+                        f"-# Ugoku will remember about this. \n{chunked_message[0]}"
                     )
 else:
 

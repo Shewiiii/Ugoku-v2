@@ -6,6 +6,7 @@ from config import CHATBOT_WHITELIST, GEMINI_ENABLED
 from google.generativeai.types.generation_types import BlockedPromptException
 
 if GEMINI_ENABLED:
+    from bot.chatbot.chat_dataclass import ChatbotMessage
     from bot.chatbot.gemini import Gembot, active_chats
 
 
@@ -39,7 +40,7 @@ class Ask(commands.Cog):
         # Create/Use a chat
         if guild_id not in active_chats:
             chat = Gembot(guild_id)
-        chat = active_chats.get(guild_id)
+        chat: Gembot = active_chats.get(guild_id)
 
         # Remove continuous chat notice (if enabled the msg before)
         if chat.status == 1:
@@ -47,7 +48,9 @@ class Ask(commands.Cog):
 
         # Create response
         try:
-            reply = await chat.send_message(user_query=query, author=author_name)
+            chatbot_message: ChatbotMessage = await chat.send_message(
+                user_query=query, author=author_name, guild_id=ctx.guild_id
+            )
 
         except BlockedPromptException:
             defer_task.cancel()
@@ -62,10 +65,11 @@ class Ask(commands.Cog):
             return
 
         # Response
-        formatted_reply = f"-# {author_name}: {query}\n{chat.format_reply(reply)}"
+        formatted_response = chat.format_response(chatbot_message.response)
+        formatted_reply = f"-# {author_name}: {query}\n{formatted_response}"
         tasks = []
         tasks.append(ctx.respond(formatted_reply, ephemeral=ephemeral))
-        tasks.append(chat.memory.store(query, author=author_name, id=guild_id))
+        tasks.append(chat.memory.store(chatbot_message))
         defer_task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 

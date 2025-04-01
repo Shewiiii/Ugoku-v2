@@ -28,12 +28,14 @@ import discord
 import google.generativeai as genai
 
 from bot.chatbot.vector_recall import memory
+from bot.chatbot.chat_dataclass import ChatbotMessage
 from bot.search import link_grabber
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 global_model = genai.GenerativeModel(model_name=GEMINI_MODEL)
+emoticon_pattern = re.compile("[\U0001f600-\U0001f64f]", flags=re.UNICODE)
 active_chats = {}
 
 
@@ -71,7 +73,7 @@ Avoid asking questions; focus on sharing thoughts naturally
 Try to not repeat yourself
 Never, never put the message infos, only output your message without anything more
 Use the provided time and date to make time related answers
-Your interlocutor is indicated by "[someone] says to you", pay attention to who you're talking with
+Your interlocutor is indicated by "[someone] talks to you", pay attention to who you're talking with
 Never use latex or mathjax, write mathematical formulas between ``, don't add more formatting to maths formulas
 Use backslashes before * (to avoid italic)
 Dont use italic (**)
@@ -82,19 +84,10 @@ Don't greet in every message
 You are not on any image sent
 When explaining, treat your conversation partner as an equal, don't act superior, but more like a friend
 """
-    # end = (
-    #     'End the conversation.'
-    # )
     summarize = """
         Make a complete summary of the following, in less than 1800 caracters.
         Try to be concise:
         """
-    # single_question = (
-    #     '''
-    #     (This is an unique question, not a dialog.
-    #     NEVER ASK A QUESTION back and answer as an assistant.)
-    #     '''
-    # )
 
 
 class Gembot:
@@ -147,29 +140,26 @@ class Gembot:
         self,
         user_query: str,
         author: str,
+        guild_id: int,
         extra_content: Optional[List[str]] = None,
-        r_text: str = "",
+        r_author: Optional[str] = None,
+        r_content: Optional[str] = None,
+        message_id: Optional[int] = None,
         temperature: float = 2.0,
         max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
-    ) -> Optional[str]:
+    ) -> Optional[ChatbotMessage]:
         # Update variables
         self.last_prompt = datetime.now()
         self.message_count += 1
-        date_hour: str = datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")
 
         # Recall from memory
-        recall = await self.memory.recall(
-            f"{author}: {user_query}", id=self.id_, author=author, date_hour=date_hour
-        )
+        recall = await self.memory.recall(f"{author}: {user_query}", id=self.id_)
 
         # Create message
-        infos = [
-            f"Time in Kyoto: {date_hour}",
-            f"Pinecone recall: {recall}" if recall else "No Pinecone recall",
-            r_text,
-            f"{author} says to you:",
-        ]
-        message = f"[{', '.join(infos)}] {user_query}"
+        message = ChatbotMessage(
+            message_id, guild_id, author, user_query, recall, r_author, r_content
+        )
+        prompt = f"{message:prompt}"
 
         # Add the extra content (links, images, emotes..) if there are
         converted_content = []
@@ -180,7 +170,7 @@ class Gembot:
                     converted_content.append(file)
 
         response = await self.chat.send_message_async(
-            [message] + converted_content,
+            [prompt] + converted_content,
             generation_config=genai.types.GenerationConfig(
                 candidate_count=1,
                 temperature=temperature,
@@ -188,8 +178,9 @@ class Gembot:
             ),
             safety_settings=self.safety_settings,
         )
+        message.response = response.text
         logging.info(
-            f"Gemini API call, {response.usage_metadata}. Text: {message}".replace(
+            f"Gemini API call, {response.usage_metadata}. Prompt: {prompt}".replace(
                 "\n", ", "
             )
         )
@@ -197,7 +188,7 @@ class Gembot:
         # Limit history length
         self.chat.history = self.chat.history[-GEMINI_HISTORY_SIZE:]
 
-        return response.text
+        return message
 
     async def get_base64_bytes(self, url: str) -> Optional[bytes]:
         """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
@@ -295,10 +286,9 @@ class Gembot:
 
         return False
 
-    def format_reply(self, reply: str) -> str:
+    def format_response(self, reply: str) -> str:
         """Format the reply based on the current status."""
         # Remove default emoticons (face emojis)
-        emoticon_pattern = re.compile("[\U0001f600-\U0001f64f]", flags=re.UNICODE)
         reply = emoticon_pattern.sub(r"", reply)
 
         # Add custom emote snowflakes (to properly show up in Discord)
@@ -364,7 +354,7 @@ class Gembot:
             extra_content.append(f"https://cdn.discordapp.com/emojis/{snowflake}.png")
 
         # Process message reference (if any)
-        rtext = ""
+        rauthor = rcontent = None
         if message.reference and message.reference.message_id:
             rid = message.reference.message_id
             rmessage = await message.channel.fetch_message(rid)
@@ -374,10 +364,17 @@ class Gembot:
                 attachment.url for attachment in rmessage.attachments if attachment.url
             ]
             extra_content.extend(urls)
-            rtext = f"Message referencing {rauthor}: {rcontent}"
 
         # Wrap parameters
-        params = (msg_text, message.author.global_name, extra_content, rtext)
+        params = (
+            msg_text,
+            message.author.global_name,
+            message.guild.id,
+            extra_content,
+            rauthor,
+            rcontent,
+            message.id,
+        )
         return params
 
     @staticmethod

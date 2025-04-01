@@ -14,6 +14,7 @@ from pinecone import ServerlessSpec
 from dotenv import load_dotenv
 import pytz
 
+from bot.chatbot.chat_dataclass import ChatbotMessage
 from config import (
     CHATBOT_TIMEZONE,
     GEMINI_UTILS_MODEL,
@@ -96,7 +97,7 @@ Add in the text field the user message. It should be exact and should not loose 
         vectors: list = [vector["values"] for vector in embeddings]
         return vectors
 
-    async def store(self, user_text: str, author: str, id: int) -> bool:
+    async def store(self, chatbot_message: ChatbotMessage) -> bool:
         if not self.active:
             return
 
@@ -107,7 +108,7 @@ Add in the text field the user message. It should be exact and should not loose 
         metadata = json.loads(
             (
                 await model.generate_content_async(
-                    f'{self.prompt}{author} said "{user_text}"',
+                    f'{self.prompt}{chatbot_message.author} said "{chatbot_message.content}"',
                     generation_config=genai.types.GenerationConfig(
                         response_mime_type="application/json",
                         response_schema=VectorMetadata,
@@ -116,10 +117,10 @@ Add in the text field the user message. It should be exact and should not loose 
                 )
             ).text
         )
-        metadata["id"] = id
-        metadata["text"] = f"{date}-{author}: {metadata['text']}"
+        metadata["id"] = chatbot_message.guild_id
+        metadata["text"] = f"{date}-{chatbot_message.author}: {metadata['text']}"
 
-        if metadata["query_type"] in ["info", "question", "other"]:
+        if metadata["query_type"] in {"info", "question", "other"}:
             return False
 
         # Create the embeddings/vectors
@@ -138,15 +139,12 @@ Add in the text field the user message. It should be exact and should not loose 
         text: str,
         id: int,
         top_k: int = PINECONE_RECALL_WINDOW,
-        author: Optional[str] = "?",
-        date_hour: str = "",
     ) -> Optional[str]:
         if not self.active:
             return
-
-        infos = [date_hour, f"{author} says"]
-        text = f"[{', '.join(infos)}] {text}"
-
+        print(id)
+        print(id)
+        print(type(id))
         vectors = await self.generate_embeddings([text])
         results = await asyncio.to_thread(
             self.index.query,
