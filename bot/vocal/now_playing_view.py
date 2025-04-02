@@ -31,7 +31,7 @@ class nowPlayingView(discord.ui.View):
         self, paused: Optional[bool] = None, delay: float = 0.0, edit: bool = True
     ) -> None:
         await asyncio.sleep(delay)
-        states_list = {
+        states_dict = {
             0: {
                 "inactive_msg": "Pause",
                 "active_msg": "Paused",
@@ -50,7 +50,7 @@ class nowPlayingView(discord.ui.View):
                 "is_active": self.server_session.shuffle,
             },
         }
-        for key, s in states_list.items():
+        for key, s in states_dict.items():
             item = self.children[key]
             item.label = s["active_msg"] if s["is_active"] else s["inactive_msg"]
             item.style = (

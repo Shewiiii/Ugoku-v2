@@ -215,6 +215,7 @@ class DeezerChunkedInputStream:
             finally:
                 self.async_stream = None
                 self.async_stream_ctx = None
+                self.async_chunks = None
 
         if self.stream:
             try:
@@ -231,4 +232,7 @@ class DeezerChunkedInputStream:
         await self.close_streams()
         self.seek_table.clear()
         self.timer = None
-        self.__dict__.clear()
+        self.headers = None
+        self.deezer = None
+        self.blowfish_key = None
+        self.header_cache = None

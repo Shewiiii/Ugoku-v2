@@ -1,9 +1,12 @@
-from bot.utils import send_response
-
 import discord
 from discord.ext import commands
+from typing import TYPE_CHECKING
+
 from bot.vocal.session_manager import session_manager as sm
-from bot.utils import vocal_action_check
+from bot.utils import vocal_action_check, send_response
+
+if TYPE_CHECKING:
+    from bot.vocal.server_session import ServerSession
 
 
 class Loop(commands.Cog):
@@ -14,20 +17,19 @@ class Loop(commands.Cog):
         self, ctx: discord.ApplicationContext, mode: str, silent: bool = False
     ) -> None:
         guild_id: int = ctx.guild.id
-        session = sm.server_sessions.get(guild_id)
-        if not vocal_action_check(session, ctx, ctx.respond, silent=silent):
+        session: "ServerSession" = sm.server_sessions.get(guild_id)
+        if (
+            not vocal_action_check(session, ctx, ctx.respond, silent=silent)
+            or len(session.queue) >= 2
+        ):
             return
 
         mode = mode.lower()
 
         if mode == "song":
             session.loop_current = not session.loop_current
-            response = (
-                "You are now looping the current song!"
-                if session.loop_current
-                else "You are not looping the current song anymore."
-            )
-
+            state = "now" if session.loop_current else "no longer"
+            response = f"You are {state} looping the current song!"
         elif mode == "queue":
             session.loop_queue = not session.loop_queue
             if session.loop_queue:

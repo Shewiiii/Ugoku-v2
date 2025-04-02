@@ -239,20 +239,23 @@ class Track:
             )
         return self.stream_source
 
-    async def close_stream(self) -> None:
+    async def close_stream(self, clear: bool = False) -> None:
         source = self.stream_source
         try:
             if isinstance(source, DeezerChunkedInputStream):
                 # Built-in stream (re)generator
-                await source.close_streams()
+                await (source.close() if clear else source.close_streams())
             elif isinstance(source, AbsChunkedInputStream):
                 await asyncio.to_thread(source.close)
                 self.stream_source = None
-            logging.info(f"Closed stream of {self}")
+
+            if clear:
+                self.stream_generator = None
+
         except Exception as e:
             logging.error(f"Error closing stream of {self}: {repr(e)}")
 
     async def close(self) -> None:
         if self.stream_source is not None:
-            await self.close_stream()
+            await self.close_stream(clear=True)
         self.stream_source = self.stream_generator = self.embed = self.timer = None

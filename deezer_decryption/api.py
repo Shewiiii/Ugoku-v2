@@ -156,7 +156,7 @@ class Deezer:
         if not self.can_stream_lossless() and tracks_format != "MP3_128":
             raise ValueError
 
-        request = requests.post(
+        with requests.post(
             "https://media.deezer.com/v1/get_url",
             json={
                 "license_token": license_token,
@@ -171,10 +171,11 @@ class Deezer:
                 "track_tokens": [track_token],
             },
             headers=self.headers,
-        )
-        request.raise_for_status()
-        response = request.json()
-        result = response["data"][0]
+        ) as request:
+            request.raise_for_status()
+            response = request.json()
+            result = response["data"][0]
+
         if "media" in result and len(result["media"]):
             return result["media"][0]["sources"][0]["url"]
 
