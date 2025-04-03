@@ -142,9 +142,6 @@ Add in the text field the user message. It should be exact and should not loose 
     ) -> Optional[str]:
         if not self.active:
             return
-        print(id)
-        print(id)
-        print(type(id))
         vectors = await self.generate_embeddings([text])
         results = await asyncio.to_thread(
             self.index.query,

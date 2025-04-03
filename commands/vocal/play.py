@@ -9,7 +9,7 @@ from bot.vocal.audio_service_handlers import (
     play_spotify,
     play_custom,
     play_onsei,
-    play_youtube,
+    play_ytdlp,
 )
 from bot.utils import is_onsei
 from bot.search import is_url
@@ -20,6 +20,7 @@ from config import (
     SPOTIFY_API_ENABLED,
     IMPULSE_RESPONSE_PARAMS,
     ONSEI_SERVER_WHITELIST,
+    YTDLP_DOMAINS,
 )
 
 
@@ -65,8 +66,8 @@ class Play(commands.Cog):
             for attr, value in attrs.items():
                 setattr(session.audio_effect, attr, value)
 
-        youtube_domains = ["youtube.com", "www.youtube.com", "youtu.be"]
         spotify_domains = ["open.spotify.com"]
+        query = query.lower()
 
         if service == "onsei" or is_onsei(query):
             if defer_task:
@@ -77,12 +78,12 @@ class Play(commands.Cog):
             await play_onsei(ctx, query, session, play_next, defer_task)
 
         elif service == "custom" or (
-            is_url(query) and not is_url(query, from_=spotify_domains + youtube_domains)
+            is_url(query) and not is_url(query, from_=spotify_domains + YTDLP_DOMAINS)
         ):
             await play_custom(ctx, query, session, play_next, defer_task)
 
-        elif service == "youtube" or is_url(query, from_=youtube_domains):
-            await play_youtube(ctx, query, session, interaction, play_next, defer_task)
+        elif service == "ytdlp" or is_url(query, from_=YTDLP_DOMAINS):
+            await play_ytdlp(ctx, query, session, interaction, play_next, defer_task)
 
         elif service == "spotify/deezer":
             if not (SPOTIFY_API_ENABLED and (SPOTIFY_ENABLED or DEEZER_ENABLED)):
@@ -101,7 +102,7 @@ class Play(commands.Cog):
                 artist_mode,
                 album,
                 play_next,
-                defer_task
+                defer_task,
             )
         else:
             await respond(content="wut duh")
@@ -114,7 +115,7 @@ class Play(commands.Cog):
         service: discord.Option(
             str,
             description="The streaming service you want to use.",
-            choices=["Spotify/Deezer", "Youtube", "Custom", "Onsei"],
+            choices=["Spotify/Deezer", "Ytdlp", "Custom", "Onsei"],
             default=DEFAULT_STREAMING_SERVICE,
         ),  # type: ignore
         play_next: discord.Option(

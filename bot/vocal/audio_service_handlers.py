@@ -172,7 +172,7 @@ async def play_onsei(
     await session.add_to_queue(ctx, tracks, play_next=play_next)
 
 
-async def play_youtube(
+async def play_ytdlp(
     ctx: discord.ApplicationContext,
     query: str,
     session: ServerSession,
@@ -182,7 +182,7 @@ async def play_youtube(
 ) -> None:
     response_params = [ctx, "", interaction, defer_task]
     try:
-        track: Track = await ctx.bot.youtube.get_track(query)
+        track: Track = await ctx.bot.ytdlp.get_track(query)
     except DownloadError:
         response_params[1] = "Download failed: Ugoku has been detected as a bot."
         await respond(*response_params)

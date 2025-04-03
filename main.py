@@ -9,7 +9,7 @@ import os  # noqa: E402
 import discord  # noqa: E402
 
 from bot.vocal.spotify import SpotifySessions, Spotify  # noqa: E402
-from bot.vocal.youtube import Youtube  # noqa: E402
+from bot.vocal.ytdlp import Ytdlp  # noqa: E402
 from bot.utils import cleanup_cache  # noqa: E402
 from config import (  # noqa: E402
     COMMANDS_FOLDER,
@@ -63,7 +63,7 @@ async def on_ready() -> None:
         if DEEZER_ENABLED:
             bot.deezer = Deezer()
             tasks.append(bot.deezer.setup())
-    bot.youtube = Youtube()
+    bot.ytdlp = Ytdlp()
     if GEMINI_ENABLED:
         tasks.append(memory.init_pinecone(PINECONE_INDEX_NAME))
     await asyncio.gather(*tasks, return_exceptions=True)

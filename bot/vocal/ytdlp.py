@@ -1,10 +1,12 @@
 from aiohttp_client_cache import CachedSession, SQLiteBackend
 import asyncio
+from datetime import datetime
 import os
 import re
 from pathlib import Path
 from typing import Union
-from datetime import datetime
+from urllib.parse import urlparse, urlunparse
+
 
 import yt_dlp
 from yt_dlp.postprocessor.common import PostProcessor
@@ -14,7 +16,7 @@ from typing import Optional
 from bot.search import is_url
 from bot.utils import get_cache_path, get_dominant_rgb_from_url
 from bot.vocal.track_dataclass import Track
-from config import YT_COOKIES_PATH, CACHE_EXPIRY
+from config import YT_COOKIES_PATH, CACHE_EXPIRY, YTDLP_DOMAINS
 
 
 class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
@@ -50,7 +52,7 @@ def format_options(file_path: Union[str, Path]) -> dict:
     }
 
 
-class Youtube:
+class Ytdlp:
     async def get_metadata(
         self, ytdl: yt_dlp.YoutubeDL, url: str, download: bool = True
     ) -> dict:
@@ -68,10 +70,12 @@ class Youtube:
 
     async def get_track(self, query: str) -> Optional[Track]:
         url = await self.validate_url(query)
+        clean_url = urlunparse(urlparse(url)._replace(query=""))
         if not url:
             return
 
-        file_path: Path = get_cache_path(url.encode("utf-8"))
+        # Remove URL params
+        file_path: Path = get_cache_path(clean_url.encode("utf-8"))
         download = not file_path.is_file()
         ytdl = yt_dlp.YoutubeDL(format_options(file_path))
         ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
@@ -91,14 +95,14 @@ class Youtube:
             dominant_rgb = None
 
         track = Track(
-            service="youtube",
+            service="ytdlp",
             id=metadata.get("id", "Unknown ID"),
             title=metadata.get("title", "Unknown Title"),
-            album="Youtube",
+            album=urlparse(clean_url).netloc.split(".")[-2].capitalize(),
             cover_url=cover_url,
             duration=metadata.get("duration", "?"),
             stream_source=file_path,
-            source_url=url,
+            source_url=clean_url,
             dominant_rgb=dominant_rgb,
         )
         track.set_artist(artist)
@@ -107,9 +111,10 @@ class Youtube:
         return track
 
     async def validate_url(self, query: str) -> Optional[str]:
-        if is_url(query, from_=["youtube.com", "youtu.be"]):
+        if is_url(query, from_=YTDLP_DOMAINS):
             async with CachedSession(
-                follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+                follow_redirects=True,
+                cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
             ) as session:
                 async with session.get(query) as response:
                     if response.status != 200:
@@ -123,7 +128,8 @@ class Youtube:
             watch = "https://www.youtube.com/watch?v="
 
             async with CachedSession(
-                follow_redirects=True, cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+                follow_redirects=True,
+                cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
             ) as session:
                 async with session.get(search + query) as response:
                     response_content = await response.read()

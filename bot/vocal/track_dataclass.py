@@ -45,7 +45,7 @@ class Timer:
 
 @dataclass()
 class Track:
-    service: Literal["spotify/deezer", "youtube", "onsei", "custom"]
+    service: Literal["spotify/deezer", "ytdlp", "onsei", "custom"]
     id: Union[str, int] = 0
     title: str = "?"
     artist: str = "?"
