@@ -527,3 +527,15 @@ async def edit(
         await edit(content=content, view=view)
     else:
         await edit(content=content)
+
+
+async def parse_message_url(
+    bot: discord.Bot, message_url: str
+) -> Optional[discord.Message]:
+    """Get the message class from a message URL."""
+    parsed_url = urlparse(message_url)
+    path_components = parsed_url.path.split("/")
+    # Server id, Channel id, Message id.
+    channel = await bot.fetch_channel(path_components[-2])
+    message = await channel.fetch_message(path_components[-1])
+    return message

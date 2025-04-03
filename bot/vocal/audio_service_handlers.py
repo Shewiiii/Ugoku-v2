@@ -7,6 +7,7 @@ from urllib.parse import unquote
 
 from aiohttp.client_exceptions import ClientResponseError, InvalidUrlClientError
 import discord
+from discord.errors import Forbidden
 from spotipy.exceptions import SpotifyException
 from yt_dlp.utils import DownloadError
 
@@ -77,7 +78,7 @@ async def play_spotify(
         tracks_info,
         play_next=play_next,
         show_wrong_track_embed=not is_url(query, ["open.spotify.com"]),
-        user_query=query # For the prompt in the "wrong track" embed
+        user_query=query,  # For the prompt in the "wrong track" embed
     )
 
 
@@ -98,12 +99,18 @@ async def play_custom(
     response_params = [ctx, "", None, defer_task]
     # Request and cache
     try:
-        audio_path = await fetch_audio_stream(query)
-    except InvalidUrlClientError:
+        audio_path = await fetch_audio_stream(ctx.bot, query)
+    except (InvalidUrlClientError, ValueError):
         response_params[1] = "Invalid URL !"
         await respond(*response_params)
+        return
+    except Forbidden:
+        await defer_task
+        await ctx.respond("I don't have access to that message !")
+        return
     except Exception as e:
-        await logging.error(content=f"Error fetching audio: {repr(e)}")
+        logging.error("Error fetching audio: {repr(e)}")
+        await defer_task
         await ctx.respond(f"Oops! Something went wrong.\n-# {repr(e)}")
         return
 

@@ -6,13 +6,13 @@ import discord
 
 from dotenv import load_dotenv
 from pathlib import Path
-from time import time
 import hashlib
 import logging
 import json
 import os
 
-from bot.utils import get_cache_path, get_accent_color
+from bot.search import is_url
+from bot.utils import get_cache_path, get_accent_color, parse_message_url
 
 
 logger = logging.getLogger(__name__)
@@ -121,10 +121,18 @@ async def generate_info_embed(
     return embed
 
 
-async def fetch_audio_stream(url: str) -> Path:
+async def fetch_audio_stream(bot: discord.Bot, url: str) -> Path:
     """
     Fetch an audio file from a URL and cache it locally."""
     cache_path = get_cache_path(url.encode("utf-8"))
+    if is_url(url, "discord.com"):
+        message = await parse_message_url(bot, url)
+        if message is None:
+            raise ValueError("Message not found")
+        message: discord.Message
+        for attachment in message.attachments:
+            if "audio" in attachment.content_type:
+                url = attachment.url
 
     # Fetch the audio file from the URL asynchronously
     async with CachedSession(

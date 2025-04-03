@@ -20,7 +20,7 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
   - [x] Skip, Show queue, Autodetect and add songs/albums, or playlists.
   - [x] Loop song, Loop queue, pause, resume...
   - [x] Amazing audio quality: bypass the channel's audio bitrate.
-  - [x] Stream songs from Spotify.
+  - [x] Stream songs from Spotify, Deezer or Soundcloud*.
   - [x] Inject lossless streams to Spotify songs (when available on Deezer).
   - [x] Stream videos from Youtube.
   - [x] Stream audio works (音声作品) in a voice channel.
@@ -37,7 +37,9 @@ Help command partially inspired by: https://docs.google.com/spreadsheets/d/1bhPY
 - [x] Review jpdb cards in Discord (sentences generated with Gemini).
 - [x] Search any word in Japanese.
 - [x] Get a random image from Danbooru (SFW only).
-- [ ] And maybe more in the future~
+- [ ] And maybe more in the future~  
+
+*Song search is not available with Soundcloud, URL only. 
 
 <h2>Public playground bot</h2>
 
