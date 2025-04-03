@@ -1,18 +1,19 @@
+import aiofiles
 from aiohttp_client_cache import CachedSession, SQLiteBackend
-from typing import Optional
-
-from config import CACHE_EXPIRY, TEMP_FOLDER, DEFAULT_EMBED_COLOR
+import cgi
 import discord
-
 from dotenv import load_dotenv
-from pathlib import Path
+import json
 import hashlib
 import logging
-import json
 import os
+from pathlib import Path
+from typing import Optional
+from urllib.parse import unquote
 
 from bot.search import is_url
-from bot.utils import get_cache_path, get_accent_color, parse_message_url
+from bot.utils import get_accent_color, parse_message_url, get_display_name_from_query
+from config import CACHE_EXPIRY, TEMP_FOLDER, DEFAULT_EMBED_COLOR
 
 
 logger = logging.getLogger(__name__)
@@ -122,10 +123,8 @@ async def generate_info_embed(
 
 
 async def fetch_audio_stream(bot: discord.Bot, url: str) -> Path:
-    """
-    Fetch an audio file from a URL and cache it locally."""
-    cache_path = get_cache_path(url.encode("utf-8"))
-    if is_url(url, "discord.com"):
+    """Fetch an audio file from a URL and cache it locally."""
+    if is_url(url, "discord.com", parts=["channels"]):
         message = await parse_message_url(bot, url)
         if message is None:
             raise ValueError("Message not found")
@@ -143,9 +142,18 @@ async def fetch_audio_stream(bot: discord.Bot, url: str) -> Path:
             if response.status != 200:
                 raise Exception(f"Failed to fetch audio: {response.status}")
             audio_data = await response.read()
+            cd_header = response.headers.get("Content-Disposition", "")
+            _, params = cgi.parse_header(cd_header)
+
+            # Get the file name from headers
+            if f := (params.get("filename*") or params.get("filename")):
+                filename = unquote(f).replace("UTF-8''", "")
+            else:
+                filename = get_display_name_from_query(url)
 
     # Write the fetched audio to the cache file
-    with cache_path.open("wb") as cache_file:
-        cache_file.write(audio_data)
+    cache_path = Path(f"{TEMP_FOLDER}/{filename}")
+    async with aiofiles.open(cache_path, "wb") as cache_file:
+        await cache_file.write(audio_data)
 
     return cache_path

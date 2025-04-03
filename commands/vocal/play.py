@@ -68,7 +68,8 @@ class Play(commands.Cog):
 
         spotify_domains = ["open.spotify.com"]
         custom_domains = spotify_domains + YTDLP_DOMAINS
-        query = query.lower()
+        if not (is_url_ := is_url(query)):
+            query = query.lower()
 
         if service == "onsei" or is_onsei(query):
             if defer_task:
@@ -80,7 +81,7 @@ class Play(commands.Cog):
 
         elif (
             service == "custom"
-            or is_url(query)
+            or is_url_
             and not is_url(query, from_=custom_domains)
         ):
             await play_custom(ctx, query, session, play_next, defer_task)

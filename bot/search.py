@@ -1,5 +1,6 @@
 import re
 from difflib import SequenceMatcher
+from typing import Optional
 from urllib.parse import urlparse
 
 # string from https://www.geeksforgeeks.org/python-check-url-string/
@@ -11,16 +12,22 @@ link_grabber = re.compile(
 )
 
 
-def is_url(string: str, from_: list | None = None) -> bool:
+def is_url(
+    string: str, from_: Optional[list] = None, parts: Optional[list] = None
+) -> bool:
     search = link_grabber.match(string)
+    conditions = []
+    parsed_url = urlparse(string)
+    domain = parsed_url.netloc
     if not search:
         return False
     if from_:
-        parsed_url = urlparse(string)
-        domain = parsed_url.netloc
-        return any(domain.endswith(website) for website in from_)
-    else:
-        return True
+        conditions.append(any(domain.endswith(website) for website in from_))
+    if parts:
+        path_parts = set(parsed_url.path.split("/")[:-1])
+        conditions.append(any(part in path_parts for part in parts))
+
+    return all(conditions) if conditions else True
 
 
 def token_sort_ratio(str1, str2):

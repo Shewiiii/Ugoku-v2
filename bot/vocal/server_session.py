@@ -360,7 +360,7 @@ class ServerSession:
         tracks: List[Track],
         play_next: bool = False,
         show_wrong_track_embed: bool = False,
-        user_query: Optional[str] = None
+        user_query: Optional[str] = None,
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing."""
 
@@ -379,7 +379,9 @@ class ServerSession:
         content = f"Added to queue: {titles}{' !' if c <= 3 else f', and {c - 3} more songs !'}"
 
         if c == 1 and show_wrong_track_embed:
-            view = WrongTrackView(ctx, str(tracks[0]), self, content, user_query=user_query)
+            view = WrongTrackView(
+                ctx, str(tracks[0]), self, content, user_query=user_query
+            )
             self.wrong_track_views.append(view)
         else:
             view = None
@@ -446,20 +448,6 @@ class ServerSession:
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
-
-    def get_queue(self) -> List[dict]:
-        """Returns a simplified version of the current queue."""
-        return [
-            {
-                "title": track.title,
-                "artist": track.artist,
-                "album": track.album,
-                "cover": track.cover_url,
-                "duration": track.duration,
-                "url": track.source_url,
-            }
-            for track in self.queue
-        ]
 
     async def shuffle_queue(self) -> bool:
         """Toggles shuffling of the queue. Returns True if successful."""

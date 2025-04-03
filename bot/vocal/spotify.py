@@ -242,11 +242,10 @@ class Spotify:
     ) -> dict:
         """Fetch the Spotify ID and type either from a URL or search query."""
         if is_url(query, ["open.spotify.com"]):
-            if is_url(query, ["open.spotify.com"]):
-                m = SPOTIFY_URL_REGEX.match(query)
-                if m:
-                    return {"id": m.group("ID"), "type": m.group(1)}
-                return {}
+            m = SPOTIFY_URL_REGEX.match(query)
+            if m:
+                return {"id": m.group("ID"), "type": m.group(1)}
+            return {}
 
         items = await self.search(query, limit=1)
         if not items:

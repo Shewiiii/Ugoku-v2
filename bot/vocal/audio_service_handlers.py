@@ -1,8 +1,6 @@
 import asyncio
 import logging
-import re
 from typing import Optional
-from urllib.parse import unquote
 
 
 from aiohttp.client_exceptions import ClientResponseError, InvalidUrlClientError
@@ -82,12 +80,6 @@ async def play_spotify(
     )
 
 
-def get_display_name_from_query(query: str) -> str:
-    """Extracts a display name from the query URL if no title is found."""
-    match = re.search(r"(?:.+/)([^#?]+)", query)
-    return unquote(match.group(1)) if match else "Custom track"
-
-
 async def play_custom(
     ctx: discord.ApplicationContext,
     query: str,
@@ -109,20 +101,20 @@ async def play_custom(
         await ctx.respond("I don't have access to that message !")
         return
     except Exception as e:
-        logging.error("Error fetching audio: {repr(e)}")
         await defer_task
         await ctx.respond(f"Oops! Something went wrong.\n-# {repr(e)}")
-        return
-
-    # Extract the metadata
-    def first_item(items, default="?"):
-        return items[0] if items else default
+        raise e
 
     # Convert to list to sync with ID3 tags
     metadata = get_metadata(audio_path)
-    titles = list(metadata.get("title", [None]))
+    titles = list(metadata.get("title", "?"))
     artists = list(metadata.get("artist", "?"))
     albums = list(metadata.get("album", "?"))
+
+    # Remove blank fields
+    for field in titles, artists, albums:
+        if not field[0].strip():
+            field[0] = "?"
 
     # Extract the cover art
     cover_bytes = extract_cover_art(audio_path)
@@ -134,10 +126,8 @@ async def play_custom(
 
     track = Track(
         service="custom",
-        title=titles[0]
-        if titles[0] is not None
-        else get_display_name_from_query(query),
-        album=first_item(albums, default="?"),
+        title=titles[0] if titles[0] != "?" else audio_path.name,
+        album=albums[0],
         source_url=query,
         stream_source=audio_path,
         cover_url=cover_url or "",

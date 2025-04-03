@@ -13,7 +13,7 @@ from collections import Counter
 from io import BytesIO
 from pathlib import Path
 from time import time
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 import mutagen
 from PIL import Image
@@ -273,7 +273,7 @@ def extract_cover_art(file_path) -> Optional[bytes]:
                 return img
 
 
-def get_metadata(file_path) -> Dict[str, List[str]]:
+def get_metadata(file_path: Path) -> Dict[str, List[str]]:
     """
     Extract metadata from an audio file.
 
@@ -539,3 +539,9 @@ async def parse_message_url(
     channel = await bot.fetch_channel(path_components[-2])
     message = await channel.fetch_message(path_components[-1])
     return message
+
+
+def get_display_name_from_query(query: str) -> str:
+    """Extracts a display name from the query URL if no title is found."""
+    match = re.search(r"(?:.+/)([^#?]+)", query)
+    return unquote(match.group(1)) if match else "Custom track"
