@@ -551,9 +551,18 @@ def clean_url(url: str) -> str:
     """Clean Youtube and Souncloud urls."""
     parsed_url = urlparse(url)
     query_params = dict(parse_qsl(parsed_url.query))
-    params_blacklist = ["si", "t", "utm_source", "utm_medium", "utm_campaign", "rco"]
+    params_blacklist = [
+        "si",
+        "t",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "rco",
+    ]
+
     for param in params_blacklist:
         query_params.pop(param, None)
     new_query = urlencode(query_params)
-    new_url = urlunparse(parsed_url._replace(query=new_query))
+    new_url = re.sub(r"&.*", "", urlunparse(parsed_url._replace(query=new_query)))
+    new_url.replace("youtu.be", "youtube.com")
     return new_url
