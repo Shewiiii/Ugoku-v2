@@ -39,9 +39,13 @@ class Play(commands.Cog):
         album: bool = False,
         effect: str = "default",
         play_next: bool = False,
+        defer: bool = True,
     ) -> None:
-        defer_task = None if interaction else asyncio.create_task(ctx.defer())
         respond = interaction.response.send_message if interaction else ctx.respond
+        if not defer or interaction:
+            defer_task = None
+        else:
+            defer_task = asyncio.create_task(ctx.defer())
 
         # Connect to the voice channel
         session: Optional[ServerSession] = sm.connect(ctx, self.bot)
@@ -79,11 +83,7 @@ class Play(commands.Cog):
                 return
             await play_onsei(ctx, query, session, play_next, defer_task)
 
-        elif (
-            service == "custom"
-            or is_url_
-            and not is_url(query, from_=custom_domains)
-        ):
+        elif service == "custom" or is_url_ and not is_url(query, from_=custom_domains):
             await play_custom(ctx, query, session, play_next, defer_task)
 
         elif service == "ytdlp" or is_url(query, from_=YTDLP_DOMAINS):

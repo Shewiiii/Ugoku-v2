@@ -122,16 +122,26 @@ async def generate_info_embed(
     return embed
 
 
-async def fetch_audio_stream(bot: discord.Bot, url: str) -> Path:
+async def fetch_audio_stream(
+    bot: discord.Bot,
+    url: Optional[str] = None,
+    message: Optional[discord.Message] = None,
+) -> Optional[Path]:
     """Fetch an audio file from a URL and cache it locally."""
     if is_url(url, "discord.com", parts=["channels"]):
         message = await parse_message_url(bot, url)
         if message is None:
             raise ValueError("Message not found")
         message: discord.Message
+
+    if message:
+        audio = False
         for attachment in message.attachments:
             if "audio" in attachment.content_type:
                 url = attachment.url
+                audio = True
+        if not audio:
+            return
 
     # Fetch the audio file from the URL asynchronously
     async with CachedSession(
