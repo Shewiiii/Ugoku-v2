@@ -13,7 +13,7 @@ from collections import Counter
 from io import BytesIO
 from pathlib import Path
 from time import time
-from urllib.parse import urlparse, parse_qs, unquote
+from urllib.parse import urlparse, parse_qs, unquote, urlencode, urlunparse, parse_qsl
 
 import mutagen
 from PIL import Image
@@ -545,3 +545,15 @@ def get_display_name_from_query(query: str) -> str:
     """Extracts a display name from the query URL if no title is found."""
     match = re.search(r"(?:.+/)([^#?]+)", query)
     return unquote(match.group(1)) if match else "Custom track"
+
+
+def clean_url(url: str) -> str:
+    """Clean Youtube and Souncloud urls."""
+    parsed_url = urlparse(url)
+    query_params = dict(parse_qsl(parsed_url.query))
+    params_blacklist = ["si", "t", "utm_source", "utm_medium", "utm_campaign", "rco"]
+    for param in params_blacklist:
+        query_params.pop(param, None)
+    new_query = urlencode(query_params)
+    new_url = urlunparse(parsed_url._replace(query=new_query))
+    return new_url

@@ -5,7 +5,7 @@ import os
 import re
 from pathlib import Path
 from typing import Union
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 
 import yt_dlp
@@ -14,7 +14,7 @@ from yt_dlp.postprocessor.common import PostProcessor
 from typing import Optional
 
 from bot.search import is_url
-from bot.utils import get_cache_path, get_dominant_rgb_from_url
+from bot.utils import get_cache_path, get_dominant_rgb_from_url, clean_url
 from bot.vocal.track_dataclass import Track
 from config import YT_COOKIES_PATH, CACHE_EXPIRY, YTDLP_DOMAINS
 
@@ -70,12 +70,12 @@ class Ytdlp:
 
     async def get_track(self, query: str) -> Optional[Track]:
         url = await self.validate_url(query)
-        clean_url = urlunparse(urlparse(url)._replace(query=""))
+        cleaned_url = clean_url(url)
         if not url:
             return
 
         # Remove URL params
-        file_path: Path = get_cache_path(clean_url.encode("utf-8"))
+        file_path: Path = get_cache_path(cleaned_url.encode("utf-8"))
         download = not file_path.is_file()
         ytdl = yt_dlp.YoutubeDL(format_options(file_path))
         ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
@@ -98,11 +98,11 @@ class Ytdlp:
             service="ytdlp",
             id=metadata.get("id", "Unknown ID"),
             title=metadata.get("title", "Unknown Title"),
-            album=urlparse(clean_url).netloc.split(".")[-2].capitalize(),
+            album=urlparse(cleaned_url).netloc.split(".")[-2].capitalize(),
             cover_url=cover_url,
             duration=metadata.get("duration", "?"),
             stream_source=file_path,
-            source_url=clean_url,
+            source_url=cleaned_url,
             dominant_rgb=dominant_rgb,
         )
         track.set_artist(artist)
