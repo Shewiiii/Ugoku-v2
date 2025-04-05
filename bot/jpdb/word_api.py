@@ -88,7 +88,7 @@ class JpdbWordApi:
         ) as session:
             request = await session.get(f"{base_url}{word}")
             request.raise_for_status()
-            raw = BeautifulSoup(request.text, features="html.parser")
+            raw = BeautifulSoup(await request.text(), features="html.parser")
         first_result = raw.find(attrs={"class": "vbox"})
         if not first_result:
             return

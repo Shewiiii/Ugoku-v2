@@ -340,6 +340,9 @@ class Jpdb:
     async def show_card(self) -> None:
         review_cards = self.update_review_cards()
         if not review_cards or not self.ctx:
+            await self.ctx.send(
+                "Congratulations ! You reviewed all your cards in the current deck~"
+            )
             return
         card: dict = review_cards[0]
         word = review_cards[0]["spelling"]

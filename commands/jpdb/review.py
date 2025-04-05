@@ -22,7 +22,7 @@ class JpdbReview(commands.Cog):
             int,
             required=False,
             description=(
-                "Specify the id of the deck you want to review."
+                "Specify the id of the deck you want to review. "
                 "Defaults to the first one in your list."
             ),
         ),  # type: ignore
@@ -31,7 +31,7 @@ class JpdbReview(commands.Cog):
             required=False,
             description=(
                 "Your JPDB API key you can find in the settings. "
-                "Will be saved in memory for your next review."
+                "Will be saved in RAM for your next review."
             ),
         ),  # type: ignore
     ) -> None:
