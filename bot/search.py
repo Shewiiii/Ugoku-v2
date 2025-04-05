@@ -13,14 +13,18 @@ link_grabber = re.compile(
 
 
 def is_url(
-    string: str, from_: Optional[list] = None, parts: Optional[list] = None
+    string: str,
+    from_: Optional[list] = None,
+    parts: Optional[list] = None,
 ) -> bool:
     search = link_grabber.match(string)
+    if not search:
+        return False
+
     conditions = []
     parsed_url = urlparse(string)
     domain = parsed_url.netloc
-    if not search:
-        return False
+
     if from_:
         conditions.append(any(domain.endswith(website) for website in from_))
     if parts:

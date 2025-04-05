@@ -50,8 +50,25 @@ class HelpDropdown(discord.ui.Select):
             embed.add_field(
                 name="/play",
                 value=(
-                    "Play any song / playlist / album (Spotify, Deezer, YouTube, or Onsei)\n"
-                    "Example: ``/play Blue Dream Cheel``\n"
+                    "Play any song / playlist / album from "
+                    "Spotify, Deezer, YouTube, Soundcloud*, or an audio work (音声作品)\n"
+                    "Example: ``/play pikasonic lockdown``\n\n"
+                    "*Song search is not available with Soundcloud, URL only.\n"
+                    "*Pro tip: You can query a Discord message link to play the song attached to it !*"
+                ),
+                inline=False,
+            )
+            embed.add_field(
+                name="/play-custom",
+                value=("Play a supported song file that you send\n"),
+                inline=False,
+            )
+            embed.add_field(
+                name="/search",
+                value=(
+                    "Search for a song or an artist. "
+                    "Please not that the artist search is limited to 10 results due to Spotify API limitations. "
+                    "Search the name of the artist using track search for more results.\n"
                 ),
                 inline=False,
             )
@@ -159,7 +176,7 @@ class HelpDropdown(discord.ui.Select):
                     "the /ask command in allowed servers, "
                     "or by chatting directly in DMs.\n\n"
                     "Please note that **Ugoku can store important "
-                    "information told to the bot on a "
+                    "information told to the bot in a "
                     "[Pinecone](https://www.pinecone.io/) index** "
                     "(birthdate, events, fun facts...), "
                     "to enhance conversations and provide more relevant responses. "
@@ -303,9 +320,8 @@ class HelpDropdown(discord.ui.Select):
             embed.add_field(
                 name="Why does YouTube not work?",
                 value=(
-                    "YouTube actively tries to block any unauthorized third-party service from its platform. "
-                    "Since Ugoku is not hosted on a local server, "
-                    "it gets blocked within a few days after changing the VPN server."
+                    "YouTube actively tries to block any unauthorized third-party service from its platform, "
+                    "So Ugoku may get blocked from time to time. An update of Yt-dlp should fix it."
                 ),
                 inline=False,
             )
@@ -313,7 +329,7 @@ class HelpDropdown(discord.ui.Select):
                 name="The audio is buggy/stops !",
                 value=(
                     "This can happen for several reasons: the Librespot client, which is used to play songs on Spotify, "
-                    "may disconnect during playback, or the VPS may experience connection issues. "
+                    "may disconnect during playback, the bot may have a bug, or the VPS may experience connection issues. "
                     "Try ending the session (/leave) and playing the track again."
                 ),
                 inline=False,

@@ -369,7 +369,7 @@ class Gembot:
         params = (
             msg_text,
             message.author.global_name,
-            message.guild.id,
+            message.guild.id if message.guild else message.channel.id,
             extra_content,
             rauthor,
             rcontent,

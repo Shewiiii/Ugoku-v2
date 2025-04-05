@@ -140,7 +140,7 @@ class Onsei:
             self.get_tracks_api(work_id),
             self.get_work_api(work_id),
             get_dominant_rgb_from_url(self.get_cover(work_id)),
-            return_exceptions=True,
+            return_exceptions=False,
         )
 
         tracks = self.get_tracks(tracks_api, work_api, dominant_rgb=dominant_rgb)

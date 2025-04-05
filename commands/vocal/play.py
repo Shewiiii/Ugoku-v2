@@ -1,7 +1,8 @@
 import asyncio
 from typing import Optional
-from discord.ext import commands
 import discord
+from discord.errors import Forbidden
+from discord.ext import commands
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
@@ -70,37 +71,45 @@ class Play(commands.Cog):
             for attr, value in attrs.items():
                 setattr(session.audio_effect, attr, value)
 
-        spotify_domains = ["open.spotify.com"]
-        custom_domains = spotify_domains + YTDLP_DOMAINS
+        url = is_url(query)
+        custom = not is_url(query, from_=["open.spotify.com"] + YTDLP_DOMAINS)
+        youtube = is_url(query, from_=YTDLP_DOMAINS)
+        message_link = is_url(query, "discord.com", parts=["channels"])
+        onsei = is_onsei(query)
 
-        if not (is_url_ := is_url(query)):
+        async def error(msg: str):
+            if defer_task:
+                await defer_task
+            await respond(msg)
+
+        if not (url or onsei):
             # Normal text
             query = query.lower()
-        elif is_url(query, "discord.com", parts=["channels"]):
+        elif message_link:
             # Message link -> Get the audio url
-            query = await get_url_from_message(ctx.bot, query)
+            try:
+                query = await get_url_from_message(ctx.bot, query)
+            except Forbidden:
+                await error("I don't have access to that message !")
+                return
 
-        if service == "onsei" or is_onsei(query):
+        if service == "onsei" or onsei:
             if defer_task:
                 await defer_task
             if session.guild_id not in ONSEI_SERVER_WHITELIST:
-                await respond("You can't stream audio works here.")
+                await error("You can't stream audio works here.")
                 return
             await play_onsei(ctx, query, session, play_next, defer_task)
 
-        elif service == "custom" or is_url_ and not is_url(query, from_=custom_domains):
+        elif service == "custom" or (url and custom):
             await play_custom(ctx, query, session, play_next, defer_task)
 
-        elif service == "ytdlp" or is_url(query, from_=YTDLP_DOMAINS):
+        elif service == "ytdlp" or youtube:
             await play_ytdlp(ctx, query, session, interaction, play_next, defer_task)
 
         elif service == "spotify/deezer":
             if not (SPOTIFY_API_ENABLED and (SPOTIFY_ENABLED or DEEZER_ENABLED)):
-                if defer_task:
-                    await defer_task
-                await respond(
-                    content="Spotify API or no music streaming service is enabled."
-                )
+                await error("Spotify API or no music streaming service is enabled.")
                 return
             await play_spotify(
                 ctx,

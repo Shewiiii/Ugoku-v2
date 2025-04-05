@@ -5,7 +5,6 @@ from typing import Optional
 
 from aiohttp.client_exceptions import ClientResponseError, InvalidUrlClientError
 import discord
-from discord.errors import Forbidden
 from spotipy.exceptions import SpotifyException
 from yt_dlp.utils import DownloadError
 
@@ -91,14 +90,10 @@ async def play_custom(
     response_params = [ctx, "", None, defer_task]
     # Request and cache
     try:
-        audio_path = await fetch_audio_stream(ctx.bot, query)
+        audio_path = await fetch_audio_stream(query)
     except (InvalidUrlClientError, ValueError):
         response_params[1] = "Invalid URL !"
         await respond(*response_params)
-        return
-    except Forbidden:
-        await defer_task
-        await ctx.respond("I don't have access to that message !")
         return
     except Exception as e:
         await defer_task
