@@ -4,6 +4,8 @@ from typing import Tuple
 import discord
 from discord.ext import commands
 
+from bot.utils import get_url_from_message, parse_message_url
+from bot.search import is_url
 from commands.vocal.play import Play
 
 
@@ -32,11 +34,14 @@ class PlayCustom(commands.Cog):
         user_id = message.author.id
         ctx, channel_id = self.pending.get(user_id, (None, None))
         if channel_id == message.channel.id == channel_id:
-            # Play !
             play_cog: Play = self.bot.get_cog("Play")
-            await play_cog.execute_play(
-                ctx, query=message.jump_url, service="Custom", defer=False
-            )
+
+            # If someone not clever send a message link instead of a file..
+            if is_url(message.content, "discord.com", parts=["channels"]):
+                message = await parse_message_url(self.bot, message.content)
+
+            url = await get_url_from_message(message=message)
+            await play_cog.execute_play(ctx, query=url, service="Custom", defer=False)
             del self.pending[user_id]
 
 

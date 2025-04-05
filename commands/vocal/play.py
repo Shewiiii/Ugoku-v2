@@ -11,7 +11,7 @@ from bot.vocal.audio_service_handlers import (
     play_onsei,
     play_ytdlp,
 )
-from bot.utils import is_onsei
+from bot.utils import is_onsei, get_url_from_message
 from bot.search import is_url
 from config import (
     SPOTIFY_ENABLED,
@@ -72,8 +72,13 @@ class Play(commands.Cog):
 
         spotify_domains = ["open.spotify.com"]
         custom_domains = spotify_domains + YTDLP_DOMAINS
+
         if not (is_url_ := is_url(query)):
+            # Normal text
             query = query.lower()
+        elif is_url(query, "discord.com", parts=["channels"]):
+            # Message link -> Get the audio url
+            query = await get_url_from_message(ctx.bot, query)
 
         if service == "onsei" or is_onsei(query):
             if defer_task:

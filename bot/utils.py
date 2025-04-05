@@ -28,6 +28,7 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
 
 from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE, PREMIUM_CHANNEL_ID
+from bot.search import link_grabber
 
 
 def extract_number(string: str) -> str:
@@ -539,6 +540,28 @@ async def parse_message_url(
     channel = await bot.fetch_channel(path_components[-2])
     message = await channel.fetch_message(path_components[-1])
     return message
+
+
+async def get_url_from_message(
+    bot: Optional[discord.ApplicationContext] = None,
+    message_url: Optional[str] = None,
+    message: Optional[discord.Message] = None,
+) -> Optional[str]:
+    """Get an audio url from a Discord message."""
+    url = None
+    if not message:
+        if not (bot and message_url):
+            raise ValueError("Bot or message url not provided")
+        message = await parse_message_url(bot, message_url)
+    match = link_grabber.findall(message.content)
+    if match:
+        url = match[0][0]
+
+    for attachment in message.attachments:
+        if "audio" in attachment.content_type:
+            url = attachment.url
+
+    return url
 
 
 def get_display_name_from_query(query: str) -> str:

@@ -11,8 +11,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import unquote
 
-from bot.search import is_url
-from bot.utils import get_accent_color, parse_message_url, get_display_name_from_query
+from bot.utils import get_accent_color, get_display_name_from_query
 from config import CACHE_EXPIRY, TEMP_FOLDER, DEFAULT_EMBED_COLOR
 
 
@@ -123,27 +122,9 @@ async def generate_info_embed(
 
 
 async def fetch_audio_stream(
-    bot: discord.Bot,
-    url: Optional[str] = None,
-    message: Optional[discord.Message] = None,
+    bot: discord.Bot, url: Optional[str] = None
 ) -> Optional[Path]:
     """Fetch an audio file from a URL and cache it locally."""
-    if is_url(url, "discord.com", parts=["channels"]):
-        message = await parse_message_url(bot, url)
-        if message is None:
-            raise ValueError("Message not found")
-        message: discord.Message
-
-    if message:
-        audio = False
-        for attachment in message.attachments:
-            if "audio" in attachment.content_type:
-                url = attachment.url
-                audio = True
-        if not audio:
-            return
-
-    # Fetch the audio file from the URL asynchronously
     async with CachedSession(
         follow_redirects=True,
         cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
@@ -163,7 +144,8 @@ async def fetch_audio_stream(
 
     # Write the fetched audio to the cache file
     cache_path = Path(f"{TEMP_FOLDER}/{filename}")
-    async with aiofiles.open(cache_path, "wb") as cache_file:
-        await cache_file.write(audio_data)
+    if not cache_path.is_file():
+        async with aiofiles.open(cache_path, "wb") as cache_file:
+            await cache_file.write(audio_data)
 
     return cache_path
