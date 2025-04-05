@@ -46,10 +46,16 @@ class PlayCustom(commands.Cog):
             if is_url(message.content, "discord.com", parts=["channels"]):
                 message = await parse_message_url(self.bot, message.content)
 
-            url = await get_url_from_message(message=message)
-            await play_cog.execute_play(ctx, query=url, service="Custom", defer=False)
+            # Finish the event
             del self.pending[user_id]
             pending_event.set()
+
+            url = await get_url_from_message(message=message)
+            if not url:
+                await message.channel.send("oi (Canceled)")
+                return
+
+            await play_cog.execute_play(ctx, query=url, service="Custom", defer=False)
 
 
 def setup(bot):

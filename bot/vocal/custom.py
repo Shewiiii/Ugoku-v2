@@ -121,7 +121,7 @@ async def generate_info_embed(
     return embed
 
 
-async def fetch_audio_stream(url: Optional[str] = None) -> Optional[Path]:
+async def fetch_audio_stream(url: Optional[str] = None) -> Path:
     """Fetch an audio file from a URL and cache it locally."""
     async with CachedSession(
         follow_redirects=True,

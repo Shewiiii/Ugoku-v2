@@ -100,12 +100,6 @@ async def play_custom(
         await ctx.respond(f"Oops! Something went wrong.\n-# {repr(e)}")
         raise e
 
-    if not audio_path:
-        if defer_task:
-            await defer_task
-        await ctx.respond("oi (Canceled)")
-        return
-
     # Convert to list to sync with ID3 tags
     metadata = get_metadata(audio_path)
     titles = list(metadata.get("title", "?"))
