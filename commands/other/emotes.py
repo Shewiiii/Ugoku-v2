@@ -1,5 +1,6 @@
 import asyncio
 import re
+from typing import Tuple
 
 import discord
 from discord.ext import commands
@@ -8,7 +9,7 @@ from discord.ext import commands
 class Emotes(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.pending = {}
+        self.pending: dict[int, Tuple[int, asyncio.Event]] = {}
 
     @commands.slash_command(
         name="get-emotes", description="Get the direct URL of emotes or stickers."
@@ -17,24 +18,29 @@ class Emotes(commands.Cog):
         # Wait for a user message
         user_id = ctx.user.id
         channel_id = ctx.channel.id
-        self.pending[user_id] = channel_id
+        pending_event = asyncio.Event()
+        self.pending[user_id] = (channel_id, pending_event)
         asyncio.create_task(
             ctx.respond(
-                "Send any emotes or stickers, or reply to a message ! (Cancel in 60 seconds)"
+                "Send any emotes or stickers, or reply to a message !"
             )
         )
-        await asyncio.sleep(60)
-        if user_id in self.pending:
-            asyncio.create_task(
-                ctx.respond(f"Get emotes canceled for {ctx.author.global_name}.")
-            )
-            del self.pending[user_id]
+        try:
+            await asyncio.wait_for(pending_event.wait(), 180.0)
+        except TimeoutError:
+            if user_id in self.pending:
+                asyncio.create_task(
+                    ctx.respond(f"Get emotes canceled for {ctx.author.global_name}.")
+                )
+                del self.pending[user_id]
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         user_id = message.author.id
-        channel_id = self.pending.get(user_id)
+        channel_id, pending_event = self.pending.get(user_id, (None, None))
         if channel_id == message.channel.id == channel_id:
+            pending_event.set()
+
             # data is containing tuples: ('name', 'snowflake')
             data = []
             stickers = message.stickers

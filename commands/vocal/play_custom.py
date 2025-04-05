@@ -12,7 +12,9 @@ from commands.vocal.play import Play
 class PlayCustom(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.pending: dict[int, Tuple[int, discord.ApplicationContext]] = {}
+        self.pending: dict[
+            int, Tuple[int, discord.ApplicationContext, asyncio.Event]
+        ] = {}
 
     @commands.slash_command(
         name="play-custom", description="Upload a song to play it in vc !"
@@ -20,19 +22,23 @@ class PlayCustom(commands.Cog):
     async def play_custom(self, ctx: discord.ApplicationContext) -> None:
         user_id = ctx.user.id
         channel_id = ctx.channel.id
-        self.pending[user_id] = (ctx, channel_id)
+        pending_event = asyncio.Event()
+        self.pending[user_id] = (ctx, channel_id, pending_event)
         asyncio.create_task(ctx.respond("Send any song file to play !"))
-        await asyncio.sleep(60)
-        if user_id in self.pending:
-            asyncio.create_task(
-                ctx.respond(f"Play-custom canceled for {ctx.author.global_name}.")
-            )
-            del self.pending[user_id]
+        try:
+            await asyncio.wait_for(pending_event.wait(), 180.0)
+        except TimeoutError:
+            if user_id in self.pending:
+                asyncio.create_task(
+                    ctx.respond(f"Play-custom canceled for {ctx.author.global_name}.")
+                )
+                del self.pending[user_id]
+        # Yay
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         user_id = message.author.id
-        ctx, channel_id = self.pending.get(user_id, (None, None))
+        ctx, channel_id, pending_event = self.pending.get(user_id, (None, None, None))
         if channel_id == message.channel.id == channel_id:
             play_cog: Play = self.bot.get_cog("Play")
 
@@ -43,6 +49,7 @@ class PlayCustom(commands.Cog):
             url = await get_url_from_message(message=message)
             await play_cog.execute_play(ctx, query=url, service="Custom", defer=False)
             del self.pending[user_id]
+            pending_event.set()
 
 
 def setup(bot):
