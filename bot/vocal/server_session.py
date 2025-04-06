@@ -395,7 +395,7 @@ class ServerSession:
         )
 
         # Play !
-        if len(self.queue) >= 1 and (
+        if len(self.queue) == 1 and (
             not self.voice_client or not self.voice_client.is_playing()
         ):
             await self.start_playing(ctx)
@@ -445,7 +445,7 @@ class ServerSession:
             old_track: Track = self.stack_previous.popleft()
             # The removed track should not be in the queue
             # I check nonetheless to avoid weird issues
-            if track not in self.to_loop+self.queue:
+            if track not in self.to_loop + self.queue:
                 tasks.append(old_track.close())
 
         if tasks:

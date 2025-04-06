@@ -71,18 +71,16 @@ class Play(commands.Cog):
             for attr, value in attrs.items():
                 setattr(session.audio_effect, attr, value)
 
-        url = is_url(query)
-        custom = not is_url(query, from_=["open.spotify.com"] + YTDLP_DOMAINS)
-        youtube = is_url(query, from_=YTDLP_DOMAINS)
-        message_link = is_url(query, "discord.com", parts=["channels"])
-        onsei = is_onsei(query)
-
         async def error(msg: str):
             if defer_task:
                 await defer_task
             await respond(msg)
 
-        if not (url or onsei):
+        # Process the query
+        message_link = is_url(query, "discord.com", parts=["channels"])
+        url = is_url(query)
+
+        if not url:
             # Normal text
             query = query.lower()
         elif message_link:
@@ -93,6 +91,11 @@ class Play(commands.Cog):
                 await error("I don't have access to that message !")
                 return
 
+        custom = url and not is_url(query, from_=["open.spotify.com"] + YTDLP_DOMAINS)
+        youtube = is_url(query, from_=YTDLP_DOMAINS)
+        onsei = is_onsei(query)
+
+        # Choose the right service
         if service == "onsei" or onsei:
             if defer_task:
                 await defer_task
@@ -101,7 +104,7 @@ class Play(commands.Cog):
                 return
             await play_onsei(ctx, query, session, play_next, defer_task)
 
-        elif service == "custom" or (url and custom):
+        elif service == "custom" or custom:
             await play_custom(ctx, query, session, play_next, defer_task)
 
         elif service == "ytdlp" or youtube:

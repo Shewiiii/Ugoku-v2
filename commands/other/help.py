@@ -321,7 +321,7 @@ class HelpDropdown(discord.ui.Select):
                 name="Why does YouTube not work?",
                 value=(
                     "YouTube actively tries to block any unauthorized third-party service from its platform, "
-                    "So Ugoku may get blocked from time to time. An update of Yt-dlp should fix it."
+                    "so Ugoku may get blocked from time to time. An update of Yt-dlp should fix it."
                 ),
                 inline=False,
             )

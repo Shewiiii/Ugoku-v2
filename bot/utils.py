@@ -60,7 +60,7 @@ def is_onsei(string: str) -> bool:
     Returns:
         bool: True if the string meets any of the conditions, False otherwise.
     """
-    if string.startswith(("RJ", "VJ")):
+    if string.lower().startswith(("rj", "vj")):
         return True
 
     if re.fullmatch(r"/d{6}|/d{8}", string):
