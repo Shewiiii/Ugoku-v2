@@ -18,10 +18,7 @@ class Loop(commands.Cog):
     ) -> None:
         guild_id: int = ctx.guild.id
         session: "ServerSession" = sm.server_sessions.get(guild_id)
-        if (
-            not vocal_action_check(session, ctx, ctx.respond, silent=silent)
-            or len(session.queue) >= 2
-        ):
+        if not vocal_action_check(session, ctx, ctx.respond, silent=silent):
             return
 
         mode = mode.lower()
@@ -36,6 +33,7 @@ class Loop(commands.Cog):
                 session.loop_current = False
                 response = "You are now looping the queue!"
             else:
+                await session.close_streams(tracks=session.to_loop)
                 session.to_loop.clear()
                 response = "You are not looping the queue anymore."
 

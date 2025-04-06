@@ -391,7 +391,7 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
     if current_chunk:
         chunks.append(current_chunk)
 
-    return chunks
+    return chunks if chunks else [text]
 
 
 def extract_video_id(url):

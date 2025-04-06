@@ -68,7 +68,6 @@ class ServerSession:
         self.skipped: bool = False
         self.shuffle: bool = False
         self.original_queue: List[Track] = []
-        self.shuffled_queue: List[Track] = []
         self.deezer_blacklist: set[Union[str, int]] = set()
         self.previous: bool = False
         self.stack_previous: deque = deque([])
@@ -260,9 +259,8 @@ class ServerSession:
         )
         self.voice_client.play(
             ffmpeg_source,
-            after=lambda e=None: self.after_playing(ctx, e),
+            after=lambda e=None: self.after_playing(ctx, e, ffmpeg_source),
         )
-        ffmpeg_source = None
 
         # Log
         logging.info(
@@ -366,11 +364,13 @@ class ServerSession:
 
         # Add elements to the queue
         original_length = len(self.queue)
-        for queue in self.queue, self.original_queue:
-            queue[(i := 1 if play_next else len(queue)) : i] = tracks
+        self.queue[(i := 1 if play_next else len(self.queue)) : i] = tracks
 
         # Shuffle if enabled
         if self.shuffle:
+            self.original_queue[
+                (i := 1 if play_next else len(self.original_queue)) : i
+            ] = tracks
             random.shuffle(self.queue[1:])
 
         # Tell the user what has been added
@@ -443,8 +443,10 @@ class ServerSession:
         # Limit the previous stack length
         if len(self.stack_previous) >= 5:
             old_track: Track = self.stack_previous.popleft()
-            tasks.append(old_track.close())
-            old_track = None
+            # The removed track should not be in the queue
+            # I check nonetheless to avoid weird issues
+            if track not in self.to_loop+self.queue:
+                tasks.append(old_track.close())
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -463,10 +465,16 @@ class ServerSession:
             current_index = self.original_queue.index(current_song)
             self.queue = [current_song] + self.original_queue[current_index + 1 :]
 
+            # Reset the previous stack
+            await self.close_streams(tracks=list(self.stack_previous), clear=False)
+            self.stack_previous.clear()
+            self.original_queue.clear()
         else:
-            self.shuffled_queue = self.queue[1:]
-            random.shuffle(self.shuffled_queue)
-            self.queue = [current_song] + self.shuffled_queue
+            # Grab all the incoming tracks
+            self.original_queue = self.queue
+            shuffled_queue = self.queue[1:]
+            random.shuffle(shuffled_queue)
+            self.queue = [current_song] + shuffled_queue
 
         self.shuffle = not self.shuffle
         asyncio.create_task(self.update_now_playing(self.last_context, edit_only=True))
@@ -476,9 +484,13 @@ class ServerSession:
         self,
         ctx: discord.ApplicationContext,
         error: Optional[Exception],
+        ffmpeg_source: Optional[discord.FFmpegOpusAudio] = None,
     ) -> None:
         """Callback function executed after a track finishes playing."""
         self.last_played_time = datetime.now()
+
+        if ffmpeg_source:
+            ffmpeg_source.cleanup()
 
         if error:
             logging.error(repr(error))
@@ -548,18 +560,30 @@ class ServerSession:
 
             await asyncio.sleep(17)
 
-    async def close_streams(self, gc_collect: bool = True) -> None:
+    async def close_streams(
+        self,
+        gc_collect: bool = True,
+        clear: bool = True,
+        tracks: Optional[list[Track]] = None,
+    ) -> None:
         close_tasks = []
         # Close & delete tracks
-        for track in itertools.chain(self.queue, self.stack_previous, self.to_loop):
+        if tracks is None:
+            tracks = itertools.chain(self.queue, self.stack_previous, self.to_loop)
+
+        for track in tracks:
+            if not clear and track in self.queue:
+                continue
             close_tasks.append(track.close())
+
         if close_tasks:
             await asyncio.gather(*close_tasks, return_exceptions=True)
 
-        self.queue.clear()
-        self.original_queue.clear()
-        self.to_loop.clear()
-        self.stack_previous.clear()
+        if clear:
+            self.queue.clear()
+            self.original_queue.clear()
+            self.to_loop.clear()
+            self.stack_previous.clear()
 
         if gc_collect:
             await asyncio.to_thread(gc.collect)
@@ -587,4 +611,3 @@ class ServerSession:
         self.session_manager.server_sessions.pop(self.guild_id)
 
         await self.close_streams(gc_collect=False)
-        self.__dict__.clear()

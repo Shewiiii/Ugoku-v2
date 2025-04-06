@@ -18,3 +18,4 @@ httpx[http2]
 aiofiles
 pycryptodome
 aiohttp-client-cache[all]
+legacy-cgi

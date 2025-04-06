@@ -158,6 +158,7 @@ class DeezerChunkedInputStream:
         except StopIteration:
             # Failed reading the first chunk
             if self.current_position <= CHUNK_SIZE:
+                self.stream.close()
                 logging.error(
                     f"Reading of {self} failed, requesting a new stream URL..."
                 )

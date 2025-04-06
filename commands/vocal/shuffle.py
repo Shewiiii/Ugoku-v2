@@ -15,7 +15,10 @@ class Shuffle(commands.Cog):
     ) -> None:
         guild_id: int = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
-        if not vocal_action_check(session, ctx, ctx.respond, silent=True):
+        if (
+            not vocal_action_check(session, ctx, ctx.respond, silent=True)
+            or len(session.queue) <= 2
+        ):
             return
 
         session: ServerSession

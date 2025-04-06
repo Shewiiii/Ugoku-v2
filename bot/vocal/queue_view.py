@@ -31,7 +31,7 @@ class QueueView(View):
     def update_buttons(self) -> None:
         """Disable or enable 'next' and 'previous' buttons based on the current page."""
         self.children[0].disabled = self.page <= 1
-        self.children[1].disabled = len(self.queue) <= self.page * self.max_per_page
+        self.children[1].disabled = len(self.queue) <= self.page * self.max_per_page + 1
 
     @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary)
     async def previous_button(

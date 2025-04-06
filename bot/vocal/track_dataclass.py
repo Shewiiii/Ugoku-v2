@@ -68,7 +68,7 @@ class Track:
     stream_generator: Optional[Callable] = None
 
     def __eq__(self, other):
-        return (self.id, self.service) == (other.id, other.service)
+        return self.stream_source == other.stream_source
 
     def __repr__(self):
         return f"{self.artist} - {self.title}"
@@ -258,4 +258,10 @@ class Track:
     async def close(self) -> None:
         if self.stream_source is not None:
             await self.close_stream(clear=True)
-        self.stream_source = self.stream_generator = self.embed = self.timer = None
+
+        if self.embed:
+            self.embed.clear_fields()
+            self.embed = None
+
+        self.stream_source = None
+        self.stream_generator = None
