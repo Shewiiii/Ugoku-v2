@@ -16,6 +16,7 @@ from typing import Optional
 from bot.search import is_url
 from bot.utils import get_cache_path, get_dominant_rgb_from_url, clean_url
 from bot.vocal.track_dataclass import Track
+from bot.vocal.youtube_api import get_playlist_video_ids, get_videos_info
 from config import YT_COOKIES_PATH, CACHE_EXPIRY, YTDLP_DOMAINS
 
 
@@ -28,6 +29,7 @@ class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
 
 
 yt_dlp.utils.bug_reports_message = lambda: ""  # disable yt_dlp bug report
+playlist_grabber = re.compile(r"list=([a-zA-Z0-9_-]+)")
 
 
 def format_options(file_path: Union[str, Path]) -> dict:
@@ -68,18 +70,68 @@ class Ytdlp:
             print("")
         return metadata
 
-    async def get_track(self, query: str) -> Optional[Track]:
+    async def create_partial_tracks_from_playlist(
+        self, video_ids: list[str]
+    ) -> list[Optional[Track]]:
+        """Create dummy tracks for remaining videos in a Youtube playlist."""
+        videos_info = await get_videos_info(video_ids)  # noqa: F704
+
+        tracks = []
+
+        for metadata in videos_info:
+            if metadata is None:
+                tracks.append(None)
+                continue
+
+            # Create partial Tracks with ytdlp lambda functions as stream generators
+            url = f"https://www.youtube.com/watch?v={metadata['id']}"
+            track = Track(
+                service="ytdlp",
+                id=metadata["id"],
+                title=metadata["snippet"]["title"],
+                album="Youtube",
+                # Grab the best quality
+                cover_url=list(metadata["snippet"]["thumbnails"].values())[-1],
+                duration="?",
+                stream_source=None,
+                source_url=url,
+                dominant_rgb=None,
+                stream_generator=lambda url=url: self.get_tracks(url),
+            )
+
+            track.set_artist(metadata["snippet"]["channelTitle"])
+            tracks.append(track)
+
+        return tracks
+
+    async def get_tracks(self, query: str) -> list[Optional[Track]]:
         url = await self.validate_url(query)
-        cleaned_url = clean_url(url)
         if not url:
             return
 
-        # Remove URL params
-        file_path: Path = get_cache_path(cleaned_url.encode("utf-8"))
+        # If a playlist url is parsed, append the remaining vids
+        # with stream generators
+        partial_tracks = []
+        search = playlist_grabber.search(query)
+        if search and is_url(
+            query,
+            from_=["www.youtube.com", "youtu.be"],
+            parts=["playlist"],
+            include_last_part=True,
+        ):
+            video_ids = await get_playlist_video_ids(search.group(1))
+            url = f"https://www.youtube.com/watch?v={video_ids[0]}"
+            partial_tracks = await self.create_partial_tracks_from_playlist(
+                video_ids[1:]
+            )
+
+        # Generate the audio file
+        file_path: Path = get_cache_path(url.encode("utf-8"))
         download = not file_path.is_file()
         ytdl = yt_dlp.YoutubeDL(format_options(file_path))
         ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
 
+        # Ytdlp processing with the 1st video/audio
         metadata = await self.get_metadata(ytdl, url, download)
         if "entries" in metadata:
             metadata = metadata["entries"][0]
@@ -98,30 +150,31 @@ class Ytdlp:
             service="ytdlp",
             id=metadata.get("id", "Unknown ID"),
             title=metadata.get("title", "Unknown Title"),
-            album=urlparse(cleaned_url).netloc.split(".")[-2].capitalize(),
+            album=urlparse(url).netloc.split(".")[-2].capitalize(),
             cover_url=cover_url,
             duration=metadata.get("duration", "?"),
             stream_source=file_path,
-            source_url=cleaned_url,
+            source_url=url,
             dominant_rgb=dominant_rgb,
         )
         track.set_artist(artist)
         track.create_embed(artist_urls=[artist_url])
 
-        return track
+        return [track] + partial_tracks
 
     async def validate_url(self, query: str) -> Optional[str]:
+        """Verify that the url is valid and remove extra params."""
         if is_url(query, from_=YTDLP_DOMAINS):
+            url = clean_url(query)
             async with CachedSession(
                 follow_redirects=True,
                 cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
             ) as session:
-                async with session.get(query) as response:
+                async with session.get(url) as response:
                     if response.status != 200:
                         return
-                    url = re.sub(r"&.*", "", query)
 
-        # If not valid URLs, search the video and get the first result
+        # If not a valid URL, search the video and get the first result
         else:
             # Base URLs
             search = "https://www.youtube.com/results?search_query="

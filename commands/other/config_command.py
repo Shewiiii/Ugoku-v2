@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import os
 
 from config import (
     SPOTIFY_API_ENABLED,
@@ -30,6 +31,8 @@ from config import (
     ONSEI_BLACKLIST,
     LANGUAGES,
 )
+
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 
 class ConfigCommand(commands.Cog):
@@ -64,6 +67,7 @@ class ConfigCommand(commands.Cog):
                 f"{e['misc']} Default audio volume: {DEFAULT_AUDIO_VOLUME}%",
                 f"{e['misc']} Default onsei volume: {DEFAULT_ONSEI_VOLUME}%",
                 f"{e['misc']} Default audio bitrate: {DEFAULT_AUDIO_BITRATE}Kbps",
+                f"{e[bool(YOUTUBE_API_KEY)]} Youtube playlist URLs support",
             ]
         )
         chatbot_settings = "\n".join(

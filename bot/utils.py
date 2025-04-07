@@ -581,6 +581,7 @@ def clean_url(url: str) -> str:
         "utm_medium",
         "utm_campaign",
         "rco",
+        "in_system_playlist"
     ]
 
     for param in params_blacklist:

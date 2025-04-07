@@ -395,9 +395,14 @@ class ServerSession:
         )
 
         # Play !
-        if len(self.queue) == 1 and (
-            not self.voice_client or not self.voice_client.is_playing()
-        ):
+        should_start_playing = len(self.queue) >= 1 and (
+            not self.voice_client
+            or (
+                not self.voice_client.is_playing() and not self.voice_client.is_paused()
+            )
+        )
+
+        if should_start_playing:
             await self.start_playing(ctx)
         else:
             asyncio.create_task(self.update_now_playing(ctx, edit_only=True))

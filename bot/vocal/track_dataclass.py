@@ -228,15 +228,30 @@ class Track:
         await asyncio.to_thread(self.stream_source.seek, 167)
         return True
 
+    async def load_youtube(self) -> bool:
+        if not self.stream_generator:
+            return False
+        new_track: Track = (await self.stream_generator())[0]
+        self.__dict__.clear()
+        self.__dict__.update(new_track.__dict__)
+
+        return True
+
     async def load_stream(
         self, session: "ServerSession"
     ) -> Optional[Union[AbsChunkedInputStream, DeezerChunkedInputStream]]:
-        if self.service == "spotify/deezer" and not isinstance(
-            self.stream_source, (Path, str)
-        ):
-            await self.load_deezer_stream(session) or await self.load_spotify_stream(
-                session
-            )
+        if isinstance(self.stream_source, (Path, str)):
+            return
+
+        match self.service:
+            case "spotify/deezer":
+                await self.load_deezer_stream(
+                    session
+                ) or await self.load_spotify_stream(session)
+
+            case "ytdlp":
+                await self.load_youtube()
+
         return self.stream_source
 
     async def close_stream(self, clear: bool = False) -> None:

@@ -60,11 +60,12 @@ Chatbot features are disabled, but you can still play with the bot !
 - A Discord bot token (get one [here](https://discord.com/developers/applications))
 - FFmpeg
 
-Music bot (Optional but strongly recommended):
+Music bot:
 
-- A Spotify app (get one [here](https://developer.spotify.com/))
-- A Deezer Premium or Spotify Premium account (YouTube will work by default)
+- A Spotify app (get one [here](https://developer.spotify.com/)).
+- A Deezer Premium or Spotify Premium account (Youtube is supported, but the bot is not optimized for it).
 - (Optional) An Imgur API key (get one [here](https://imgur.com/account/settings/apps)), to display the cover art for songs from custom sources.
+- (Optional) A Youtube API key (get one [here](https://console.cloud.google.com/)), to enable Youtube playlist URL support.
 
 Chatbot:
 

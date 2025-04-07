@@ -75,9 +75,13 @@ class RemoveSong(commands.Cog):
                 asyncio.create_task(skip_cog.execute_skip(ctx, silent=True))
                 embed_updated = True
         elif mode == "Before (included)":
-            removed_tracks, session.queue = queue[:index], queue[index:]
+            if index <= 0:  # -1 is not appropriate here
+                removed_tracks = []
+            else:
+                removed_tracks = queue[1 : index + 1]
+            session.queue = [queue[0]] + queue[index + 1 :]
         elif mode == "After (included)":
-            index = min(index, len(queue))
+            index = max(min(index, len(queue)), 1)
             removed_tracks, session.queue = queue[index:], queue[:index]
 
         # Send message

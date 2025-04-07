@@ -290,7 +290,7 @@ class HelpDropdown(discord.ui.Select):
             )
             embed.add_field(
                 name="/config",
-                value=("Get the front-end current config of Ugoku !\nWorks on: Server"),
+                value=("Get the current front-end config of Ugoku !\nWorks on: Server"),
                 inline=False,
             )
         else:

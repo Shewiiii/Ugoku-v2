@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from typing import Optional
 
 
@@ -15,6 +14,24 @@ from bot.search import is_url
 from bot.vocal.session_manager import onsei
 from bot.vocal.track_dataclass import Track
 from config import DEFAULT_EMBED_COLOR
+
+
+def get_error_message(e: Exception) -> str:
+    if isinstance(e, DownloadError):
+        return "Download failed: Ugoku has been detected as a bot."
+    if isinstance(e, ValueError):
+        if str(e) == "No Youtube API key provided":
+            return "Youtube playlist URLs are not supported !"
+    if isinstance(e, ClientResponseError) and e.status == 404:
+        # For onsei
+        return "No onsei has been found !"
+    if isinstance(e, SpotifyException) and e.http_status == 404:
+        # For Spotify
+        return "Content not found! Perhaps you are trying to play a private playlist?"
+    if isinstance(e, (InvalidUrlClientError, ValueError)):
+        return "Invalid URL !"
+
+    return f"An error occurred.\n-# {repr(e)}"  # Should not happen
 
 
 async def play_spotify(
@@ -60,14 +77,9 @@ async def play_spotify(
             await edit(*response_params)
             return
 
-    except SpotifyException as e:
-        if e.http_status == 404:
-            response_params[1] = (
-                "Content not found! Perhaps you are trying to play a private playlist?"
-            )
-            await edit(*response_params)
-        else:
-            logging.error(e)
+    except Exception as e:
+        response_params[1] = get_error_message(e)
+        await edit(*response_params)
         return
 
     await session.add_to_queue(
@@ -91,14 +103,10 @@ async def play_custom(
     # Request and cache
     try:
         audio_path = await fetch_audio_stream(query)
-    except (InvalidUrlClientError, ValueError):
-        response_params[1] = "Invalid URL !"
+    except Exception as e:
+        response_params[1] = get_error_message(e)
         await respond(*response_params)
         return
-    except Exception as e:
-        await defer_task
-        await ctx.respond(f"Oops! Something went wrong.\n-# {repr(e)}")
-        raise e
 
     # Convert to list to sync with ID3 tags
     metadata = get_metadata(audio_path)
@@ -151,15 +159,10 @@ async def play_onsei(
 
     try:
         tracks: list[Track] = await onsei.get_all_tracks(work_id)
-    except ClientResponseError as e:
-        if e.status == 404:
-            response_params[1] = "No onsei has been found !"
-            await respond(*response_params)
-            return
-        else:
-            response_params[1] = f"An error occurred.\n-# {repr(e)}"
-            await respond(*response_params)
-            return
+    except Exception as e:
+        response_params[1] = get_error_message(e)
+        await respond(*response_params)
+        return
 
     await session.add_to_queue(ctx, tracks, play_next=play_next)
 
@@ -174,21 +177,24 @@ async def play_ytdlp(
 ) -> None:
     response_params = [ctx, "", interaction, defer_task]
     try:
-        track: Track = await ctx.bot.ytdlp.get_track(query)
-    except (DownloadError, ValueError) as e:
-        match e:
-            case DownloadError():
-                response_params[1] = (
-                    "Download failed: Ugoku has been detected as a bot."
-                )
-            case ValueError("No Youtube API key provided"):
-                response_params[1] = str(e)
+        tracks: list[Track] = await ctx.bot.ytdlp.get_tracks(query)
+    except Exception as e:
+        response_params[1] = get_error_message(e)
         await respond(*response_params)
         return
 
-    if not track:
-        response_params[1] = "No video has been found!"
+    if not tracks:
+        response_params[1] = "No content has been found !"
         await respond(*response_params)
         return
 
-    await session.add_to_queue(ctx, track, play_next=play_next)
+    elif len(tracks) > 1:
+        send = interaction.channel.send if interaction else ctx.send
+        msg = (
+            "-# :warning: Youtube playlists are not well supported by the bot yet. "
+            "Do not skip too fast to avoid any issues. "
+            "If you want to skip multiple tracks, please use /remove."
+        )
+        asyncio.create_task(send(msg))
+
+    await session.add_to_queue(ctx, tracks, play_next=play_next)
