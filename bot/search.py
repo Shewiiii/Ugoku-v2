@@ -16,6 +16,7 @@ def is_url(
     string: str,
     from_: Optional[list] = None,
     parts: Optional[list] = None,
+    include_last_part: bool = False
 ) -> bool:
     search = link_grabber.match(string)
     if not search:
@@ -28,7 +29,9 @@ def is_url(
     if from_:
         conditions.append(any(domain.endswith(website) for website in from_))
     if parts:
-        path_parts = set(parsed_url.path.split("/")[:-1])
+        substrings = parsed_url.path.split("/")
+        lp = len(substrings) if include_last_part else -1
+        path_parts = set(parsed_url.path.split("/")[:lp])
         conditions.append(any(part in path_parts for part in parts))
 
     return all(conditions) if conditions else True

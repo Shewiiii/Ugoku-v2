@@ -175,8 +175,14 @@ async def play_ytdlp(
     response_params = [ctx, "", interaction, defer_task]
     try:
         track: Track = await ctx.bot.ytdlp.get_track(query)
-    except DownloadError:
-        response_params[1] = "Download failed: Ugoku has been detected as a bot."
+    except (DownloadError, ValueError) as e:
+        match e:
+            case DownloadError():
+                response_params[1] = (
+                    "Download failed: Ugoku has been detected as a bot."
+                )
+            case ValueError("No Youtube API key provided"):
+                response_params[1] = str(e)
         await respond(*response_params)
         return
 
@@ -185,4 +191,4 @@ async def play_ytdlp(
         await respond(*response_params)
         return
 
-    await session.add_to_queue(ctx, [track], play_next=play_next)
+    await session.add_to_queue(ctx, track, play_next=play_next)
