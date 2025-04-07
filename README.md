@@ -135,7 +135,7 @@ You can now restart your instance.
 
 - Chinono 智乃乃, for helping me with this project and inspiring me
 - Neutrixia, Hibiki and Hanabi for providing improvement ideas for the bot and extensively testing it!
-- Nothes, for allowing me to use your public server as a platform for Ugoku
+- Nothes, Sougata and PIKASONIC for allowing me to use your public servers as a platform for Ugoku ❤️
 - Everyone actively using my bot!
 
 <h2>Random screenshots</h2>
