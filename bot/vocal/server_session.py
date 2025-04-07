@@ -188,11 +188,13 @@ class ServerSession:
         if not (self.voice_client and self.queue):
             return
 
-        self.is_seeking = True
-        self.voice_client.pause()
-
         if not quiet and self.last_context:
-            await self.last_context.send(f"Seeking to {position} seconds")
+            asyncio.create_task(
+                self.last_context.send(f"Seeking to {position} seconds")
+            )
+
+        self.is_seeking = True
+        await self.stop_playback()
 
         track = self.queue[0]
         stream_source = self.queue[0].stream_source
