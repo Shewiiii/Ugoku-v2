@@ -306,10 +306,10 @@ class ServerSession:
         volume = (self.volume if service != "onsei" else self.onsei_volume) / 100
 
         # Stream options
-        stream_options = "-fflags +discardcorrupt"
+        stream_options = "-fflags +discardcorrupt "
         if service == "ytdlp":
             stream_options += (
-                " -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
+                "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
             )
 
         # Audio effects
@@ -317,8 +317,8 @@ class ServerSession:
         if ae.effect:
             # Audio convolution
             before_options = (
-                stream_options
-                + f'-i "./audio_ir/{ae.left_ir_file}" -i "./audio_ir/{ae.right_ir_file}" '
+                f'-i "./audio_ir/{ae.left_ir_file}" -i "./audio_ir/{ae.right_ir_file}" '
+                + stream_options
             )
             volume_adjust = volume * ae.volume_multiplier
             mix_condition = (
