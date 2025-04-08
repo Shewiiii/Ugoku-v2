@@ -28,18 +28,11 @@ if DEEZER_ENABLED:
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-
 # Init bot
 intents = discord.Intents.default()
 intents.message_content = True
 loop = asyncio.get_event_loop()
 bot = discord.Bot(intents=intents, loop=loop)
-
-for filepath in COMMANDS_FOLDER.rglob("*.py"):
-    relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix("")
-    module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
-    logging.info(f"Loading {module_name}")
-    bot.load_extension(module_name)
 
 
 @bot.event
@@ -79,4 +72,10 @@ async def clean_cache_task() -> None:
 
 
 if __name__ == "__main__":
+    for filepath in COMMANDS_FOLDER.rglob("*.py"):
+        relative_path = filepath.relative_to(COMMANDS_FOLDER).with_suffix("")
+        module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
+        logging.info(f"Loading {module_name}")
+        bot.load_extension(module_name)
+
     bot.run(BOT_TOKEN)

@@ -27,7 +27,7 @@ class Shuffle(commands.Cog):
             "Queue shuffled!" if session.shuffle else "Original queue order restored."
         )
         send_response(ctx.respond, response_message, guild_id, silent)
-        await session.prepare_next_track()
+        await session.load_dummy_tracks()
 
     @commands.slash_command(name="shuffle", description="Shuffle the queue.")
     async def shuffle(self, ctx: discord.ApplicationContext) -> None:

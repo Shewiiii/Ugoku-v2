@@ -66,6 +66,7 @@ class Track:
     dominant_rgb: tuple = DEFAULT_EMBED_COLOR
     timer: Timer = Timer()
     stream_generator: Optional[Callable] = None
+    loading_event: Optional[asyncio.Event] = None
 
     def __eq__(self, other):
         return self.stream_source == other.stream_source
@@ -238,19 +239,34 @@ class Track:
         return True
 
     async def load_stream(
-        self, session: "ServerSession"
+        self, session: Optional["ServerSession"] = None
     ) -> Optional[Union[AbsChunkedInputStream, DeezerChunkedInputStream]]:
+        if self.loading_event:
+            try:
+                await asyncio.wait_for(self.loading_event.wait(), 10.0)
+            except TimeoutError:
+                ...
+            self.loading_event = None
+            return self.stream_source
+
         if isinstance(self.stream_source, (Path, str)):
             return
 
-        match self.service:
-            case "spotify/deezer":
-                await self.load_deezer_stream(
-                    session
-                ) or await self.load_spotify_stream(session)
+        self.loading_event = asyncio.Event()
+        try:
+            match self.service:
+                case "spotify/deezer":
+                    if not session:
+                        ValueError("Session param missing")
+                    await self.load_deezer_stream(
+                        session
+                    ) or await self.load_spotify_stream(session)
 
-            case "ytdlp":
-                await self.load_youtube()
+                case "ytdlp":
+                    await self.load_youtube()
+        finally:
+            if self.loading_event:
+                self.loading_event.set()
 
         return self.stream_source
 

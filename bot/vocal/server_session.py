@@ -22,7 +22,9 @@ from config import (
     DEFAULT_ONSEI_VOLUME,
     DEEZER_ENABLED,
     SPOTIFY_API_ENABLED,
+    SPOTIFY_ENABLED,
     DEFAULT_AUDIO_BITRATE,
+    MAX_DUMMY_LOAD_INDEX,
 )
 from deezer_decryption.chunked_input_stream import DeezerChunkedInputStream
 from deezer_decryption.download import Download
@@ -271,7 +273,7 @@ class ServerSession:
         )
 
         # Process the next track
-        asyncio.create_task(self.prepare_next_track())
+        self.dummy_load = asyncio.create_task(self.load_dummy_tracks())
 
         # Send now playing
         if self.queue:
@@ -347,24 +349,32 @@ class ServerSession:
             }
         return ffmpeg_options
 
-    async def prepare_next_track(self, index: int = 1) -> None:
-        """Check the availability of the next track and load its embed in queue."""
-        # Kind of an artificial implementation: ignore the index value
-        # when preparing the track in loop
+    async def load_dummy_tracks(self, max_index: int = MAX_DUMMY_LOAD_INDEX) -> None:
+        """Load dummy Tracks."""
+        sp = self.bot.spotify.sessions.sp if SPOTIFY_API_ENABLED else None
+        tasks = []
+
+        if not DEEZER_ENABLED and SPOTIFY_ENABLED:
+            logging.debug(
+                "Limiting the dummy track loading to 1 to avoid Spotify's rate limiting"
+            )
+            max_index = 2
+
+        # In the loop queue
         if self.loop_queue and len(self.queue) == 1 and self.to_loop:
             track: Track = self.to_loop[0]
-        elif len(self.queue) <= index:
+
+        # In queue
+        for track in self.queue[1:max_index]:
+            if not track.stream_source and track.stream_generator:
+                tasks.append(track.load_stream(self))
+            if track.unloaded_embed:
+                tasks.append(track.generate_embed(sp))
+
+        if not tasks:
             return
-        else:
-            track: Track = self.queue[index]
 
-        # Stream task
-        asyncio.create_task(track.load_stream(self))
-
-        # Embed task
-        if track.unloaded_embed:
-            sp = self.bot.spotify.sessions.sp if SPOTIFY_API_ENABLED else None
-            asyncio.create_task(track.generate_embed(sp))
+        await asyncio.gather(*tasks)
 
     async def add_to_queue(
         self,
@@ -373,6 +383,7 @@ class ServerSession:
         play_next: bool = False,
         show_wrong_track_embed: bool = False,
         user_query: Optional[str] = None,
+        load_dummies: bool = True,
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing."""
 
@@ -424,8 +435,8 @@ class ServerSession:
         # Preload next tracks if the queue has only one track
         # Or is played next
         # (prepare_next_track method has not been called before)
-        if original_length == 1 or play_next:
-            await self.prepare_next_track()
+        if load_dummies and (original_length == 1 or play_next):
+            await self.load_dummy_tracks()
 
     async def play_previous(self, ctx: discord.ApplicationContext) -> None:
         self.previous = True

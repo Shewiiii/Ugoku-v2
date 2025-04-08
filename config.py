@@ -23,14 +23,17 @@ YTDLP_DOMAINS = [
     "youtu.be",
     "soundcloud.com"
 ] # small letters
+
 # Paths
 COMMANDS_FOLDER = Path('./commands')
 TEMP_FOLDER = Path('.') / 'temp'
 PREMIUM_CHANNEL_ID = None # Upload files too big to a channel in a boosted server instead
-# Cache control
-# DELAY_BEFORE_CACHING = 10 # Seconds to wait before caching the current and next track in queue
+
+# Cache control & preloading
+MAX_DUMMY_LOAD_INDEX = 6 # Reduce if you experience audio lags when loading tracks
 CACHE_SIZE = 100  # Cache size limit (in number of files)
 CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds). Default is one month
+
 # VC and audio bot behavior
 AUTO_LEAVE_DURATION = 900 # Duration before killing an audio session (in seconds)
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
@@ -96,6 +99,7 @@ IMPULSE_RESPONSE_PARAMS = {
         'volume_multiplier': 0.4
     }
 } # (Advanced) Add your own audio effects to the /audio-effect list with an impulse response file in ./audio-ir
+
 # Onsei filters
 ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a folder name containing one of these words will be chosen
 ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blacklisted
@@ -154,6 +158,7 @@ LANGUAGES = [
     "Korean", "Mandarin Chinese", "Persian", "Polish", "Portuguese",
     "Russian", "Spanish", "Swedish", "Thai", "Turkish", "Vietnamese"
 ]
+
 # Logs
 logging.basicConfig(
     level=logging.INFO,

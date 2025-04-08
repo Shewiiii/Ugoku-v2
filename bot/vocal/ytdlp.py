@@ -1,6 +1,8 @@
 from aiohttp_client_cache import CachedSession, SQLiteBackend
 import asyncio
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+import functools
 import os
 import re
 from urllib.parse import urlparse
@@ -15,7 +17,7 @@ from bot.search import is_url
 from bot.utils import get_dominant_rgb_from_url, clean_url
 from bot.vocal.track_dataclass import Track
 from bot.vocal.youtube_api import get_playlist_video_ids, get_videos_info
-from config import YT_COOKIES_PATH, CACHE_EXPIRY, YTDLP_DOMAINS
+from config import YT_COOKIES_PATH, CACHE_EXPIRY, YTDLP_DOMAINS, MAX_DUMMY_LOAD_INDEX
 
 
 class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
@@ -53,14 +55,27 @@ ytdlp_options = {
 }
 
 
+def get_info(url):
+    with yt_dlp.YoutubeDL(ytdlp_options) as ytdl:
+        return ytdl.sanitize_info(ytdl.extract_info(url, download=False))
+
+
+async def gather(tasks: list[asyncio.Task]) -> None:
+    await asyncio.gather(*tasks)
+
+
 class Ytdlp:
+    def __init__(self):
+        self.loop = asyncio.get_running_loop()
+        self.exc = ProcessPoolExecutor()
+
     async def get_metadata(self, url: str) -> dict:
-        ytdl = yt_dlp.YoutubeDL(ytdlp_options)
-        ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
-        metadata = await asyncio.to_thread(ytdl.extract_info, url=url, download=False)
+        metadata = await self.loop.run_in_executor(
+            self.exc, functools.partial(get_info, url=url)
+        )
         return metadata
 
-    async def create_partial_tracks_from_playlist(
+    async def create_dummy_tracks_from_playlist(
         self, video_ids: list[str]
     ) -> list[Optional[Track]]:
         """Create dummy tracks for remaining videos in a Youtube playlist."""
@@ -94,12 +109,14 @@ class Ytdlp:
 
         return tracks
 
-    async def get_tracks(self, query: str) -> list[Optional[Track]]:
+    async def get_tracks(
+        self, query: str, load_dummies: bool = True
+    ) -> list[Optional[Track]]:
         url = await self.validate_url(query)
         if not url:
             return
 
-        partial_tracks = []
+        dummy_tracks = []
         search = playlist_grabber.search(query)
         should_check_playlist = (
             YOUTUBE_API_KEY
@@ -131,9 +148,14 @@ class Ytdlp:
                 start_index = video_ids.index(video_id)
 
             url = f"https://www.youtube.com/watch?v={video_ids[start_index]}"
-            partial_tracks = await self.create_partial_tracks_from_playlist(
+            dummy_tracks = await self.create_dummy_tracks_from_playlist(
                 video_ids[start_index + 1 :]
             )
+
+            # Preload the dummy tracks for a smoother experience
+            if load_dummies:
+                tasks = [t.load_stream() for t in dummy_tracks[:MAX_DUMMY_LOAD_INDEX]]
+                asyncio.create_task(gather(tasks))
 
         # Ytdlp processing with the 1st video/audio
         metadata = await self.get_metadata(url)
@@ -164,7 +186,7 @@ class Ytdlp:
         track.set_artist(artist)
         track.create_embed(artist_urls=[artist_url])
 
-        return [track] + partial_tracks
+        return [track] + dummy_tracks
 
     async def validate_url(self, query: str) -> Optional[str]:
         """Verify that the url is valid and remove extra params."""

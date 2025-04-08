@@ -114,7 +114,7 @@ class Deezer:
             return [None] * len(track_tokens)
         # Cannot stream lossless => Free account (with 128kbps as the max mp3 bitrate)
         if not self.can_stream_lossless() and tracks_format != "MP3_128":
-            raise ValueError
+            raise ValueError("Cannot stream at the desired bitrate")
 
         request = await self.session.post(
             "https://media.deezer.com/v1/get_url",

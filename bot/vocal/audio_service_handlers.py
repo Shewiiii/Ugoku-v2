@@ -188,4 +188,4 @@ async def play_ytdlp(
         await respond(*response_params)
         return
 
-    await session.add_to_queue(ctx, tracks, play_next=play_next)
+    await session.add_to_queue(ctx, tracks, play_next=play_next, load_dummies=False)
