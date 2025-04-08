@@ -302,9 +302,18 @@ class ServerSession:
         self.edit_now_playing_embed = True
 
     def get_ffmpeg_options(self, service: str, start_position: int) -> dict[str, str]:
+        # Volume
         volume = (self.volume if service != "onsei" else self.onsei_volume) / 100
+
+        # Stream options
+        stream_options = "-fflags +discardcorrupt"
+        if service == "ytdlp":
+            stream_options += (
+                " -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
+            )
+
+        # Audio effects
         ae = self.audio_effect
-        stream_options = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -fflags +discardcorrupt"
         if ae.effect:
             # Audio convolution
             before_options = (
