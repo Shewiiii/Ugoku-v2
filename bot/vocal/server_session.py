@@ -237,6 +237,7 @@ class ServerSession:
             await self.wait_for_connect_task()
             self.after_playing(ctx, error=None)
             return
+
         logging.info(f"Stream source: {track.stream_source}")
 
         # Wait until the bot is fully connected to the vc
@@ -303,10 +304,12 @@ class ServerSession:
     def get_ffmpeg_options(self, service: str, start_position: int) -> dict[str, str]:
         volume = (self.volume if service != "onsei" else self.onsei_volume) / 100
         ae = self.audio_effect
+        stream_options = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -fflags +discardcorrupt"
         if ae.effect:
             # Audio convolution
             before_options = (
-                f'-i "./audio_ir/{ae.left_ir_file}" -i "./audio_ir/{ae.right_ir_file}"'
+                stream_options
+                + f'-i "./audio_ir/{ae.left_ir_file}" -i "./audio_ir/{ae.right_ir_file}" '
             )
             volume_adjust = volume * ae.volume_multiplier
             mix_condition = (
@@ -324,13 +327,13 @@ class ServerSession:
                 f'{output_source}volume={volume_adjust}[out]"'
             )
             ffmpeg_options = {
-                "before_options": f"{before_options} -fflags +discardcorrupt",
+                "before_options": before_options,
                 "options": f'-filter_complex {filter_complex} -map "[out]" -ss {start_position}',
             }
         else:
             # Basic volume adjustment
             ffmpeg_options = {
-                "before_options": "-fflags +discardcorrupt",
+                "before_options": stream_options,
                 "options": f'-ss {start_position} -filter:a "volume={volume}"',
             }
         return ffmpeg_options

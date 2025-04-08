@@ -3,8 +3,6 @@ import asyncio
 from datetime import datetime
 import os
 import re
-from pathlib import Path
-from typing import Union
 from urllib.parse import urlparse
 
 
@@ -14,7 +12,7 @@ from yt_dlp.postprocessor.common import PostProcessor
 from typing import Optional
 
 from bot.search import is_url
-from bot.utils import get_cache_path, get_dominant_rgb_from_url, clean_url
+from bot.utils import get_dominant_rgb_from_url, clean_url
 from bot.vocal.track_dataclass import Track
 from bot.vocal.youtube_api import get_playlist_video_ids, get_videos_info
 from config import YT_COOKIES_PATH, CACHE_EXPIRY, YTDLP_DOMAINS
@@ -30,44 +28,36 @@ class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
 
 yt_dlp.utils.bug_reports_message = lambda: ""  # disable yt_dlp bug report
 playlist_grabber = re.compile(r"list=([a-zA-Z0-9_-]+)")
+video_grabber = re.compile(r"v=([a-zA-Z0-9_-]+)")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 
-def format_options(file_path: Union[str, Path]) -> dict:
-    # See https://github.com/yt-dlp/yt-dlp/wiki/Extractors#po-token-guide
-    # If Ugoku is detected as a bot
-    return {
-        "cookiefile": YT_COOKIES_PATH,
-        "format": "bestaudio",
-        "outtmpl": str(file_path),
-        "restrictfilenames": True,
-        "no-playlist": True,
-        "nocheckcertificate": True,
-        "ignoreerrors": False,
-        "logtostderr": False,
-        "geo-bypass": True,
-        "quiet": True,
-        "no_warnings": True,
-        "default_search": "auto",
-        "no_color": True,
-        "age_limit": 100,
-        "live_from_start": True,
-    }
+# See https://github.com/yt-dlp/yt-dlp/wiki/Extractors#po-token-guide
+# If Ugoku is detected as a bot
+ytdlp_options = {
+    "cookiefile": YT_COOKIES_PATH,
+    "format": "bestaudio",
+    # "outtmpl": str(file_path),
+    "restrictfilenames": True,
+    "no-playlist": True,
+    "nocheckcertificate": True,
+    "ignoreerrors": False,
+    "logtostderr": False,
+    "geo-bypass": True,
+    "quiet": True,
+    "no_warnings": True,
+    "default_search": "auto",
+    "no_color": True,
+    "age_limit": 100,
+    "live_from_start": True,
+}
 
 
 class Ytdlp:
-    async def get_metadata(
-        self, ytdl: yt_dlp.YoutubeDL, url: str, download: bool = True
-    ) -> dict:
-        try:
-            metadata = await asyncio.to_thread(
-                ytdl.extract_info, url=url, download=download
-            )
-        except Exception as e:
-            raise e
-
-        if download:
-            # The download string doesn't end with \n
-            print("")
+    async def get_metadata(self, url: str) -> dict:
+        ytdl = yt_dlp.YoutubeDL(ytdlp_options)
+        ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
+        metadata = await asyncio.to_thread(ytdl.extract_info, url=url, download=False)
         return metadata
 
     async def create_partial_tracks_from_playlist(
@@ -109,30 +99,44 @@ class Ytdlp:
         if not url:
             return
 
-        # If a playlist url is parsed, append the remaining vids
-        # with stream generators
         partial_tracks = []
         search = playlist_grabber.search(query)
-        if search and is_url(
-            query,
-            from_=["www.youtube.com", "youtu.be"],
-            parts=["playlist"],
-            include_last_part=True,
-        ):
-            video_ids = await get_playlist_video_ids(search.group(1))
-            url = f"https://www.youtube.com/watch?v={video_ids[0]}"
+        should_check_playlist = (
+            YOUTUBE_API_KEY
+            and search
+            and is_url(
+                query,
+                from_=["www.youtube.com", "youtu.be"],
+                include_last_part=True,
+            )
+            and "list=" in query
+        )
+
+        if should_check_playlist:
+            # URL of a playlist (!= Video URL in a playlist)
+            playlist_url = is_url(
+                query,
+                parts=["playlist"],
+                include_last_part=True,
+            )
+            playlist_id = search.group(1)
+            video_ids = await get_playlist_video_ids(playlist_id)
+
+            if playlist_url:
+                start_index = 0
+            else:
+                # It's a youtube video URL but in a playlist
+                # So we ignore videos before
+                video_id = video_grabber.search(query).group(1)
+                start_index = video_ids.index(video_id)
+
+            url = f"https://www.youtube.com/watch?v={video_ids[start_index]}"
             partial_tracks = await self.create_partial_tracks_from_playlist(
-                video_ids[1:]
+                video_ids[start_index + 1 :]
             )
 
-        # Generate the audio file
-        file_path: Path = get_cache_path(url.encode("utf-8"))
-        download = not file_path.is_file()
-        ytdl = yt_dlp.YoutubeDL(format_options(file_path))
-        ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
-
         # Ytdlp processing with the 1st video/audio
-        metadata = await self.get_metadata(ytdl, url, download)
+        metadata = await self.get_metadata(url)
         if "entries" in metadata:
             metadata = metadata["entries"][0]
 
@@ -153,7 +157,7 @@ class Ytdlp:
             album=urlparse(url).netloc.split(".")[-2].capitalize(),
             cover_url=cover_url,
             duration=metadata.get("duration", "?"),
-            stream_source=file_path,
+            stream_source=metadata.get("url"),
             source_url=url,
             dominant_rgb=dominant_rgb,
         )

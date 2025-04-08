@@ -188,13 +188,4 @@ async def play_ytdlp(
         await respond(*response_params)
         return
 
-    elif len(tracks) > 1:
-        send = interaction.channel.send if interaction else ctx.send
-        msg = (
-            "-# :warning: Youtube playlists are not well supported by the bot yet. "
-            "Do not skip too fast to avoid any issues. "
-            "If you want to skip multiple tracks, please use /remove."
-        )
-        asyncio.create_task(send(msg))
-
     await session.add_to_queue(ctx, tracks, play_next=play_next)
