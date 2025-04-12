@@ -91,13 +91,16 @@ When explaining, treat your conversation partner as an equal, don't act superior
 
 
 class Gembot:
-    def __init__(self, id_, gemini_model=GEMINI_MODEL) -> None:
+    def __init__(
+        self, id_, gemini_model=GEMINI_MODEL, ugoku_chat: bool = False
+    ) -> None:
         self.id_: int = id_
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.last_prompt = datetime.now()
         self.message_count = 0
         self.model = genai.GenerativeModel(
-            model_name=gemini_model, system_instruction=self.with_emotes(Prompts.system)
+            model_name=gemini_model,
+            system_instruction=self.with_emotes(Prompts.system) if ugoku_chat else None,
         )
         self.chat = self.model.start_chat()
         active_chats[id_] = self

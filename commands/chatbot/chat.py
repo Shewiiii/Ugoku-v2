@@ -37,7 +37,8 @@ if GEMINI_ENABLED:
         async def reset_chatbot(self, ctx: discord.ApplicationContext) -> None:
             channel = ctx.channel
             dm = isinstance(channel, discord.DMChannel)
-            Gembot(ctx.guild_id if not dm else channel.id)
+            # Replace the old chatr
+            Gembot(ctx.guild_id if not dm else channel.id, ugoku_chat=True)
             await ctx.respond("Success !")
 
         @commands.Cog.listener()
@@ -61,7 +62,7 @@ if GEMINI_ENABLED:
 
             # Create/Use a chat
             if id_ not in active_chats:
-                chat = Gembot(id_)
+                chat = Gembot(id_, ugoku_chat=True)
             chat: Gembot = active_chats.get(id_)
 
             # Neko arius

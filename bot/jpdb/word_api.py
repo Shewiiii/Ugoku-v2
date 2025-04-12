@@ -2,8 +2,8 @@ from aiohttp_client_cache import CachedSession, SQLiteBackend
 from bs4 import BeautifulSoup
 import json
 import re
+import logging
 from typing import Optional
-import typing_extensions as typing
 
 
 from bot.chatbot.gemini import Gembot
@@ -11,9 +11,11 @@ from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL, CACHE_EXPIRY
 import google.generativeai as genai
 
 
-class SentenceLanguage(typing.TypedDict):
-    jp: str
-    en: str
+response_schema = {
+    "type": "object",
+    "properties": {"jp": {"type": "string"}, "en": {"type": "string"}},
+    "required": ["jp", "en"],
+}
 
 
 class JpdbWordApi:
@@ -204,18 +206,23 @@ class JpdbWordApi:
         sentences = {"jp": "", "en": ""}
         if self.gembot:
             request = await self.gembot.model.generate_content_async(
-                "Send simple jp sentence and en translation "
+                "Send a simple Japanese sentence **in jp** and the "
+                "English translation **in en**"
                 f"that includes the word {word} ({meaning[0]})."
                 "Don't send anything else. "
+                "Never put romajis, only kana and kanji."
                 "Put the whole word in bold in the correct language.",
                 generation_config=genai.types.GenerationConfig(
                     response_mime_type="application/json",
-                    response_schema=SentenceLanguage,
+                    response_schema=response_schema,
                     candidate_count=1,
                     temperature=1,
                 ),
             )
-            sentences = json.loads(request.candidates[0].content.parts[0].text)
+            try:
+                sentences = json.loads(request.candidates[0].content.parts[0].text)
+            except Exception as e:
+                logging.error(repr(e))
         return sentences
 
 

@@ -67,7 +67,7 @@ class BotLyrics:
 
     @staticmethod
     async def convert(lyrics: str, to: str) -> str:
-        """Convert lyrics to kana or romaji using GPT-4o Mini."""
+        """Convert lyrics to kana or romaji using Gemini."""
         prompt = f"""
             Convert these lyrics to {to}.
             Don't add ANY extra text:

@@ -4,8 +4,6 @@ from typing import Optional
 import logging
 import uuid
 from datetime import datetime
-import typing_extensions as typing
-import enum
 import json
 
 import google.generativeai as genai
@@ -29,18 +27,17 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(model_name=GEMINI_UTILS_MODEL)
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-
-
-class QueryType(enum.Enum):
-    QUESTION = "question"
-    INFO = "info"
-    OTHER = "other"
-    IMPORTANT_CARACTERISTIC = "important_caracteristic"
-
-
-class VectorMetadata(typing.TypedDict):
-    query_type: QueryType
-    text: str
+response_schema = {
+    "type": "object",
+    "properties": {
+        "query_type": {
+            "type": "string",
+            "enum": ["question", "info", "other", "important_caracteristic"],
+        },
+        "text": {"type": "string"},
+    },
+    "required": ["query_type", "text"],
+}
 
 
 class Memory:
@@ -111,7 +108,7 @@ Add in the text field the user message. It should be exact and should not loose 
                     f'{self.prompt}{chatbot_message.author} said "{chatbot_message.content}"',
                     generation_config=genai.types.GenerationConfig(
                         response_mime_type="application/json",
-                        response_schema=VectorMetadata,
+                        response_schema=response_schema,
                         candidate_count=1,
                     ),
                 )
