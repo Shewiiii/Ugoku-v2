@@ -175,7 +175,7 @@ class Ytdlp:
             and search
             and is_url(
                 query,
-                from_=["music.youtube.com", "youtu.be"],
+                from_=["youtube.com", "youtu.be"],
                 include_last_part=True,
             )
             and "list=" in query
