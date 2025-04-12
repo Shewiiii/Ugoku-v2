@@ -70,7 +70,7 @@ class Track:
     # "Loading event" is only used for ytdlp sources for now,
     # Spotify and deezer streams need to be reloaded
     # (paths are out of the equation because of the early return above)
-    file_extension: Optional[str] = None # Needed for Yt-dlp
+    file_extension: Optional[str] = None  # Needed for Yt-dlp
 
     def __eq__(self, other):
         return self.stream_source == other.stream_source
@@ -264,9 +264,8 @@ class Track:
             case "spotify/deezer":
                 if not session:
                     raise ValueError("Session param missing")
-                await self.load_deezer_stream(
-                    session
-                ) or await self.load_spotify_stream(session)
+                if not await self.load_deezer_stream(session):
+                    await self.load_spotify_stream(session)
 
             case "ytdlp":
                 # You probably dont wanna reload yt-dlp streams

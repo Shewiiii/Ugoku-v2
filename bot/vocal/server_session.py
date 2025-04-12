@@ -90,6 +90,7 @@ class ServerSession:
         self.deezer_download = Download(bot.deezer) if DEEZER_ENABLED else None
         self.stop_event: Optional[asyncio.Event] = None
         self.wrong_track_views: list[WrongTrackView] = []
+        self.ffmpeg_source: Optional[discord.FFmpegOpusAudio] = None
 
     async def wait_for_connect_task(self) -> None:
         if self.connect_task:
@@ -263,8 +264,9 @@ class ServerSession:
         )
         self.voice_client.play(
             ffmpeg_source,
-            after=lambda e=None: self.after_playing(ctx, e, ffmpeg_source),
+            after=lambda e=None: self.after_playing(ctx, e),
         )
+        self.ffmpeg_source = ffmpeg_source
 
         # Log
         logging.info(
@@ -436,8 +438,7 @@ class ServerSession:
         self.previous = True
         await self.stop_playback()
         if self.queue:
-            track = self.queue[0]
-            asyncio.create_task(self.post_process(track))
+            await self.post_process()
         self.queue.insert(0, self.stack_previous.pop())
         await self.start_playing(ctx)
 
@@ -509,18 +510,29 @@ class ServerSession:
     def after_playing(
         self,
         ctx: discord.ApplicationContext,
-        error: Optional[Exception],
-        ffmpeg_source: Optional[discord.FFmpegOpusAudio] = None,
+        error: Optional[Exception] = None,
     ) -> None:
         """Callback function executed after a track finishes playing."""
         self.last_played_time = datetime.now()
 
-        if ffmpeg_source:
-            ffmpeg_source.cleanup()
+        if self.ffmpeg_source:
+            self.ffmpeg_source.cleanup()
+            self.ffmpeg_source = None
 
         if error:
             logging.error(repr(error))
 
+        # POST PROCESSING
+        played_track: Track = self.queue[0]
+        played_track.timer.reset()
+        close_stream = not (self.loop_current or self.previous or self.is_seeking)
+        # Will take more time to regenerate the stream,
+        # But the user is more likely to not play this track again
+        asyncio.run_coroutine_threadsafe(
+            self.post_process(played_track, close_stream=close_stream), self.bot.loop
+        )
+
+        # Stop the play_next call
         if self.is_seeking or self.stop_event:
             self.stop_event.set()
             return
@@ -528,21 +540,15 @@ class ServerSession:
         asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop)
 
     async def play_next(self, ctx: discord.ApplicationContext) -> None:
-        """Plays the next track in the queue, handling looping and previous track logic."""
+        """Plays the next track in the queue, handling looping and previous track logic.
+        Do not call this method explicitely."""
         played_track: Track = self.queue[0]
-        played_track.timer.reset()
-        close_stream = False
 
         if not (self.loop_current or self.previous):
             self.stack_previous.append(played_track)
-            close_stream = True
-            # Will take more time to regenerate the stream,
-            # But the user is more likely to not play this track again
 
         if self.loop_queue and not self.loop_current:
             self.to_loop.append(played_track)
-
-        asyncio.create_task(self.post_process(played_track, close_stream=close_stream))
 
         if not self.loop_current:
             self.queue.pop(0)

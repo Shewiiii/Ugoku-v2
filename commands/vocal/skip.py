@@ -35,7 +35,8 @@ class Skip(commands.Cog):
             session.now_playing_message = None
 
         if not len(session.queue) == 1 and not session.voice_client.is_playing():
-            await session.play_next(ctx)
+            # Retrigger the play loop if paused/stopped for whatever reasons
+            session.after_playing(ctx)
         else:
             session.voice_client.stop()
 
