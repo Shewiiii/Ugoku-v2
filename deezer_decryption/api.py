@@ -107,14 +107,16 @@ class Deezer:
         track_tokens: list,
         tracks_format: Literal["MP3_128", "MP3_320", "FLAC"] = "FLAC",
     ) -> list[str]:
+        empty = [None] * len(track_tokens)
         if not self.user_data:
             await self.setup()
         license_token = self.user_data["USER"]["OPTIONS"]["license_token"]
         if not license_token:
-            return [None] * len(track_tokens)
+            return empty
         # Cannot stream lossless => Free account (with 128kbps as the max mp3 bitrate)
         if not self.can_stream_lossless() and tracks_format != "MP3_128":
-            raise ValueError("Cannot stream at the desired bitrate")
+            logging.error("Cannot stream at the desired bitrate with Deezer")
+            return empty
 
         request = await self.session.post(
             "https://media.deezer.com/v1/get_url",
