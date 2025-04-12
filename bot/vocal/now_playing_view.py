@@ -140,3 +140,4 @@ class nowPlayingView(discord.ui.View):
 
     def close(self) -> None:
         self.server_session = self.bot = self.ctx = self.voice_client = None
+        super().close()

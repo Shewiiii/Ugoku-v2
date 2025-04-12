@@ -24,7 +24,7 @@ if __name__ == "__main__":  # Anti ProcessPoolExecutor shield
     if DEEZER_ENABLED:
         from deezer_decryption.api import Deezer
 
-        BOT_TOKEN = os.getenv("BOT_TOKEN")
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
 
     # Init bot
     intents = discord.Intents.default()

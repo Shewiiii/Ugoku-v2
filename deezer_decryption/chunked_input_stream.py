@@ -9,8 +9,7 @@ from requests.exceptions import (
     ChunkedEncodingError,
 )
 import struct
-from time import time
-from typing import Union, Optional, TYPE_CHECKING
+from typing import Union, Optional, TYPE_CHECKING, Iterator
 
 from deezer_decryption.api import Deezer
 from deezer_decryption.constants import HEADERS, CHUNK_SIZE
@@ -42,7 +41,7 @@ class DeezerChunkedInputStream:
         self.current_position: int = 0
         self.stream = None
         self.async_stream = None
-        self.chunks = None
+        self.chunks: Optional[Iterator] = None
         self.async_chunks = None
         self.seek_table = {}  # Second: byte
         self.seek_start = -1
@@ -135,7 +134,7 @@ class DeezerChunkedInputStream:
 
         self.header_cache = first_bytes[: last_header_offset + 1]
 
-    def seek(self, second: int) -> None:
+    def seek(self, second: int) -> float:
         """Seek in the track based on the seek table."""
         if not self.seek_table:
             raise ValueError(
@@ -147,9 +146,7 @@ class DeezerChunkedInputStream:
         aligned_position = (self.seek_table[nearest_anchor] // CHUNK_SIZE) * CHUNK_SIZE
         self.seek_start = self.current_position = aligned_position
 
-        # Timer
-        self.timer._start_time = time()
-        self.timer._elapsed_time_accumulator = nearest_anchor
+        return nearest_anchor  # For the timer
 
     def read(self, size: Optional[int] = None) -> bytes:
         try:
@@ -176,7 +173,7 @@ class DeezerChunkedInputStream:
 
         except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError) as e:
             logging.error(f"{repr(e)}, requesting a new stream...")
-            self.chunks = None
+            self.stream.close()
             self.set_chunks(self.current_position)
             return self.read()
 
@@ -184,6 +181,7 @@ class DeezerChunkedInputStream:
             chunk = e.partial
 
         except Exception as e:
+            self.stream.close()
             logging.error(repr(e))
             return b""
 
@@ -232,6 +230,7 @@ class DeezerChunkedInputStream:
         logging.info(f"Closing {self}")
         await self.close_streams()
         self.seek_table.clear()
+        self.deezer = None
         self.timer = None
         self.headers = None
         self.deezer = None

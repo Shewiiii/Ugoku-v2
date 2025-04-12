@@ -200,13 +200,13 @@ class ServerSession:
         track = self.queue[0]
         stream_source = self.queue[0].stream_source
         if isinstance(stream_source, DeezerChunkedInputStream):
-            await asyncio.to_thread(stream_source.seek, position)
-            # Position changed within the stream class
+            nearest_anchor = await asyncio.to_thread(stream_source.seek, position)
+            track.timer._elapsed_time_accumulator = nearest_anchor
             position = 0
         else:
             # Timer
-            track.timer._start_time = time()
             track.timer._elapsed_time_accumulator = position
+        track.timer._start_time = time()
 
         await self.start_playing(self.last_context, start_position=position)
 
@@ -362,7 +362,7 @@ class ServerSession:
         for i, track in enumerate(self.queue[1:max_index], start=1):
             if i == 1 or track.service == "ytdlp":
                 tasks.append(track.load_stream(self))
-            if track.unloaded_embed: # Spotify/Deezer
+            if track.unloaded_embed:  # Spotify/Deezer
                 tasks.append(track.generate_embed(sp))
 
         if not tasks:
@@ -490,7 +490,9 @@ class ServerSession:
             self.queue = [current_song] + self.original_queue[current_index + 1 :]
 
             # Reset the previous stack
-            await self.close_streams(tracks=list(self.stack_previous), clear=False)
+            await self.close_streams(
+                tracks=list(self.stack_previous), clear_queues=False
+            )
             self.stack_previous.clear()
             self.original_queue.clear()
         else:
@@ -587,7 +589,7 @@ class ServerSession:
     async def close_streams(
         self,
         gc_collect: bool = True,
-        clear: bool = True,
+        clear_queues: bool = True,
         tracks: Optional[list[Track]] = None,
     ) -> None:
         close_tasks = []
@@ -596,14 +598,14 @@ class ServerSession:
             tracks = itertools.chain(self.queue, self.stack_previous, self.to_loop)
 
         for track in tracks:
-            if not clear and track in self.queue:
+            if not clear_queues and track in self.queue:
                 continue
             close_tasks.append(track.close())
 
         if close_tasks:
             await asyncio.gather(*close_tasks, return_exceptions=True)
 
-        if clear:
+        if clear_queues:
             self.queue.clear()
             self.original_queue.clear()
             self.to_loop.clear()
@@ -620,6 +622,7 @@ class ServerSession:
 
         if self.now_playing_view:
             self.now_playing_view.close()
+            self.now_playing_view = None
 
         for view in self.wrong_track_views:
             view.close()
@@ -638,3 +641,5 @@ class ServerSession:
         self.session_manager.server_sessions.pop(self.guild_id)
 
         await self.close_streams(gc_collect=False)
+        self.bot = None
+        self.voice_client = None
