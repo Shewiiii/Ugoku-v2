@@ -22,7 +22,6 @@ from config import (
     DEFAULT_ONSEI_VOLUME,
     DEEZER_ENABLED,
     SPOTIFY_API_ENABLED,
-    SPOTIFY_ENABLED,
     DEFAULT_AUDIO_BITRATE,
     MAX_DUMMY_LOAD_INDEX,
 )
@@ -234,7 +233,7 @@ class ServerSession:
         # Load stream
         await track.load_stream(self)
         if track.stream_source is None:
-            asyncio.create_task(ctx.send(f"{str(track)} is not available!"))
+            asyncio.create_task(ctx.send(f"{str(track)} is not available !"))
             # Wait for the voice_client to be set before continuing
             await self.wait_for_connect_task()
             self.after_playing(ctx, error=None)
@@ -273,7 +272,7 @@ class ServerSession:
         )
 
         # Process the next track
-        self.dummy_load = asyncio.create_task(self.load_dummy_tracks())
+        self.dummy_load = asyncio.create_task(self.load_next_tracks())
 
         # Send now playing
         if self.queue:
@@ -349,26 +348,21 @@ class ServerSession:
             }
         return ffmpeg_options
 
-    async def load_dummy_tracks(self, max_index: int = MAX_DUMMY_LOAD_INDEX) -> None:
-        """Load dummy Tracks."""
+    async def load_next_tracks(self, max_index: int = MAX_DUMMY_LOAD_INDEX) -> None:
+        """Load next the next Tracks and embeds.
+        Preload the next stream if from Spotify/Deezer, check until the max index if from Ytdlp."""
         sp = self.bot.spotify.sessions.sp if SPOTIFY_API_ENABLED else None
         tasks = []
-
-        if not DEEZER_ENABLED and SPOTIFY_ENABLED:
-            logging.debug(
-                "Limiting the dummy track loading to 1 to avoid Spotify's rate limiting"
-            )
-            max_index = 2
 
         # In the loop queue
         if self.loop_queue and len(self.queue) == 1 and self.to_loop:
             track: Track = self.to_loop[0]
 
         # In queue
-        for track in self.queue[1:max_index]:
-            if not track.stream_source and track.stream_generator:
+        for i, track in enumerate(self.queue[1:max_index], start=1):
+            if i == 1 or track.service == "ytdlp":
                 tasks.append(track.load_stream(self))
-            if track.unloaded_embed:
+            if track.unloaded_embed: # Spotify/Deezer
                 tasks.append(track.generate_embed(sp))
 
         if not tasks:
@@ -436,7 +430,7 @@ class ServerSession:
         # Or is played next
         # (prepare_next_track method has not been called before)
         if load_dummies and (original_length == 1 or play_next):
-            await self.load_dummy_tracks()
+            await self.load_next_tracks()
 
     async def play_previous(self, ctx: discord.ApplicationContext) -> None:
         self.previous = True
@@ -620,6 +614,9 @@ class ServerSession:
 
     async def clean_session(self) -> None:
         await self.stop_playback()
+
+        if self.now_playing_message:
+            await self.now_playing_message.delete()
 
         if self.now_playing_view:
             self.now_playing_view.close()

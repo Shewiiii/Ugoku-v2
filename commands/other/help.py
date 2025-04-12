@@ -129,7 +129,15 @@ class HelpDropdown(discord.ui.Select):
                     "Example: ``/dzdl Ma Meilleure Ennemie``\n"
                 ),
                 inline=False,
-            )
+            ),
+            embed.add_field(
+                name="/ytdlp",
+                value=(
+                    "Download a song from Youtube or Soundcloud\n"
+                    "Example: ``/ytdlp https://www.youtube.com/watch?v=ZDh8mDYsr2U``\n"
+                ),
+                inline=False,
+            ),
             embed.add_field(
                 name="/audio-effect",
                 value=(

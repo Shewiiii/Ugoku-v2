@@ -12,7 +12,7 @@ from bot.vocal.audio_service_handlers import (
     play_onsei,
     play_ytdlp,
 )
-from bot.utils import is_onsei, get_url_from_message
+from bot.utils import is_onsei, process_song_query
 from bot.search import is_url
 from config import (
     SPOTIFY_ENABLED,
@@ -77,19 +77,12 @@ class Play(commands.Cog):
             await respond(msg)
 
         # Process the query
-        message_link = is_url(query, "discord.com", parts=["channels"])
         url = is_url(query)
-
-        if not url:
-            # Normal text
-            query = query.lower()
-        elif message_link:
-            # Message link -> Get the audio url
-            try:
-                query = await get_url_from_message(ctx.bot, query)
-            except Forbidden:
-                await error("I don't have access to that message !")
-                return
+        try:
+            query = await process_song_query(query, ctx.bot, url)
+        except Forbidden:
+            await error("I don't have access to that message !")
+            return
 
         custom = url and not is_url(query, from_=["open.spotify.com"] + YTDLP_DOMAINS)
         youtube = is_url(query, from_=YTDLP_DOMAINS)

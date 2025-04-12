@@ -1,5 +1,5 @@
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 import logging
 from pathlib import Path
 from math import floor
@@ -67,6 +67,10 @@ class Track:
     timer: Timer = Timer()
     stream_generator: Optional[Callable] = None
     loading_event: Optional[asyncio.Event] = None
+    # "Loading event" is only used for ytdlp sources for now,
+    # Spotify and deezer streams need to be reloaded
+    # (paths are out of the equation because of the early return above)
+    file_extension: Optional[str] = None # Needed for Yt-dlp
 
     def __eq__(self, other):
         return self.stream_source == other.stream_source
@@ -233,40 +237,50 @@ class Track:
         if not self.stream_generator:
             return False
         new_track: Track = (await self.stream_generator())[0]
-        self.__dict__.clear()
-        self.__dict__.update(new_track.__dict__)
-
+        relevant_fields = {
+            "title",
+            "artist",
+            "artists",
+            "album",
+            "source_url",
+            "embed",
+            "stream_source",
+            "cover_url",
+            "duration",
+        }
+        for f in fields(new_track):
+            if f.name in relevant_fields:
+                setattr(self, f.name, getattr(new_track, f.name))
+        logging.info(f"Loaded Youtube stream of {self}")
         return True
 
     async def load_stream(
         self, session: Optional["ServerSession"] = None
     ) -> Optional[Union[AbsChunkedInputStream, DeezerChunkedInputStream]]:
-        if self.loading_event:
-            try:
-                await asyncio.wait_for(self.loading_event.wait(), 10.0)
-            except TimeoutError:
-                ...
-            self.loading_event = None
-            return self.stream_source
-
         if isinstance(self.stream_source, (Path, str)):
             return
 
-        self.loading_event = asyncio.Event()
-        try:
-            match self.service:
-                case "spotify/deezer":
-                    if not session:
-                        ValueError("Session param missing")
-                    await self.load_deezer_stream(
-                        session
-                    ) or await self.load_spotify_stream(session)
+        match self.service:
+            case "spotify/deezer":
+                if not session:
+                    raise ValueError("Session param missing")
+                await self.load_deezer_stream(
+                    session
+                ) or await self.load_spotify_stream(session)
 
-                case "ytdlp":
-                    await self.load_youtube()
-        finally:
-            if self.loading_event:
-                self.loading_event.set()
+            case "ytdlp":
+                # You probably dont wanna reload yt-dlp streams
+                if self.loading_event:
+                    try:
+                        await asyncio.wait_for(self.loading_event.wait(), 10.0)
+                    except TimeoutError:
+                        ...
+                else:
+                    self.loading_event = asyncio.Event()
+                    try:
+                        await self.load_youtube()
+                    finally:
+                        self.loading_event.set()
 
         return self.stream_source
 

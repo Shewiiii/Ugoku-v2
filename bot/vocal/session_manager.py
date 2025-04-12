@@ -51,7 +51,9 @@ class SessionManager:
         if not ctx.voice_client or not ctx.voice_client.is_connected():
             connect_task = asyncio.create_task(channel.connect())
             # Clean server session after a new connection
-            self.server_sessions.pop(guild_id, None)
+            old_session: ServerSession = self.server_sessions.pop(guild_id, None)
+            if old_session:
+                asyncio.create_task(old_session.clean_session())
 
         if guild_id not in self.server_sessions:
             session = ServerSession(

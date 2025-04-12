@@ -3,10 +3,11 @@ import aiofiles
 import logging
 
 import discord
+from discord.errors import Forbidden
 from discord.ext import commands
 
 from config import SPOTIFY_ENABLED
-from bot.utils import tag_ogg_file, get_cache_path, upload
+from bot.utils import tag_ogg_file, get_cache_path, upload, process_song_query
 from bot.vocal.track_dataclass import Track
 from mutagen.oggvorbis import OggVorbisHeaderError
 
@@ -24,16 +25,18 @@ class SpotifyDownload(commands.Cog):
         },
     )
     async def spdl(self, ctx: discord.ApplicationContext, query: str) -> None:
-        # The following is a proof of concept code~
-        # TODO:
-        # - Add album/playlist support
-        # - Add messages context
-
         if not SPOTIFY_ENABLED:
             await ctx.respond(content="Spotify features are not enabled.")
             return
+        defer_task = asyncio.create_task(ctx.respond("Give me a second~"))
 
-        asyncio.create_task(ctx.respond("Give me a second~"))
+        # Convert the query
+        try:
+            query = await process_song_query(query, ctx.bot)
+        except Forbidden:
+            await defer_task
+            await ctx.edit(content="I don't have access to that message !")
+            return
 
         # Get the tracks, pick the first one
         tracks = await ctx.bot.spotify.get_tracks(query=query)
@@ -50,6 +53,7 @@ class SpotifyDownload(commands.Cog):
             # Get track data
             stream = await track.stream_generator()
             data = await asyncio.to_thread(stream.read)
+
             # Download
             async with aiofiles.open(file_path, "wb") as file:
                 await file.write(data)

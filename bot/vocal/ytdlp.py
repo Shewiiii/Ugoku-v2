@@ -3,21 +3,33 @@ import asyncio
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 import functools
+import logging
 import os
+from pathlib import Path
 import re
 from urllib.parse import urlparse
-
-
 import yt_dlp
 from yt_dlp.postprocessor.common import PostProcessor
 
-from typing import Optional
+from typing import Optional, Callable
 
 from bot.search import is_url
-from bot.utils import get_dominant_rgb_from_url, clean_url
+from bot.utils import get_dominant_rgb_from_url, clean_url, get_cache_path
 from bot.vocal.track_dataclass import Track
 from bot.vocal.youtube_api import get_playlist_video_ids, get_videos_info
-from config import YT_COOKIES_PATH, CACHE_EXPIRY, YTDLP_DOMAINS, MAX_DUMMY_LOAD_INDEX
+from config import (
+    YT_COOKIES_PATH,
+    CACHE_EXPIRY,
+    YTDLP_DOMAINS,
+    MAX_DUMMY_LOAD_INDEX,
+    MAX_PROCESS_POOL_WORKERS,
+)
+
+# Yt-dlp config
+yt_dlp.utils.bug_reports_message = lambda: ""  # disable yt_dlp bug report
+playlist_grabber = re.compile(r"list=([a-zA-Z0-9_-]+)")
+video_grabber = re.compile(r"v=([a-zA-Z0-9_-]+)")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 
 class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
@@ -28,59 +40,104 @@ class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
         return [], info
 
 
-yt_dlp.utils.bug_reports_message = lambda: ""  # disable yt_dlp bug report
-playlist_grabber = re.compile(r"list=([a-zA-Z0-9_-]+)")
-video_grabber = re.compile(r"v=([a-zA-Z0-9_-]+)")
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-
-# See https://github.com/yt-dlp/yt-dlp/wiki/Extractors#po-token-guide
-# If Ugoku is detected as a bot
-ytdlp_options = {
-    "cookiefile": YT_COOKIES_PATH,
-    "format": "bestaudio",
-    # "outtmpl": str(file_path),
-    "restrictfilenames": True,
-    "no-playlist": True,
-    "nocheckcertificate": True,
-    "ignoreerrors": False,
-    "logtostderr": False,
-    "geo-bypass": True,
-    "quiet": True,
-    "no_warnings": True,
-    "default_search": "auto",
-    "no_color": True,
-    "age_limit": 100,
-    "live_from_start": True,
-}
-
-
-def get_info(url):
-    with yt_dlp.YoutubeDL(ytdlp_options) as ytdl:
-        return ytdl.sanitize_info(ytdl.extract_info(url, download=False))
+def ytdlp_options(file_path: Optional[Path] = None, ext: Optional[str] = None) -> dict:
+    if ext is None:  # Should not be necessary but just in case
+        ext = "bestaudio"
+    ytdlp_options = {
+        "cookiefile": YT_COOKIES_PATH,
+        "format": ext,
+        "restrictfilenames": True,
+        "no-playlist": True,
+        "nocheckcertificate": True,
+        "ignoreerrors": False,
+        "logtostderr": False,
+        "geo-bypass": True,
+        "quiet": True,
+        "no_warnings": True,
+        "default_search": "auto",
+        "no_color": True,
+        "age_limit": 100,
+        "live_from_start": True,
+    }
+    if file_path:
+        ytdlp_options["outtmpl"] = str(file_path)
+    return ytdlp_options
 
 
 async def gather(tasks: list[asyncio.Task]) -> None:
     await asyncio.gather(*tasks)
 
 
+class PpeManager:
+    def __init__(self):
+        self.ppe: Optional[ProcessPoolExecutor] = None
+        self.loop = asyncio.get_event_loop()
+        self.futures: set[asyncio.Future] = set()
+        self.shudown_task = asyncio.create_task(self.check_ppe())
+
+    def add_task(self, func: Callable) -> asyncio.Future:
+        if not self.ppe:
+            logging.info("Ppe created")
+            self.ppe = ProcessPoolExecutor(max_workers=MAX_PROCESS_POOL_WORKERS)
+        # Lambda or partial function to process a Track
+        future = self.loop.run_in_executor(self.ppe, func)
+        self.futures.add(future)
+        return future
+
+    async def check_ppe(self) -> None:
+        """Shutdown the ProcessPoolExecutor if inactive."""
+        # Kind of a naive approach to limit RAM usage, but should work
+        while True:
+            await asyncio.sleep(13)
+            if not self.ppe:
+                continue
+            # Remove done futures
+            to_remove = []
+            for future in self.futures:
+                if future.done():
+                    to_remove.append(future)
+            for f in to_remove:
+                self.futures.remove(f)
+
+            # Shutdown the ProcessPoolExecutor if no future is remaining
+            if self.ppe and not self.futures:
+                logging.info("Ppe incative, shutting down..")
+                self.ppe.shutdown()
+                self.ppe = None
+
+
 class Ytdlp:
     def __init__(self):
         self.loop = asyncio.get_running_loop()
-        self.exc = ProcessPoolExecutor()
+        self.ppe_manager = PpeManager()
 
-    async def get_metadata(self, url: str) -> dict:
-        metadata = await self.loop.run_in_executor(
-            self.exc, functools.partial(get_info, url=url)
+    @staticmethod
+    def get_info(url, file_path: Optional[Path] = None):
+        # No need to download if the file already exists
+        download = bool(file_path) and not file_path.is_file()
+        # Tl;dr: opus at 64kbps is not as good as mp3 128 kbps, so we force the latter
+        ext = (
+            "mp3" if download and is_url(url, from_=["soundcloud.com"]) else "bestaudio"
+        )
+
+        with yt_dlp.YoutubeDL(ytdlp_options(file_path, ext)) as ytdl:
+            if file_path:
+                ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
+            return ytdl.sanitize_info(ytdl.extract_info(url, download=download))
+
+    async def get_metadata(self, url: str, file_path: Optional[Path] = None) -> dict:
+        """Scrap metadata from Yt-dlp"""
+        metadata = await self.ppe_manager.add_task(
+            functools.partial(self.get_info, url, file_path)
         )
         return metadata
 
     async def create_dummy_tracks_from_playlist(
-        self, video_ids: list[str]
+        self,
+        video_ids: list[str],
     ) -> list[Optional[Track]]:
         """Create dummy tracks for remaining videos in a Youtube playlist."""
-        videos_info = await get_videos_info(video_ids)  # noqa: F704
-
+        videos_info = await get_videos_info(video_ids)
         tracks = []
 
         for metadata in videos_info:
@@ -88,19 +145,14 @@ class Ytdlp:
                 tracks.append(None)
                 continue
 
-            # Create partial Tracks with ytdlp lambda functions as stream generators
+            # Create dummy Tracks with ytdlp lambda functions as stream generators
             url = f"https://www.youtube.com/watch?v={metadata['id']}"
             track = Track(
                 service="ytdlp",
                 id=metadata["id"],
                 title=metadata["snippet"]["title"],
                 album="Youtube",
-                # Grab the best quality
-                cover_url=list(metadata["snippet"]["thumbnails"].values())[-1],
-                duration="?",
-                stream_source=None,
                 source_url=url,
-                dominant_rgb=None,
                 stream_generator=lambda url=url: self.get_tracks(url),
             )
 
@@ -110,7 +162,7 @@ class Ytdlp:
         return tracks
 
     async def get_tracks(
-        self, query: str, load_dummies: bool = True
+        self, query: str, load_dummies: bool = True, download: bool = False
     ) -> list[Optional[Track]]:
         url = await self.validate_url(query)
         if not url:
@@ -123,7 +175,7 @@ class Ytdlp:
             and search
             and is_url(
                 query,
-                from_=["www.youtube.com", "youtu.be"],
+                from_=["music.youtube.com", "youtu.be"],
                 include_last_part=True,
             )
             and "list=" in query
@@ -158,14 +210,17 @@ class Ytdlp:
                 asyncio.create_task(gather(tasks))
 
         # Ytdlp processing with the 1st video/audio
-        metadata = await self.get_metadata(url)
+        file_path = get_cache_path(url.encode("utf-8")) if download else None
+
+        # Extract the metadata
+        metadata = await self.get_metadata(url, file_path)
         if "entries" in metadata:
             metadata = metadata["entries"][0]
 
-        # Extract the metadata
-        artist = metadata.get("uploader", "Unknown uploader")
+        artist = metadata.get("uploader", "?")
         artist_url = metadata.get("uploader_url")
-        cover_url = metadata.get("thumbnail", None)
+        cover_url = metadata.get("thumbnail")
+        codec: str = metadata.get("acodec", "opus")
 
         if cover_url:
             dominant_rgb = await get_dominant_rgb_from_url(cover_url)
@@ -174,18 +229,18 @@ class Ytdlp:
 
         track = Track(
             service="ytdlp",
-            id=metadata.get("id", "Unknown ID"),
-            title=metadata.get("title", "Unknown Title"),
+            id=metadata.get("id", 0),
+            title=metadata.get("title", "?"),
             album=urlparse(url).netloc.split(".")[-2].capitalize(),
             cover_url=cover_url,
             duration=metadata.get("duration", "?"),
-            stream_source=metadata.get("url"),
+            stream_source=file_path if download else metadata.get("url"),
             source_url=url,
             dominant_rgb=dominant_rgb,
+            file_extension=codec.lower(),
         )
         track.set_artist(artist)
         track.create_embed(artist_urls=[artist_url])
-
         return [track] + dummy_tracks
 
     async def validate_url(self, query: str) -> Optional[str]:

@@ -1,8 +1,6 @@
-import mutagen.ogg
-import mutagen.oggvorbis
 import asyncio
 from aiohttp_client_cache import CachedSession, SQLiteBackend
-from typing import Dict, Optional, Tuple, List, Union, Callable
+from typing import Dict, Optional, Tuple, List, Union, Callable, TYPE_CHECKING
 import discord
 import base64
 import hashlib
@@ -28,7 +26,10 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
 
 from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE, PREMIUM_CHANNEL_ID
-from bot.search import link_grabber
+from bot.search import link_grabber, is_url
+
+if TYPE_CHECKING:
+    from bot.vocal.spotify import Spotify
 
 
 def extract_number(string: str) -> str:
@@ -581,7 +582,7 @@ def clean_url(url: str) -> str:
         "utm_medium",
         "utm_campaign",
         "rco",
-        "in_system_playlist"
+        "in_system_playlist",
     ]
 
     for param in params_blacklist:
@@ -590,3 +591,30 @@ def clean_url(url: str) -> str:
     new_url = re.sub(r"&.*", "", urlunparse(parsed_url._replace(query=new_query)))
     new_url.replace("youtu.be", "youtube.com")
     return new_url
+
+
+async def process_song_query(
+    query: str,
+    bot: discord.Bot,
+    url: Optional[bool] = None,
+    get_title: bool = False,
+    spotify: Optional["Spotify"] = None,
+) -> str:
+    """Lower the query and grab the URL in a Discord message if a message link is provided."""
+    message_link = is_url(query, "discord.com", parts=["channels"])
+    if url is None:
+        url = is_url(query)
+
+    if not url:
+        # Normal text
+        query = query.lower()
+    elif message_link:
+        # Message link -> Get the audio url
+        query = await get_url_from_message(bot, query)
+
+    if get_title and is_url(query, ["open.spotify.com"]):
+        tracks = await spotify.get_tracks(query)
+        if tracks:
+            query = str(tracks[0])
+
+    return query

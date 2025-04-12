@@ -1,8 +1,10 @@
 import asyncio
 import discord
+from discord.errors import Forbidden
 from discord.ext import commands
 
 from bot.search import is_url
+from bot.utils import process_song_query
 from config import DEEZER_ENABLED
 from deezer_decryption.download import Download
 
@@ -24,11 +26,22 @@ class DeezerDownload(commands.Cog):
         if not DEEZER_ENABLED:
             await ctx.respond(content="Deezer features are not enabled.")
             return
-        asyncio.create_task(ctx.respond("Give me a second~"))
-        is_spotify_url = is_url(query, ["open.spotify.com"])
+        defer_task = asyncio.create_task(ctx.respond("Give me a second~"))
+
+        # Convert the query
+        try:
+            query = await process_song_query(query, ctx.bot)
+        except Forbidden:
+            await defer_task
+            await ctx.edit(content="I don't have access to that message !")
+            return
+        
+        # vars
+        spotify_url = is_url(query, ["open.spotify.com"])
         track_not_found_message = "Track not found !"
 
-        if is_spotify_url:
+
+        if spotify_url:
             native_track_api = await self.download.api.parse_spotify_track(
                 query, self.bot.spotify.sessions.sp
             )
@@ -39,7 +52,7 @@ class DeezerDownload(commands.Cog):
 
         try:
             path = await self.download.track_from_query(
-                query, upload_=True, bot=self.bot, ctx=ctx, track_id=is_spotify_url
+                query, upload_=True, bot=self.bot, ctx=ctx, track_id=spotify_url
             )
         except asyncio.TimeoutError:
             await ctx.edit(content="Connection timed out, please try again !")

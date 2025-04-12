@@ -19,7 +19,6 @@ ALLOW_CHATBOT_IN_DMS = True # Allow everyone to use the bot in dms. Can increase
 YT_COOKIES_PATH = './cookies.txt' # Parse cookies to ytdl to help with bot detection. Learn more: https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies
 YTDLP_DOMAINS = [
     "youtube.com",
-    "www.youtube.com",
     "youtu.be",
     "soundcloud.com"
 ] # small letters
