@@ -50,7 +50,7 @@ class Memory:
 You are an assistant that classifies each Discord message into exactly one of four categories: 
 “question”, “info”, “other”, or “important_caracteristic”.
 Use these rules:
-• “question”: The message explicitly or implicitly asks something.
+• “question”: The message explicitly or implicitly asks something, or contains a question mark.
 • “info”: It provides information or opinions that are not personal preferences or factual personal details.
 • “other”: It doesn’t fit the other categories (e.g. greetings, jokes, improbable statements, nonsense, vague statements, affirmations).
 • “important_caracteristic”: It only concerns crutial informations about personal tastes (e.g. favorite food), 
