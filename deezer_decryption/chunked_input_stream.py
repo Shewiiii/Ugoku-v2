@@ -174,7 +174,7 @@ class DeezerChunkedInputStream:
         except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError) as e:
             logging.error(f"{repr(e)}, requesting a new stream...")
             self.stream.close()
-            self.set_chunks(self.current_position)
+            self.set_chunks(self.current_position, force=True)
             return self.read()
 
         except http.client.IncompleteRead as e:
