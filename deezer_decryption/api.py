@@ -8,7 +8,7 @@ from spotipy.exceptions import SpotifyException
 from spotipy import Spotify
 from typing import Optional, Union, Literal
 
-from config import SESSION_REFRESH_INTERVAL
+from config import DEEZER_REFRESH_INTERVAL
 
 DEEZER_ARL = os.getenv("DEEZER_ARL")
 
@@ -26,7 +26,7 @@ class Deezer:
 
     async def refresh_deezer(self) -> None:
         while True:
-            await asyncio.sleep(SESSION_REFRESH_INTERVAL)
+            await asyncio.sleep(DEEZER_REFRESH_INTERVAL)
             logging.info("Refreshing the Deezer session")
             await self.setup()
 

@@ -37,7 +37,8 @@ CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds). Default is one month
 
 # VC and audio bot behavior
 AUTO_LEAVE_DURATION = 900 # Duration before killing an audio session (in seconds)
-SESSION_REFRESH_INTERVAL = 240 # How often should the bot check and refresh audio sessions
+DEEZER_REFRESH_INTERVAL = 3600 # How often should the bot refresh the Deezer session
+SPOTIFY_REFRESH_INTERVAL = 180 # How often should the bot check and refresh the Spotify session
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
 DEFAULT_EMBED_COLOR = (145, 153, 252) # If the Now playing song doesn't have a cover
 DEFAULT_AUDIO_VOLUME = 15 # Linear scale! The recommended value is around 15.

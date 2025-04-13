@@ -22,7 +22,7 @@ from config import (
     SPOTIFY_TOP_COUNTRY,
     SPOTIFY_ENABLED,
     SPOTIFY_API_ENABLED,
-    SESSION_REFRESH_INTERVAL,
+    SPOTIFY_REFRESH_INTERVAL,
 )
 
 
@@ -178,7 +178,7 @@ class Librespot:
                         # Simulate a track play
                         stream = await self.get_stream(track_id)
                         await asyncio.to_thread(stream.read, 1)
-                        await asyncio.sleep(SESSION_REFRESH_INTERVAL)
+                        await asyncio.sleep(SPOTIFY_REFRESH_INTERVAL)
                     except Exception as e:
                         logging.error(f"Stream read error: {repr(e)}")
                         await self.refresh_librespot()
