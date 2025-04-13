@@ -50,9 +50,11 @@ if __name__ == "__main__":  # Anti ProcessPoolExecutor shield
             spotify = Spotify(spotify_sessions)
             tasks.append(spotify_sessions.init_spotify())
             bot.spotify = spotify
+
             if DEEZER_ENABLED:
                 bot.deezer = Deezer()
-                tasks.append(bot.deezer.setup())
+                tasks.append(bot.deezer.setup(create_refresh_task=True))
+
         bot.ytdlp = Ytdlp()
         if GEMINI_ENABLED:
             tasks.append(memory.init_pinecone(PINECONE_INDEX_NAME))

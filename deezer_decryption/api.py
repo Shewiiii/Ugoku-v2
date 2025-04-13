@@ -8,6 +8,8 @@ from spotipy.exceptions import SpotifyException
 from spotipy import Spotify
 from typing import Optional, Union, Literal
 
+from config import SESSION_REFRESH_INTERVAL
+
 DEEZER_ARL = os.getenv("DEEZER_ARL")
 
 # Simplified and adapted from https://gitlab.com/RemixDev/deezer-py !
@@ -22,11 +24,20 @@ class Deezer:
         self.api_token = None
         self.user_data = None
 
-    async def setup(self) -> None:
+    async def refresh_deezer(self) -> None:
+        while True:
+            await asyncio.sleep(SESSION_REFRESH_INTERVAL)
+            logging.info("Refreshing the Deezer session")
+            await self.setup()
+
+    async def setup(self, create_refresh_task: bool = False) -> None:
         await self.set_api_token()
         logging.info("Deezer API Token set")
         await self.set_user_data()
         logging.info("Deezer User data set")
+        self.can_stream_lossless() # Check the ARL
+        if create_refresh_task:
+            asyncio.create_task(self.refresh_deezer())
 
     async def set_api_token(self) -> None:
         p = {"api_version": "1.0", "api_token": "null", "method": "deezer.getUserData"}
@@ -79,7 +90,10 @@ class Deezer:
 
     def can_stream_lossless(self) -> bool:
         options = self.user_data["USER"]["OPTIONS"]
-        return options["web_lossless"] or options["mobile_lossless"]
+        c = options["web_lossless"] or options["mobile_lossless"]
+        if not c:
+            logging.warning("This Deezer account can't stream lossless")
+        return c
 
     async def search(
         self,

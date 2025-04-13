@@ -18,7 +18,12 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 from bot.search import is_url
 from bot.vocal.track_dataclass import Track
-from config import SPOTIFY_TOP_COUNTRY, SPOTIFY_ENABLED, SPOTIFY_API_ENABLED
+from config import (
+    SPOTIFY_TOP_COUNTRY,
+    SPOTIFY_ENABLED,
+    SPOTIFY_API_ENABLED,
+    SESSION_REFRESH_INTERVAL,
+)
 
 
 logging.getLogger("zeroconf").setLevel(logging.ERROR)
@@ -173,7 +178,7 @@ class Librespot:
                         # Simulate a track play
                         stream = await self.get_stream(track_id)
                         await asyncio.to_thread(stream.read, 1)
-                        await asyncio.sleep(180)
+                        await asyncio.sleep(SESSION_REFRESH_INTERVAL)
                     except Exception as e:
                         logging.error(f"Stream read error: {repr(e)}")
                         await self.refresh_librespot()
