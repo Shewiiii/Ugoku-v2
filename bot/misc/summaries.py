@@ -47,7 +47,7 @@ class Summaries:
     async def get_youtube_transcript_path(url: str) -> Optional[Path]:
         text = Summaries.get_youtube_transcript_text(url)
         if text:
-            path = get_cache_path(text.encode("utf-8"))
+            path = get_cache_path(text)
             with open(path, "w") as file:
                 file.write(text)
             return path

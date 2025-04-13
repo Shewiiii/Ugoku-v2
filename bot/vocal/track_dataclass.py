@@ -1,4 +1,5 @@
 import asyncio
+import aiofiles
 from dataclasses import dataclass, field, fields
 import logging
 from pathlib import Path
@@ -11,9 +12,14 @@ from deezer_decryption.chunked_input_stream import DeezerChunkedInputStream
 from librespot.audio import AbsChunkedInputStream
 import spotipy
 
-from bot.utils import get_dominant_rgb_from_url
+from bot.utils import get_dominant_rgb_from_url, get_cache_path
 from deezer_decryption.api import Deezer
-from config import DEFAULT_EMBED_COLOR, DEEZER_ENABLED, SPOTIFY_ENABLED
+from config import (
+    DEFAULT_EMBED_COLOR,
+    DEEZER_ENABLED,
+    SPOTIFY_ENABLED,
+    AGRESSIVE_CACHING,
+)
 
 if TYPE_CHECKING:
     from bot.vocal.server_session import ServerSession
@@ -71,6 +77,7 @@ class Track:
     # Spotify and deezer streams need to be reloaded
     # (paths are out of the equation because of the early return above)
     file_extension: Optional[str] = None  # Needed for Yt-dlp
+    cache_event: Optional[asyncio.Event] = None
 
     def __eq__(self, other):
         return self.stream_source == other.stream_source
@@ -229,8 +236,46 @@ class Track:
                 return False
             logging.info(f"Loaded Spotify stream of {self}")
 
-        # Skip non-audio content in Spotify streams
-        await asyncio.to_thread(self.stream_source.seek, 167)
+        # If agressive caching is enabled, save the stream to a cache file
+        if AGRESSIVE_CACHING:
+            cache_id = f"spotify{self.id}"
+            file_path = get_cache_path(cache_id)
+
+            if not Path(file_path.with_suffix(".valid")).is_file():
+                self.cache_event = asyncio.Event()
+                asyncio.create_task(self.store_spotify_stream(file_path))
+
+                # Wait for the first write
+                await self.cache_event.wait()
+                self.cache_event = None
+
+            self.stream_source = file_path
+
+        else:
+            # Skip non-audio content in Spotify streams
+            await asyncio.to_thread(self.stream_source.seek, 167)
+
+        return True
+
+    async def store_spotify_stream(self, file_path: Path) -> bool:
+        if not SPOTIFY_ENABLED:
+            return False
+
+        # Download
+        stream = self.stream_source
+        async with aiofiles.open(file_path, "wb") as file:
+            while True:
+                data = await asyncio.to_thread(stream.read, 4096)
+                if not data:
+                    break
+                await file.write(data)
+                if self.cache_event:
+                    self.cache_event.set()
+
+        # If the download is sucessful, create a "valid" marker
+        async with aiofiles.open(file_path.with_suffix(".valid"), "w"):
+            ...
+
         return True
 
     async def load_youtube(self) -> bool:

@@ -227,7 +227,7 @@ class ServerSession:
 
         # Cache
         track: Track = self.queue[0]
-        file_path = get_cache_path(f"{track.service}{track.id}".encode("utf-8"))
+        file_path = get_cache_path(f"{track.service}{track.id}")
         if file_path.is_file():
             track.stream_source = file_path
 
@@ -649,3 +649,4 @@ class ServerSession:
         await self.close_streams(gc_collect=False)
         self.bot = None
         self.voice_client = None
+        self.deezer_download = None

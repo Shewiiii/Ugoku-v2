@@ -210,7 +210,7 @@ class Ytdlp:
                 asyncio.create_task(gather(tasks))
 
         # Ytdlp processing with the 1st video/audio
-        file_path = get_cache_path(url.encode("utf-8")) if download else None
+        file_path = get_cache_path(url) if download else None
 
         # Extract the metadata
         metadata = await self.get_metadata(url, file_path)

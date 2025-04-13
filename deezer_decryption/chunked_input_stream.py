@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from bot.vocal.track_dataclass import Timer
 
 async_client = httpx.AsyncClient(http2=True)
+client = requests.Session()
 
 
 class DeezerChunkedInputStream:
@@ -91,7 +92,7 @@ class DeezerChunkedInputStream:
         else:
             headers = self.headers
 
-        self.stream = requests.get(
+        self.stream = client.get(
             url=self.stream_url, headers=headers, timeout=10, stream=True
         )
         self.stream.raise_for_status()
@@ -171,8 +172,7 @@ class DeezerChunkedInputStream:
             self.reset_status()
             return b""
 
-        except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError) as e:
-            logging.error(f"{repr(e)}, requesting a new stream...")
+        except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError):
             self.stream.close()
             self.set_chunks(self.current_position, force=True)
             return self.read()

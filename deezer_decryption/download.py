@@ -45,7 +45,7 @@ class Download:
             api = gw_track_apis[i]
             track_id = api["SNG_ID"]
             cache_id = f"deezer{track_id}"
-            file_path = get_cache_path(cache_id.encode("utf-8"))
+            file_path = get_cache_path(cache_id)
             paths.append(file_path)
             if file_path.is_file():
                 continue

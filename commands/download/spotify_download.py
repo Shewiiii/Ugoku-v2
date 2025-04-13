@@ -47,7 +47,7 @@ class SpotifyDownload(commands.Cog):
 
         # Update cached files
         cache_id = f"spotify{track.id}"
-        file_path = get_cache_path(cache_id.encode("utf-8"))
+        file_path = get_cache_path(cache_id)
 
         if not file_path.is_file():
             # Get track data

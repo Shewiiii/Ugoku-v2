@@ -29,7 +29,9 @@ TEMP_FOLDER = Path('.') / 'temp'
 PREMIUM_CHANNEL_ID = None # Upload files too big to a channel in a boosted server instead
 
 # Cache control & preloading
-MAX_DUMMY_LOAD_INDEX = 6 # Reduce if you experience audio lags when loading tracks
+AGRESSIVE_CACHING = True # Download Spotify streams on disk before and when playing. Can be useful if Spotify often closes the connection with Librespot.
+MAX_DUMMY_LOAD_INDEX = 6
+MAX_PROCESS_POOL_WORKERS = 2 # Max number of simultaneous ytdlp fetching. None defaults to the number of processors
 CACHE_SIZE = 100  # Cache size limit (in number of files)
 CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds). Default is one month
 

@@ -184,7 +184,7 @@ async def get_dominant_rgb_from_url(image_url: str) -> Tuple[int, int, int]:
 
 
 # Cache functions for custom sources
-def get_cache_path(utf_8: bytes) -> Path:
+def get_cache_path(string: str) -> Path:
     """
     Generate a cache file path for a given byte string.
 
@@ -194,6 +194,7 @@ def get_cache_path(utf_8: bytes) -> Path:
     Returns:
         Path: The generated cache file path.
     """
+    utf_8 = string.encode("utf-8")
     # Hash the URL to create a unique filename
     hash_digest = hashlib.md5(utf_8).hexdigest()
     return TEMP_FOLDER / f"{hash_digest}.cache"
