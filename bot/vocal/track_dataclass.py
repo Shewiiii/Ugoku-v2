@@ -241,7 +241,7 @@ class Track:
             cache_id = f"spotify{self.id}"
             file_path = get_cache_path(cache_id)
 
-            if not Path(file_path.with_suffix(".valid")).is_file():
+            if not file_path.with_suffix(".valid").is_file():
                 self.cache_event = asyncio.Event()
                 asyncio.create_task(self.store_spotify_stream(file_path))
 
