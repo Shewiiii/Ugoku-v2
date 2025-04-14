@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from datetime import datetime
+import pytz
 from typing import Optional, List
+
+
+from config import CHATBOT_TIMEZONE
 
 
 @dataclass
@@ -14,6 +18,7 @@ class ChatbotMessage:
     referenced_content: Optional[str] = None
     response: Optional[str] = None
     date: datetime = datetime.now()
+    timezone = pytz.timezone(CHATBOT_TIMEZONE)
 
     def __init_subclass__(cls):
         pass
@@ -25,7 +30,7 @@ class ChatbotMessage:
                 return datetime.now(self.date).strftime("%Y-%m-%d %H:%M")
             case "prompt":
                 infos = [
-                    f"Time in Kyoto: {datetime.now()}",
+                    f"Time in Kyoto: {datetime.now(self.timezone)}",
                     f"Pinecone recall: {self.pinecone_recall}"
                     if self.pinecone_recall
                     else "No Pinecone recall",

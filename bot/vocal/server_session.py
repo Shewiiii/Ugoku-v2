@@ -167,7 +167,8 @@ class ServerSession:
                     content=message, embed=embed, view=view
                 )
             elif send:
-                # If skipping, just edit the embed, resend a new one otherwise (if the track ended naturally)
+                # If skipping, just edit the embed,
+                # #resend a new one otherwise (if the track ended naturally)
                 if not (self.skipped or self.previous or edit_only):
                     old_message = self.now_playing_message
                     asyncio.create_task(old_message.delete())

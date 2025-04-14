@@ -25,6 +25,25 @@ from config import (
 )
 
 
+async def autocomplete(ctx: discord.AutocompleteContext) -> list:
+    query = ctx.options["query"]
+    if not query:
+        return ["Search anything~"]
+
+    if is_url(query) or is_onsei(query):  # No autocomplete for special queries
+        return []
+
+    search = await asyncio.to_thread(ctx.bot.spotify.sessions.sp.search, query)
+    tracks_api = search["tracks"]["items"]
+    track_names = []
+    for track_api in tracks_api:
+        artists = ", ".join([artist["name"] for artist in track_api["artists"]])
+        name = track_api["name"]
+        track_names.append(f"{artists} - {name}")
+
+    return track_names
+
+
 class Play(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
@@ -127,7 +146,9 @@ class Play(commands.Cog):
     async def play(
         self,
         ctx: discord.ApplicationContext,
-        query: str,
+        query: discord.Option(
+            str, description="Search a song.", autocomplete=autocomplete
+        ),  # type: ignore
         service: discord.Option(
             str,
             description="The streaming service you want to use.",

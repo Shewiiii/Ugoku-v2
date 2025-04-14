@@ -1,7 +1,6 @@
 import os
 import re
 import base64
-import pytz
 import logging
 from random import random
 from typing import Optional, List
@@ -16,7 +15,6 @@ from config import (
     GEMINI_HISTORY_SIZE,
     CHATBOT_TIMEOUT,
     CHATBOT_PREFIX,
-    CHATBOT_TIMEZONE,
     CHATBOT_TEMPERATURE,
     CHATBOT_EMOTES,
     CHATBOT_MAX_OUTPUT_TOKEN,
@@ -95,7 +93,6 @@ class Gembot:
         self, id_, gemini_model=GEMINI_MODEL, ugoku_chat: bool = False
     ) -> None:
         self.id_: int = id_
-        self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.last_prompt = datetime.now()
         self.message_count = 0
         self.model = genai.GenerativeModel(
@@ -160,7 +157,13 @@ class Gembot:
 
         # Create message
         message = ChatbotMessage(
-            message_id, guild_id, author, user_query, recall, r_author, r_content
+            message_id,
+            guild_id,
+            author,
+            user_query,
+            recall,
+            r_author,
+            r_content
         )
         prompt = f"{message:prompt}"
 
