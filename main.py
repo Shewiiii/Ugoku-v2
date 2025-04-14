@@ -7,9 +7,10 @@ if __name__ == "__main__":  # Anti ProcessPoolExecutor shield
 
     load_dotenv()
 
+    from bot.misc.quickstart_view import QuickstartView  # noqa: E402
+    from bot.utils import cleanup_cache  # noqa: E402
     from bot.vocal.spotify import SpotifySessions, Spotify  # noqa: E402
     from bot.vocal.ytdlp import Ytdlp  # noqa: E402
-    from bot.utils import cleanup_cache  # noqa: E402
     from config import (  # noqa: E402
         COMMANDS_FOLDER,
         SPOTIFY_API_ENABLED,
@@ -73,5 +74,17 @@ if __name__ == "__main__":  # Anti ProcessPoolExecutor shield
         module_name = f"commands.{relative_path.as_posix().replace('/', '.')}"
         logging.info(f"Loading {module_name}")
         bot.load_extension(module_name)
+
+    @bot.event
+    async def on_guild_join(guild: discord.Guild):
+        channel = guild.system_channel
+        if channel is None:
+            for c in guild.text_channels:
+                if c.permissions_for(guild.me).send_messages:
+                    channel = c
+                    break
+        if channel is not None:
+            quickstart_view = QuickstartView(timeout=None)
+            await quickstart_view.display(respond_func=channel.send)
 
     bot.run(BOT_TOKEN)

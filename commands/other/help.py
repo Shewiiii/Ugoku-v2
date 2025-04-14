@@ -122,22 +122,26 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False,
             )
-            embed.add_field(
-                name="/dzdl",
-                value=(
-                    "Download a song from Deezer\n"
-                    "Example: ``/dzdl Ma Meilleure Ennemie``\n"
+            (
+                embed.add_field(
+                    name="/dzdl",
+                    value=(
+                        "Download a song from Deezer\n"
+                        "Example: ``/dzdl Ma Meilleure Ennemie``\n"
+                    ),
+                    inline=False,
                 ),
-                inline=False,
-            ),
-            embed.add_field(
-                name="/ytdlp",
-                value=(
-                    "Download a song from Youtube or Soundcloud\n"
-                    "Example: ``/ytdlp https://www.youtube.com/watch?v=ZDh8mDYsr2U``\n"
+            )
+            (
+                embed.add_field(
+                    name="/ytdlp",
+                    value=(
+                        "Download a song from Youtube or Soundcloud\n"
+                        "Example: ``/ytdlp https://www.youtube.com/watch?v=ZDh8mDYsr2U``\n"
+                    ),
+                    inline=False,
                 ),
-                inline=False,
-            ),
+            )
             embed.add_field(
                 name="/audio-effect",
                 value=(
@@ -303,7 +307,7 @@ class HelpDropdown(discord.ui.Select):
             )
         else:
             embed = discord.Embed(
-                title="Misc Commands",
+                title="Infos",
                 color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR),
             )
             embed.add_field(
@@ -315,6 +319,16 @@ class HelpDropdown(discord.ui.Select):
                     "To my knowledge, no Discord music bot offers high-quality audio, "
                     "and Ugoku's purpose is to fill that niche gap. "
                     "Turns out, I had more fun than expected when coding it, so here we go!"
+                ),
+                inline=False,
+            )
+            embed.add_field(
+                name="How is the audio quality?",
+                value=(
+                    "By default, Ugoku requests FLAC audio directly from Deezer, "
+                    "then trancodes it to Opus 510kbps to align with the Discord API. "
+                    "If the song is not available on Spotify, Ogg 320kbps audio from Spotify is used instead."
+                    "For other sources, it will use the best audio quality available."
                 ),
                 inline=False,
             )
@@ -370,7 +384,10 @@ class Help(commands.Cog):
         """Slash command to show the help menu with a dropdown."""
         embed = discord.Embed(
             title="Help Menu",
-            description="Select a category from the dropdown below.",
+            description=(
+                "Select a category from the dropdown below.\n"
+                "Not sure where to start ? Try `/quickstart` !"
+            ),
             color=discord.Color.blurple(),
         )
         view = HelpView()
