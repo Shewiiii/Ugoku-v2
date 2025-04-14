@@ -38,8 +38,8 @@ async def autocomplete(ctx: discord.AutocompleteContext) -> list:
     track_names = []
     for track_api in tracks_api:
         artists = ", ".join([artist["name"] for artist in track_api["artists"]])
-        name = track_api["name"]
-        track_names.append(f"{artists} - {name}")
+        display_name = f"{artists} - {track_api["name"]}"[:100]
+        track_names.append(display_name)
 
     return track_names
 
