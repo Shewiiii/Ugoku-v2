@@ -4,8 +4,9 @@ from discord.errors import Forbidden
 from discord.ext import commands
 
 from bot.search import is_url
-from bot.utils import process_song_query
+from bot.utils import process_song_query, upload
 from config import DEEZER_ENABLED
+from deezer_decryption.constants import EXTENSION
 from deezer_decryption.download import Download
 
 
@@ -35,11 +36,10 @@ class DeezerDownload(commands.Cog):
             await defer_task
             await ctx.edit(content="I don't have access to that message !")
             return
-        
+
         # vars
         spotify_url = is_url(query, ["open.spotify.com"])
         track_not_found_message = "Track not found !"
-
 
         if spotify_url:
             native_track_api = await self.download.api.parse_spotify_track(
@@ -51,8 +51,8 @@ class DeezerDownload(commands.Cog):
             query = native_track_api.get("id")
 
         try:
-            path = await self.download.track_from_query(
-                query, upload_=True, bot=self.bot, ctx=ctx, track_id=spotify_url
+            path, track_data = await self.download.track_from_query(
+                query, track_id=spotify_url
             )
         except asyncio.TimeoutError:
             await ctx.edit(content="Connection timed out, please try again !")
@@ -60,6 +60,12 @@ class DeezerDownload(commands.Cog):
 
         if not path:
             await ctx.edit(content=track_not_found_message)
+            return
+
+        filename = (
+            f"{track_data['ART_NAME']} - {track_data['SNG_TITLE']}.{EXTENSION['FLAC']}"
+        )
+        await upload(ctx.bot, ctx, path, filename)
 
 
 def setup(bot):

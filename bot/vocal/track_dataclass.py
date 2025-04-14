@@ -309,6 +309,14 @@ class Track:
             case "spotify/deezer":
                 if not session:
                     raise ValueError("Session param missing")
+
+                # Cached ?
+                sp_cached_file = Path(f"spotify{self.id}")
+                if sp_cached_file.with_suffix(".valid").is_file():
+                    self.stream_source = sp_cached_file
+                    return
+
+                # Load from Deezer first if possible
                 if not await self.load_deezer_stream(session):
                     await self.load_spotify_stream(session)
 

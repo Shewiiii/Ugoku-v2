@@ -3,7 +3,6 @@ import aiofiles
 import asyncio
 from deezer_decryption.api import Deezer
 from deezer_decryption.chunked_input_stream import DeezerChunkedInputStream
-from deezer_decryption.constants import EXTENSION
 from deezer_decryption.crypto import decrypt_chunk
 import discord
 import logging
@@ -13,7 +12,7 @@ from mutagen.flac import Picture
 from pathlib import Path
 from typing import Literal, Optional
 
-from bot.utils import upload, get_cache_path
+from bot.utils import get_cache_path
 from config import CACHE_EXPIRY
 
 
@@ -107,11 +106,8 @@ class Download:
         self,
         query: str,
         tracks_format: Literal["MP3_128", "MP3_320", "FLAC"] = "FLAC",
-        upload_: bool = False,
-        bot: Optional[discord.Bot] = None,
-        ctx: Optional[discord.ApplicationContext] = None,
         track_id: bool = False,
-    ) -> Path:
+    ) -> tuple[Path, dict]:
         if track_id:
             track_data = await self.api.get_track(query)
             if not track_data:
@@ -124,15 +120,7 @@ class Download:
             track_data = search_data[get_closest_string(query, choices)]
 
         path = await self.track(track_data, tracks_format)
-
-        if upload_ and path:
-            if bot and ctx:
-                filename = f"{track_data['ART_NAME']} - {track_data['SNG_TITLE']}.{EXTENSION[tracks_format]}"
-                await upload(bot, ctx, path, filename)
-            else:
-                logging.error("bot and ctx required for upload.")
-
-        return path
+        return path, track_data
 
     async def tag_file(self, file_path: Path, native_track_api: dict) -> None:
         audio = FLAC(file_path)
