@@ -61,4 +61,5 @@ class WrongTrackView(View):
         )
 
     def close(self) -> None:
+        self.clear_items()
         self.ctx = self.session = self.original_message = None

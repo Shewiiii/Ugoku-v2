@@ -436,6 +436,8 @@ def send_response(
         logging.error(
             f"Failed to send response for guild {guild_id}. Invalid Webhook Token."
         )
+    except discord.errors.Forbidden:
+        logging.error(f"Message sent in forbidden channel in {guild_id}")
 
 
 async def upload(

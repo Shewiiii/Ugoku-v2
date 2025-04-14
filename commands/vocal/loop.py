@@ -33,7 +33,7 @@ class Loop(commands.Cog):
                 session.loop_current = False
                 response = "You are now looping the queue!"
             else:
-                await session.close_streams(tracks=session.to_loop)
+                await session.close_streams(tracks=session.to_loop, clear_queues=False)
                 session.to_loop.clear()
                 response = "You are not looping the queue anymore."
 

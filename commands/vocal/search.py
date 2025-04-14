@@ -96,7 +96,7 @@ class Search(commands.Cog):
         # Defined here to access local variables
         class SelectView(discord.ui.View):
             def __init__(self):
-                super().__init__(timeout=None)
+                super().__init__(timeout=1800)
                 self.page = 1
                 self.max_per_page = 10
                 self.update()

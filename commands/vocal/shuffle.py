@@ -19,6 +19,7 @@ class Shuffle(commands.Cog):
             not vocal_action_check(session, ctx, ctx.respond, silent=True)
             or len(session.queue) <= 2
         ):
+            send_response(ctx.respond, "Nothing to shuffle !", guild_id, silent)
             return
 
         session: ServerSession
