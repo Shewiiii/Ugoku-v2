@@ -27,20 +27,18 @@ class nowPlayingView(discord.ui.View):
         shuffle = discord.ui.Button(label="Shuffle", style=ButtonStyle.secondary)
         effect = discord.ui.Button(label="Effect", style=ButtonStyle.secondary)
         lyrics = discord.ui.Button(label="Lyrics", style=ButtonStyle.secondary)
+        leave = discord.ui.Button(label="Leave", style=ButtonStyle.danger)
         loop_queue.callback = lambda interaction: self.loop_callback(
             loop_queue, interaction, "queue"
         )
-        shuffle.callback = lambda interaction: self.shuffle_button_callback(
+        shuffle.callback = lambda interaction: self.shuffle_callback(
             shuffle, interaction
         )
-        effect.callback = lambda interaction: self.effect_button_callback(
-            effect, interaction
-        )
-        lyrics.callback = lambda interaction: self.lyrics_button_callback(
-            lyrics, interaction
-        )
+        effect.callback = lambda interaction: self.effect_callback(effect, interaction)
+        lyrics.callback = lambda interaction: self.lyrics_callback(lyrics, interaction)
+        leave.callback = lambda interaction: self.leave_callback(leave, interaction)
 
-        self.extra_buttons = [loop_queue, shuffle, effect, lyrics]
+        self.extra_buttons = [loop_queue, shuffle, effect, lyrics, leave]
 
     async def in_active_vc(self, interaction: discord.Interaction) -> None:
         voice = interaction.user.voice
@@ -107,7 +105,7 @@ class nowPlayingView(discord.ui.View):
         label="Pause",
         style=ButtonStyle.secondary,
     )
-    async def pause_button_callback(
+    async def pause_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         # To avoid "interaction failed message"
@@ -123,7 +121,7 @@ class nowPlayingView(discord.ui.View):
             await resume_cog.execute_resume(self.ctx, silent=True)
 
     @discord.ui.button(label="Previous", style=ButtonStyle.secondary, disabled=True)
-    async def previous_button_callback(
+    async def previous_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         asyncio.create_task(interaction.response.defer())
@@ -137,7 +135,7 @@ class nowPlayingView(discord.ui.View):
         label="Skip",
         style=ButtonStyle.secondary,
     )
-    async def skip_button_callback(
+    async def skip_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         asyncio.create_task(interaction.response.defer())
@@ -151,24 +149,10 @@ class nowPlayingView(discord.ui.View):
         label="Loop",
         style=ButtonStyle.secondary,
     )
-    async def loop_button_callback_(
+    async def loop_callback_(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         await self.loop_callback(button, interaction, "song")
-
-    # @discord.ui.button(
-    #     label="Shuffle",
-    #     style=ButtonStyle.secondary,
-    # )
-    # async def shuffle_button_callback(
-    #     self, button: discord.ui.Button, interaction: discord.Interaction
-    # ) -> None:
-    #     asyncio.create_task(interaction.response.defer())
-    #     if not await self.in_active_vc(interaction):
-    #         return
-
-    #     shuffle_cog = self.bot.get_cog("Shuffle")
-    #     await shuffle_cog.execute_shuffle(self.ctx, silent=True)
 
     @discord.ui.button(
         label=">",
@@ -207,7 +191,7 @@ class nowPlayingView(discord.ui.View):
         cog = self.bot.get_cog("Loop")
         await cog.execute_loop(self.ctx, mode, silent=True)
 
-    async def shuffle_button_callback(
+    async def shuffle_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         asyncio.create_task(interaction.response.defer())
@@ -217,7 +201,7 @@ class nowPlayingView(discord.ui.View):
         cog = self.bot.get_cog("Shuffle")
         await cog.execute_shuffle(self.ctx, silent=True)
 
-    async def effect_button_callback(
+    async def effect_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         asyncio.create_task(interaction.response.defer())
@@ -232,7 +216,7 @@ class nowPlayingView(discord.ui.View):
         await cog.execute_effect(self.ctx, effect=effect, silent=True)
         await self.update_buttons()
 
-    async def lyrics_button_callback(
+    async def lyrics_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
     ) -> None:
         asyncio.create_task(interaction.response.defer())
@@ -242,6 +226,16 @@ class nowPlayingView(discord.ui.View):
         cog = self.bot.get_cog("Lyrics")
         await cog.execute_lyrics(self.ctx, query=None)
         await self.update_buttons()
+
+    async def leave_callback(
+        self, button: discord.ui.Button, interaction: discord.Interaction
+    ) -> None:
+        asyncio.create_task(interaction.response.defer())
+        if not await self.in_active_vc(interaction):
+            return
+
+        cog = self.bot.get_cog("Leave")
+        await cog.execute_leave(self.ctx, send=True)
 
     def close(self) -> None:
         self.clear_items()

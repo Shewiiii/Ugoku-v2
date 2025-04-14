@@ -12,8 +12,9 @@ class Leave(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.slash_command(name="leave", description="Nooooo （＞人＜；）")
-    async def leave(self, ctx: discord.ApplicationContext) -> None:
+    async def execute_leave(
+        self, ctx: discord.ApplicationContext, send: bool = False
+    ) -> None:
         guild_id = ctx.guild.id
         session = sm.server_sessions.get(guild_id)
         if not vocal_action_check(session, ctx, ctx.respond, check_queue=False):
@@ -21,9 +22,14 @@ class Leave(commands.Cog):
 
         if session:
             session: ServerSession
-            asyncio.create_task(ctx.respond("Baibai~"))
+            respond = ctx.send if send else ctx.respond
+            asyncio.create_task(respond("Baibai~"))
             await session.clean_session()
             await asyncio.to_thread(gc.collect)
+
+    @commands.slash_command(name="leave", description="Nooooo （＞人＜；）")
+    async def leave(self, ctx: discord.ApplicationContext) -> None:
+        await self.execute_leave(ctx)
 
 
 def setup(bot):

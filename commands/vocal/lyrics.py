@@ -96,14 +96,14 @@ class Lyrics(commands.Cog):
             tracks: Track = await self.bot.spotify.get_tracks(query)
             if not tracks:
                 if not silent:
-                    await ctx.respond("No lyrics found!")
+                    await ctx.respond("No lyrics found !")
                 return
             track: Track = tracks[0]
 
         lyrics = await BotLyrics.get(track)
         if not lyrics:
             if not silent:
-                await ctx.respond(lyrics or "No lyrics found!")
+                await ctx.respond(lyrics or "No lyrics found !")
             return
 
         # CONVERT
