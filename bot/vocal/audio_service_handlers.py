@@ -172,12 +172,13 @@ async def play_ytdlp(
     query: str,
     session: ServerSession,
     interaction: Optional[discord.Interaction] = None,
+    offset: int = 0,
     play_next: bool = False,
     defer_task: Optional[asyncio.Task] = None,
 ) -> None:
     response_params = [ctx, "", interaction, defer_task]
     try:
-        tracks: list[Track] = await ctx.bot.ytdlp.get_tracks(query)
+        tracks: list[Track] = await ctx.bot.ytdlp.get_tracks(query, offset=offset)
     except Exception as e:
         response_params[1] = get_error_message(e)
         await respond(*response_params)

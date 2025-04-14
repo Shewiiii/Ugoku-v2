@@ -101,7 +101,9 @@ class Play(commands.Cog):
             await play_custom(ctx, query, session, play_next, defer_task)
 
         elif service == "ytdlp" or youtube:
-            await play_ytdlp(ctx, query, session, interaction, play_next, defer_task)
+            await play_ytdlp(
+                ctx, query, session, interaction, offset, play_next, defer_task
+            )
 
         elif service == "spotify/deezer":
             if not (SPOTIFY_API_ENABLED and (SPOTIFY_ENABLED or DEEZER_ENABLED)):

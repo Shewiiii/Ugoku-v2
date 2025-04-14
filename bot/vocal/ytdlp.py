@@ -162,7 +162,11 @@ class Ytdlp:
         return tracks
 
     async def get_tracks(
-        self, query: str, load_dummies: bool = True, download: bool = False
+        self,
+        query: str,
+        load_dummies: bool = True,
+        download: bool = False,
+        offset: int = 0,
     ) -> list[Optional[Track]]:
         url = await self.validate_url(query)
         if not url:
@@ -197,7 +201,7 @@ class Ytdlp:
                 # It's a youtube video URL but in a playlist
                 # So we ignore videos before
                 video_id = video_grabber.search(query).group(1)
-                start_index = video_ids.index(video_id)
+                start_index = video_ids.index(video_id) + offset
 
             url = f"https://www.youtube.com/watch?v={video_ids[start_index]}"
             dummy_tracks = await self.create_dummy_tracks_from_playlist(
