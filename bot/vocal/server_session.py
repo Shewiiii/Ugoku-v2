@@ -594,7 +594,6 @@ class ServerSession:
 
     async def close_streams(
         self,
-        gc_collect: bool = True,
         clear_queues: bool = True,
         tracks: Optional[list[Track]] = None,
     ) -> None:
@@ -616,9 +615,6 @@ class ServerSession:
             self.original_queue.clear()
             self.to_loop.clear()
             self.stack_previous.clear()
-
-        if gc_collect:
-            await asyncio.to_thread(gc.collect)
 
     async def clean_session(self) -> None:
         await self.stop_playback()
@@ -646,7 +642,7 @@ class ServerSession:
 
         self.session_manager.server_sessions.pop(self.guild_id)
 
-        await self.close_streams(gc_collect=False)
+        await self.close_streams()
         self.bot = None
         self.voice_client = None
         self.deezer_download = None

@@ -80,14 +80,14 @@ class Lyrics(commands.Cog):
         ctx: discord.ApplicationContext,
         query: Optional[str],
         convert_to: Optional[str] = None,
-        silent: bool = False,
+        send: bool = False,
     ) -> None:
         if not query:
             guild_id = ctx.guild.id
             session = session_manager.server_sessions.get(guild_id)
+            respond = ctx.send if send else ctx.respond
             if not (session and session.queue):
-                if not silent:
-                    await ctx.respond("No song is playing !")
+                await respond("No song is playing !")
                 return
             track: Track = session.queue[0]
 
@@ -95,27 +95,24 @@ class Lyrics(commands.Cog):
             # Use Spotify features for more precise results
             tracks: Track = await self.bot.spotify.get_tracks(query)
             if not tracks:
-                if not silent:
-                    await ctx.respond("No lyrics found !")
+                await respond("No lyrics found !")
                 return
             track: Track = tracks[0]
 
         lyrics = await BotLyrics.get(track)
         if not lyrics:
-            if not silent:
-                await ctx.respond(lyrics or "No lyrics found !")
+            await respond(lyrics or "No lyrics found !")
             return
 
         # CONVERT
         if convert_to:
             if not GEMINI_ENABLED:
-                if not silent:
-                    await ctx.respond(
-                        "Chatbot features need to be enabled in "
-                        "order to use lyrics conversion."
-                    )
+                await respond(
+                    "Chatbot features need to be enabled in "
+                    "order to use lyrics conversion."
+                )
                 return
-            asyncio.create_task(ctx.respond("Converting~"))
+            asyncio.create_task(respond("Converting~"))
             lyrics = await BotLyrics.convert(lyrics, convert_to)
 
         # Split the lyrics in case it's too long
@@ -136,12 +133,11 @@ class Lyrics(commands.Cog):
         if SPOTIFY_API_ENABLED:
             # Add a cover to the embed
             embed.set_author(name="Lyrics", icon_url=track.cover_url)
-            if not silent:
-                asyncio.create_task(
-                    ctx.respond(embed=embed, view=lyricsView(self.bot, ctx, track.source_url))
-                )
+            asyncio.create_task(
+                respond(embed=embed, view=lyricsView(self.bot, ctx, track.source_url))
+            )
         else:
-            asyncio.create_task(ctx.respond(embed=embed))
+            asyncio.create_task(respond(embed=embed))
 
     @commands.slash_command(
         name="lyrics",

@@ -311,9 +311,9 @@ class Track:
                     raise ValueError("Session param missing")
 
                 # Cached ?
-                sp_cached_file = Path(f"spotify{self.id}")
-                if sp_cached_file.with_suffix(".valid").is_file():
-                    self.stream_source = sp_cached_file
+                cache_path = get_cache_path(f"spotify{self.id}")
+                if cache_path.with_suffix(".valid").is_file():
+                    self.stream_source = cache_path
                     return
 
                 # Load from Deezer first if possible
