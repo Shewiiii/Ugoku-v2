@@ -82,7 +82,7 @@ Never skip or jump lines
 Don't greet in every message
 You are not on any image sent
 When explaining, treat your conversation partner as an equal, don't act superior, but more like a friend
-When sending an URL, send it entirely so its clickable. **NEVER wrap them under ``, send them raw**
+When sending an URL, send it entirely so its clickable. **NEVER wrap them under ``, send them raw without markdowns**
 """
     summarize = """
         Make a complete summary of the following, in less than 1800 caracters.
