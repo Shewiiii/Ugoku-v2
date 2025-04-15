@@ -2,12 +2,10 @@ from pathlib import Path
 from typing import Optional
 import asyncio
 
-import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from bot.chatbot.gemini import Prompts, Gembot
 from bot.utils import extract_video_id, get_cache_path
-from config import GEMINI_UTILS_MODEL
 
 
 class Summaries:
@@ -18,9 +16,7 @@ class Summaries:
     async def summarize(text: str) -> Optional[str]:
         """Make a summary from a text using GPT-4o Mini."""
         prompt = Prompts.summarize
-        response = await Gembot.simple_prompt(
-            prompt + text, model=genai.GenerativeModel(model_name=GEMINI_UTILS_MODEL)
-        )
+        response = await Gembot.simple_prompt(prompt + text)
         return response
 
     @staticmethod

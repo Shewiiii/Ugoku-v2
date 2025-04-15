@@ -6,12 +6,11 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 
-from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL
+from config import GEMINI_ENABLED
 from bot.vocal.track_dataclass import Track
 
 if GEMINI_ENABLED:
     from bot.chatbot.gemini import Gembot
-    import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -74,6 +73,5 @@ class BotLyrics:
         """
         response = await Gembot.simple_prompt(
             query=prompt + lyrics,
-            model=genai.GenerativeModel(model_name=GEMINI_UTILS_MODEL),
         )
         return response

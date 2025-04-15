@@ -13,9 +13,9 @@ from dotenv import load_dotenv
 import pytz
 
 from bot.chatbot.chat_dataclass import ChatbotMessage
+from bot.chatbot.gemini_model import global_model
 from config import (
     CHATBOT_TIMEZONE,
-    GEMINI_UTILS_MODEL,
     PINECONE_RECALL_WINDOW,
     PINECONE_ENABLED,
 )
@@ -25,7 +25,6 @@ from config import (
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel(model_name=GEMINI_UTILS_MODEL)
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 response_schema = {
     "type": "object",
@@ -104,7 +103,7 @@ Add in the text field the user message. It should be exact and should not loose 
         # Generate metadata using Gemini
         metadata = json.loads(
             (
-                await model.generate_content_async(
+                await global_model.generate_content_async(
                     f'{self.prompt}{chatbot_message.author} said "{chatbot_message.content}"',
                     generation_config=genai.types.GenerationConfig(
                         response_mime_type="application/json",

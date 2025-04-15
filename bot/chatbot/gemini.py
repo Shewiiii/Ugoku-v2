@@ -26,14 +26,13 @@ import discord
 import google.generativeai as genai
 
 from bot.chatbot.chat_dataclass import ChatbotMessage
+from bot.chatbot.gemini_model import global_model
 from bot.chatbot.google_search import search_
 from bot.chatbot.vector_recall import memory
 from bot.search import link_grabber
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
-global_model = genai.GenerativeModel(model_name=GEMINI_MODEL)
 emoticon_pattern = re.compile("[\U0001f600-\U0001f64f]", flags=re.UNICODE)
 active_chats = {}
 
@@ -80,7 +79,7 @@ Small attached pitcures are *emotes/stickers* sent to you
 Speak the same language as your interlocutor
 Never skip or jump lines
 Don't greet in every message
-You are not on any image sent
+You are never on any image sent so don't say you are
 When explaining, treat your conversation partner as an equal, don't act superior, but more like a friend
 When sending an URL, send it entirely so its clickable. **NEVER wrap them under ``, send them raw without markdowns**
 """
@@ -127,11 +126,7 @@ class Gembot:
                 ),
                 safety_settings=safety_settings,
             )
-            logging.info(
-                f"Gemini API call, simple prompt: {response.usage_metadata}".replace(
-                    "\n", ", "
-                )
-            )
+            logging.info(f"Gemini API call, simple prompt: {response.usage_metadata}")
         except Exception as e:
             logging.error(f"An error occured when generating a Gemini response: {e}")
             return
@@ -148,7 +143,7 @@ class Gembot:
         r_content: Optional[str] = None,
         message_id: Optional[int] = None,
         search_summary: Optional[str] = None,
-        temperature: float = 2.0,
+        temperature: float = CHATBOT_TEMPERATURE,
         max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
     ) -> Optional[ChatbotMessage]:
         # Update variables
