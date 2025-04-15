@@ -52,7 +52,6 @@ Chatbot features are disabled, but you can still play with the bot !
 - The song in vc may stop randomly with Spotify (cause: Librespot session's connection closing).
 - Audio may lag at the beginning of a song, when changing the audio effect or when seeking forward (causes: Discord client, slow Deezer/Spotify chunked input stream reading).
 - /seek may seek to the wrong location (cause: bad seek table provided by Deezer)
-- Memory leaking, I need help :cry:
 
 <h2>Requirements</h2>
 

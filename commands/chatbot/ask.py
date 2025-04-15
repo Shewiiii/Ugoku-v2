@@ -39,7 +39,7 @@ class Ask(commands.Cog):
 
         # Create/Use a chat
         if guild_id not in active_chats:
-            chat = Gembot(guild_id)
+            chat = Gembot(guild_id, ugoku_chat=True)
         chat: Gembot = active_chats.get(guild_id)
 
         # Remove continuous chat notice (if enabled the msg before)
@@ -47,10 +47,10 @@ class Ask(commands.Cog):
             chat.status = 2
 
         # Create response
+        await chat.interaction(ctx, query, ask_command=True)
+        params = await chat.get_params(ctx, query)
         try:
-            chatbot_message: ChatbotMessage = await chat.send_message(
-                user_query=query, author=author_name, guild_id=ctx.guild_id
-            )
+            chatbot_message: ChatbotMessage = await chat.send_message(*params)
 
         except BlockedPromptException:
             defer_task.cancel()

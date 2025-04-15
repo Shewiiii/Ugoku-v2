@@ -2,7 +2,7 @@ import discord
 from discord.ui import View
 from typing import Optional
 
-from config import DEFAULT_EMBED_COLOR, CHATBOT_PREFIX
+from config import DEFAULT_EMBED_COLOR, CHATBOT_PREFIX, ALLOW_CHATBOT_IN_DMS
 
 
 class QuickstartView(View):
@@ -40,9 +40,11 @@ class QuickstartView(View):
         }
         self.chatbot_field = {
             "name": "Chatbot",
-            "value": "Unfortunately, only whitelisted servers can use the chatbot, "
-            "but you can still DM me or ask me to whitelist it at ugokuchanbot@gmail.com !\n"
+            "value": "Unfortunately, only whitelisted servers can use the chatbot, but you can "
+            + ("still DM me or " if ALLOW_CHATBOT_IN_DMS else "")
+            + "ask me to whitelist it at ugokuchanbot@gmail.com !\n"
             f"Otherwise, just add `{CHATBOT_PREFIX}` before sending your message, and I will respond to you as best as I can~\n"
+            "You can also try to add `!` before your message, so I can search on google for you !\n\n"
             "*psst, you can also [fork the repo](https://github.com/Shewiiii/Ugoku-v2), as the project is open-source !*",
             "inline": False,
         }
@@ -51,9 +53,9 @@ class QuickstartView(View):
             "value": (
                 "I also have random features, here are some of them:\n"
                 "- You can download songs from Deezer, Spotify or Youtube with the commands \n`/dzdl`, `/spdl`, `/ytdlp`\n"
-                "- Get random images from Danbooru tags using `/danbooru` \n(be careful, I filter NSFW results, but the site does not !)\n"
+                "- Get random images from Danbooru tags using \n`/danbooru` \n(be careful, I filter NSFW results, but the site does not !)\n"
                 "- Get the direct URL of stickers or emotes your friends have sent using \n`/get-emotes`\n"
-                "- Download stickers from LINE with `/get-stickers`"
+                "- Download stickers from LINE with \n`/get-stickers`"
             ),
             "inline": False,
         }

@@ -81,7 +81,6 @@ class ServerSession:
         self.auto_leave_task: asyncio.Task = asyncio.create_task(
             self.check_auto_leave()
         )
-        self.playback_start_time = None
         self.last_context = None
         self.volume = DEFAULT_AUDIO_VOLUME
         self.onsei_volume = DEFAULT_ONSEI_VOLUME
@@ -289,7 +288,6 @@ class ServerSession:
             if should_update_now_playing:
                 # Await to be sync with flags
                 await self.update_now_playing(ctx)
-
         else:
             logging.error(f"Queue should not be empty after playing in {self.guild_id}")
 
@@ -297,7 +295,6 @@ class ServerSession:
         now = datetime.now()
         track.timer.start()
         self.last_played_time = now
-        self.playback_start_time = now.isoformat()
 
         # Reset control flags
         self.skipped = False

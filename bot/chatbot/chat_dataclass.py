@@ -17,6 +17,7 @@ class ChatbotMessage:
     referenced_author: Optional[str] = None
     referenced_content: Optional[str] = None
     response: Optional[str] = None
+    search_summary: Optional[str] = None
     date: datetime = datetime.now()
     timezone = pytz.timezone(CHATBOT_TIMEZONE)
 
@@ -35,12 +36,18 @@ class ChatbotMessage:
                     if self.pinecone_recall
                     else "No Pinecone recall",
                 ]
+
+                if self.search_summary:
+                    infos.append(f"Google search results: {self.search_summary}")
+
                 if self.referenced_author and self.referenced_content:
                     infos.append(
-                        f'Message referencing {self.referenced_author}: "{self.referenced_content}"'
+                        f"Message referencing {self.referenced_author}: "
+                        f'"{self.referenced_content}"'
                     )
+
                 message = (
-                    f"[{', '.join(infos)}, {self.author} talks to you] {self.content}"
+                    f"[{', '.join(infos)}, **{self.author} talks to you**] {self.content}"
                 )
                 return message
             case _:

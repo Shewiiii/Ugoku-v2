@@ -1,7 +1,12 @@
 import discord
 from discord.ext import commands
 
-from config import CHATBOT_PREFIX, GEMINI_MODEL, DEFAULT_EMBED_COLOR
+from config import (
+    CHATBOT_PREFIX,
+    GEMINI_MODEL,
+    DEFAULT_EMBED_COLOR,
+    ALLOW_CHATBOT_IN_DMS,
+)
 
 
 # MADE WITH CHATGPT
@@ -202,7 +207,7 @@ class HelpDropdown(discord.ui.Select):
                 value=(
                     "Ask Ugoku Anything\n"
                     "Example: ``/ask Write a Python code to display the current time``\n"
-                    "Works on: **Allowed servers Only**"
+                    f"Works on: **Allowed servers Only {', DMs' if ALLOW_CHATBOT_IN_DMS else ''}**"
                 ),
                 inline=False,
             )
@@ -250,6 +255,17 @@ class HelpDropdown(discord.ui.Select):
                     "Activate the chatbot - Continuous mode\n"
                     f"Example: ``{CHATBOT_PREFIX * 2}Hi, who are you ?``\n"
                     "Works on: **Allowed servers Only**"
+                ),
+                inline=False,
+            )
+            # search prefix (search on google before answering)
+            embed.add_field(
+                name=f"{CHATBOT_PREFIX}! or !",
+                value=(
+                    "Activate the chatbot, and search on Google your query before answering. "
+                    "Works in DMs and with the /ask command\n"
+                    f"Example: ``{CHATBOT_PREFIX}!Who is Keqing ?``\n"
+                    f"Works on: **Allowed servers Only {', DMs' if ALLOW_CHATBOT_IN_DMS else ''}**"
                 ),
                 inline=False,
             )
@@ -327,7 +343,7 @@ class HelpDropdown(discord.ui.Select):
                 value=(
                     "By default, Ugoku requests FLAC audio directly from Deezer, "
                     "then trancodes it to Opus 510kbps to align with the Discord API. "
-                    "If the song is not available on Spotify, Ogg 320kbps audio from Spotify is used instead."
+                    "If the song is not available on Deezer, Ogg 320kbps audio from Spotify is used instead."
                     "For other sources, it will use the best audio quality available."
                 ),
                 inline=False,

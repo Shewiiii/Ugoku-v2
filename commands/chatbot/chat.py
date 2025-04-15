@@ -72,38 +72,38 @@ if GEMINI_ENABLED:
                 await message.channel.send("Arius")
                 return
 
-            if await chat.is_interacting(message) or dm:
-                async with message.channel.typing():
-                    params = await chat.get_params(message)
-                    try:
-                        chatbot_message: ChatbotMessage = await chat.send_message(
-                            *params
-                        )
-                    except StopCandidateException:
-                        await message.channel.send("*filtered*")
-                        logging.error(f"Response blocked by Gemini in {chat.id_}")
-                        return
-                    except BlockedPromptException:
-                        logging.error(
-                            "Prompt against Gemini's policies! "
-                            "Please change it and try again."
-                        )
-                        return
+            if not (await chat.interaction(message, message.content) or dm):
+                return
 
-                    # Add chat status, remove default emoticons
-                    formatted_response = chat.format_response(chatbot_message.response)
-                chunked_message = split_into_chunks(formatted_response, 2000)
-
-                # Max the number of successive message to 5
-                first_msg = await message.channel.send(chunked_message[0])
-                for i in range(1, min(len(chunked_message), 4)):
-                    await message.channel.send(chunked_message[i])
-
-                # Memory
-                if await chat.memory.store(chatbot_message):
-                    await first_msg.edit(
-                        f"-# Ugoku will remember about this. \n{chunked_message[0]}"
+            async with message.channel.typing():
+                params = await chat.get_params(message, message.content)
+                try:
+                    chatbot_message: ChatbotMessage = await chat.send_message(*params)
+                except StopCandidateException:
+                    await message.channel.send("*filtered*")
+                    logging.error(f"Response blocked by Gemini in {chat.id_}")
+                    return
+                except BlockedPromptException:
+                    logging.error(
+                        "Prompt against Gemini's policies! "
+                        "Please change it and try again."
                     )
+                    return
+
+                # Add chat status, remove default emoticons
+                formatted_response = chat.format_response(chatbot_message.response)
+            chunked_message = split_into_chunks(formatted_response, 2000)
+
+            # Max the number of successive message to 5
+            first_msg = await message.channel.send(chunked_message[0])
+            for i in range(1, min(len(chunked_message), 4)):
+                await message.channel.send(chunked_message[i])
+
+            # Memory
+            if await chat.memory.store(chatbot_message):
+                await first_msg.edit(
+                    f"-# Ugoku will remember about this. \n{chunked_message[0]}"
+                )
 else:
 
     class Chatbot(commands.Cog):

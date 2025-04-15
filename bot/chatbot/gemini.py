@@ -3,7 +3,7 @@ import re
 import base64
 import logging
 from random import random
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime, timedelta
 import httpx
 from bs4 import BeautifulSoup
@@ -25,8 +25,9 @@ from config import (
 import discord
 import google.generativeai as genai
 
-from bot.chatbot.vector_recall import memory
 from bot.chatbot.chat_dataclass import ChatbotMessage
+from bot.chatbot.google_search import search_
+from bot.chatbot.vector_recall import memory
 from bot.search import link_grabber
 
 load_dotenv()
@@ -69,10 +70,10 @@ Use casual language, no keigo, no formal
 Make short messages
 Avoid asking questions; focus on sharing thoughts naturally
 Try to not repeat yourself
-Never, never put the message infos, only output your message without anything more
+Never, never put the message infos (under brackets), only output your message without anything more
 Use the provided time and date to make time related answers
-Your interlocutor is indicated by "[someone] talks to you", pay attention to who you're talking with
-Never use latex or mathjax, write mathematical formulas between ``, don't add more formatting to maths formulas
+Your interlocutor is indicated by "**[someone] talks to you**", pay attention to who you're talking with
+Never use latex or mathjax, write **mathematical** formulas between ``, don't add more formatting to maths formulas
 Use backslashes before * (to avoid italic)
 Dont use italic (**)
 Small attached pitcures are *emotes/stickers* sent to you
@@ -81,6 +82,7 @@ Never skip or jump lines
 Don't greet in every message
 You are not on any image sent
 When explaining, treat your conversation partner as an equal, don't act superior, but more like a friend
+When sending an URL, send it entirely so its clickable. **NEVER wrap them under ``, send them raw**
 """
     summarize = """
         Make a complete summary of the following, in less than 1800 caracters.
@@ -145,6 +147,7 @@ class Gembot:
         r_author: Optional[str] = None,
         r_content: Optional[str] = None,
         message_id: Optional[int] = None,
+        search_summary: Optional[str] = None,
         temperature: float = 2.0,
         max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
     ) -> Optional[ChatbotMessage]:
@@ -163,7 +166,8 @@ class Gembot:
             user_query,
             recall,
             r_author,
-            r_content
+            r_content,
+            search_summary=search_summary,
         )
         prompt = f"{message:prompt}"
 
@@ -242,17 +246,25 @@ class Gembot:
             logging.error(f"Error processing {url}: {e}")
             return
 
-    async def is_interacting(self, message: discord.Message) -> bool:
+    # async def interaction(self, message: discord.Message) -> bool:
+    async def interaction(
+        self,
+        context: Union[discord.Message, discord.ApplicationContext],
+        message_content: str,
+        ask_command: bool = False,
+    ) -> bool:
         """Determine if the bot should interact based on the message content.
         Status hint:
             0 = No chat;
             1 = Continuous chat enabled;
             2 = Chatting;
             3 = End of chat.
+            4 = Google search mode.
         """
-        channel_id = message.channel.id
-        author = message.author.name
-        dm = isinstance(message.channel, discord.DMChannel)
+        channel_id = context.channel.id
+        author = context.author.name
+        dm_or_ask = isinstance(context.channel, discord.DMChannel) or ask_command
+        mc = message_content
 
         # Remove interaction flag if inactive for a while
         time_elapsed: timedelta = datetime.now() - self.last_prompt
@@ -260,8 +272,8 @@ class Gembot:
             self.interacting = False
             self.chatters = []
 
-        # Check enable continuous chat with ugoku
-        if message.content.startswith(CHATBOT_PREFIX * 2) and not dm:
+        # Check and enable continuous chat with ugoku
+        if mc.startswith(CHATBOT_PREFIX * 2) and not dm_or_ask:
             self.status = 2 if self.interacting else 1
             self.interacting = True
             self.current_channel_id = channel_id
@@ -275,7 +287,7 @@ class Gembot:
             and channel_id == self.current_channel_id
             and author in self.chatters
         ):
-            if message.content.endswith(CHATBOT_PREFIX):
+            if mc.endswith(CHATBOT_PREFIX):
                 self.status = 3
                 self.chatters = []
                 self.interacting = False
@@ -284,9 +296,9 @@ class Gembot:
                 self.status = 2
                 return True
 
-        # Check if the message starts with the chatbot prefix or is in dm
-        elif message.content.startswith(CHATBOT_PREFIX) or dm:
-            self.status = 2
+        # Check if the message starts with the chatbot prefix or is in dm, or using /ask
+        elif mc.startswith(CHATBOT_PREFIX) or dm_or_ask:
+            self.status = 5 if mc[int(not dm_or_ask) : 2].startswith("!") else 2
             self.current_channel_id = channel_id
             return True
 
@@ -310,6 +322,7 @@ class Gembot:
                 f"at the end of your message.\n{reply}"
             ),
             3: f"{reply}\n-# End of chat.",
+            5: f"-# Searched on Google.\n{reply}",
             -1: f"-# {error_body} mime_type not allowed.\n{reply}",
             -2: f"-# {error_body} file too big.\n{reply}",
             -3: f"-# {error_body} timeout or access forbidden.\n{reply}",
@@ -318,69 +331,98 @@ class Gembot:
         reply = messages.get(status, reply)
         return reply
 
-    async def get_params(self, message: discord.Message) -> tuple:
+    async def get_params(
+        self,
+        context: Union[discord.Message, discord.ApplicationContext],
+        message_content: str,
+    ) -> tuple:
         """Get Gemini message params from a discord.Message."""
-        extra_content = []
 
         # Remove prefix
-        msg_text = message.content
-        if message.content.startswith(CHATBOT_PREFIX):
+        mc = message_content
+        if mc.startswith(CHATBOT_PREFIX):
             if self.status == 1:
-                msg_text = msg_text[2:]
+                mc = mc[2:]
             else:
-                msg_text = msg_text[1:]
+                mc = mc[1:]
 
-        elif message.content.endswith(CHATBOT_PREFIX):
-            msg_text = msg_text[:-1]
+        elif mc.endswith(CHATBOT_PREFIX):
+            mc = mc[:-1]
 
-        # Process URLs in message body
-        extra_content.extend(match[0] for match in link_grabber.findall(msg_text))
-
-        # Process attachments
-        for attachment in message.attachments:
-            if attachment.url:
-                extra_content.append(attachment.url)
-
-        # Process stickers
-        if message.stickers:
-            sticker: discord.StickerItem = message.stickers[0]
-            extra_content.append(sticker.url)
+        # Extra message content
+        extra_content = []
+        rauthor = rcontent = None
 
         # Process custom emojis
-        match = re.search(r"<:(?P<name>[^:]+):(?P<snowflake>\d+)>", msg_text)
+        match = re.search(r"<:(?P<name>[^:]+):(?P<snowflake>\d+)>", mc)
         if match:
             name = match.group("name")
             snowflake = match.group("snowflake")
             emote_full = match.group(0)
 
             # Replace the full emote with its name in the message
-            msg_text = msg_text.replace(emote_full, f":{name}:")
+            mc = mc.replace(emote_full, f":{name}:")
 
             # Append the first emote to the image list
             extra_content.append(f"https://cdn.discordapp.com/emojis/{snowflake}.png")
 
-        # Process message reference (if any)
-        rauthor = rcontent = None
-        if message.reference and message.reference.message_id:
-            rid = message.reference.message_id
-            rmessage = await message.channel.fetch_message(rid)
-            rauthor = rmessage.author.global_name
-            rcontent = rmessage.content
-            urls = [
-                attachment.url for attachment in rmessage.attachments if attachment.url
-            ]
-            extra_content.extend(urls)
+        # Search on google ?
+        if self.status == 5:
+            try:
+                search_query = await Gembot.simple_prompt(
+                    f"Turn the sentence into a simple google search query: {mc}."
+                    "Don't add anything else whatsoever"
+                )
+            except ValueError:
+                search_query = mc
+            search_summary = await search_(search_query)
+        else:
+            search_summary = None
+
+        # Extra process only for normal messages, when /ask is not used
+        if isinstance(context, discord.Message):
+            id = context.id
+            # Process URLs in message body
+            extra_content.extend(match[0] for match in link_grabber.findall(mc))
+
+            # Process attachments
+            for attachment in context.attachments:
+                if attachment.url:
+                    extra_content.append(attachment.url)
+
+            # Process stickers
+            if context.stickers:
+                sticker: discord.StickerItem = context.stickers[0]
+                extra_content.append(sticker.url)
+
+            # Process message reference (if any)
+            if context.reference and context.reference.message_id:
+                rid = context.reference.message_id
+                rmessage = await context.channel.fetch_message(rid)
+                rauthor = rmessage.author.global_name
+                rcontent = rmessage.content
+                urls = [
+                    attachment.url
+                    for attachment in rmessage.attachments
+                    if attachment.url
+                ]
+                extra_content.extend(urls)
+
+        else:  # Application context
+            id = context.interaction.id
 
         # Wrap parameters
         params = (
-            msg_text,
-            message.author.global_name,
-            message.guild.id if message.guild else message.channel.id,
+            mc,
+            context.author.global_name,
+            context.guild.id if context.guild else context.channel.id,
             extra_content,
             rauthor,
             rcontent,
-            message.id,
+            id,
+            search_summary,
         )
+
         return params
 
     @staticmethod

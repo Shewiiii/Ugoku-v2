@@ -18,7 +18,7 @@ from bot.utils import get_dominant_rgb_from_url, clean_url, get_cache_path
 from bot.vocal.track_dataclass import Track
 from bot.vocal.youtube_api import get_playlist_video_ids, get_videos_info
 from config import (
-    YT_COOKIES_PATH,
+    COOKIES_PATH,
     CACHE_EXPIRY,
     YTDLP_DOMAINS,
     MAX_DUMMY_LOAD_INDEX,
@@ -44,7 +44,7 @@ def ytdlp_options(file_path: Optional[Path] = None, ext: Optional[str] = None) -
     if ext is None:  # Should not be necessary but just in case
         ext = "bestaudio"
     ytdlp_options = {
-        "cookiefile": YT_COOKIES_PATH,
+        "cookiefile": COOKIES_PATH,
         "format": ext,
         "restrictfilenames": True,
         "no-playlist": True,
