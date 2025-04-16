@@ -30,10 +30,11 @@ if GEMINI_ENABLED:
             },
         )
         async def reset_chatbot(self, ctx: discord.ApplicationContext) -> None:
-            channel = ctx.channel
-            dm = isinstance(channel, discord.DMChannel)
-            # Replace the old chatr
-            Gembot(ctx.guild_id if not dm else channel.id, ugoku_chat=True)
+            id_ = Gembot.get_chat_id(ctx)
+            if not id_:
+                await ctx.respond("Invalid chat")
+                return
+            Gembot(id_, ugoku_chat=True)
             await ctx.respond("Success !")
 
         @commands.Cog.listener()
