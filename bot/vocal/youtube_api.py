@@ -16,7 +16,7 @@ async def get_playlist_video_ids(playlist_id: str) -> list[str]:
     if not YOUTUBE_API_KEY:
         raise ValueError("No Youtube API key provided")
 
-    while True:
+    for _ in range(2):
         params = {
             "part": "contentDetails",
             "playlistId": playlist_id,
