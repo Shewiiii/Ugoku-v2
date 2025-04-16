@@ -109,8 +109,8 @@ ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blac
 ONSEI_SERVER_WHITELIST= {} # All servers ids allowed to stream onsei
 
 # Chatbot settings
-CHATBOT_ENABLED = True
-CHATBOT_WHITELIST = [] # All server ids allowed to use the chatbot
+CHATBOT_SERVER_WHITELIST = {} # All server ids allowed to use the chatbot
+CHATBOT_CHANNEL_WHITELIST = {} # All channel/thread ids allowed to use the chatbot
 CHATBOT_PREFIX = '-' # Prefix to trigger the chatbot
 CHATBOT_TIMEOUT = 300 # Time before disabling continuous chat (in seconds, enabled with double prefix)
 CHATBOT_TIMEZONE = 'Asia/Tokyo'

@@ -20,6 +20,9 @@ from config import (
     CHATBOT_MAX_OUTPUT_TOKEN,
     CHATBOT_MAX_CONTENT_SIZE,
     CHATBOT_EMOTE_FREQUENCY,
+    ALLOW_CHATBOT_IN_DMS,
+    CHATBOT_CHANNEL_WHITELIST,
+    CHATBOT_SERVER_WHITELIST,
 )
 
 import discord
@@ -132,6 +135,29 @@ class Gembot:
             return
 
         return response.text
+
+    @staticmethod
+    def get_chat_id(
+        message: Union[discord.ApplicationContext, discord.Message],
+    ) -> Optional[int]:
+        """Get the chat id to use for the chatbot. Return `None` if it should not be used for this message."""
+        if isinstance(message.channel, discord.DMChannel) and ALLOW_CHATBOT_IN_DMS:
+            # Id = channel (dm) id if in DMs
+            id_ = message.channel.id
+        elif message.guild:
+            # Id = server id if globally whitelisted
+            if message.guild.id in CHATBOT_SERVER_WHITELIST:
+                id_ = message.guild.id
+            # Id = channel id if the channel whitelisted
+            elif message.channel.id in CHATBOT_CHANNEL_WHITELIST:
+                id_ = message.channel.id
+            else:
+                return
+        else:
+            # Don't trigger the chatbot otherwise~
+            return
+
+        return id_
 
     async def send_message(
         self,

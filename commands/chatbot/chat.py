@@ -3,12 +3,7 @@ import logging
 import discord
 from discord.ext import commands
 
-from config import (
-    CHATBOT_WHITELIST,
-    GEMINI_ENABLED,
-    ALLOW_CHATBOT_IN_DMS,
-    CHATBOT_PREFIX,
-)
+from config import GEMINI_ENABLED, CHATBOT_PREFIX
 from google.generativeai.types.generation_types import (
     BlockedPromptException,
     StopCandidateException,
@@ -43,21 +38,12 @@ if GEMINI_ENABLED:
 
         @commands.Cog.listener()
         async def on_message(self, message: discord.Message) -> None:
-            dm = isinstance(message.channel, discord.DMChannel)
-            server = message.guild
-            if not server and not dm:
-                return
-
-            id_ = server.id if server else message.channel.id
-
-            # Only allow whitelisted servers / dms if enabled
-            if (not dm and id_ not in CHATBOT_WHITELIST) or (
-                dm and not ALLOW_CHATBOT_IN_DMS
-            ):
-                return
-
             # Ignore if the message is from Ugoku !
             if message.author == self.bot.user:
+                return
+
+            id_ = Gembot.get_chat_id(message)
+            if not id_:
                 return
 
             # Create/Use a chat
@@ -72,6 +58,7 @@ if GEMINI_ENABLED:
                 await message.channel.send("Arius")
                 return
 
+            dm = isinstance(message.channel, discord.DMChannel)
             if not (await chat.interaction(message, message.content) or dm):
                 return
 
@@ -90,8 +77,8 @@ if GEMINI_ENABLED:
                     )
                     return
 
-                # Add chat status, remove default emoticons
-                formatted_response = chat.format_response(chatbot_message.response)
+            # Add chat status, remove default emoticons
+            formatted_response = chat.format_response(chatbot_message.response)
             chunked_message = split_into_chunks(formatted_response, 2000)
 
             # Max the number of successive message to 5

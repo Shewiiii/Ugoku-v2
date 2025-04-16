@@ -8,7 +8,7 @@ from config import (
     DEEZER_ENABLED,
     GEMINI_ENABLED,
     ALLOW_CHATBOT_IN_DMS,
-    CHATBOT_WHITELIST,
+    CHATBOT_SERVER_WHITELIST,
     PINECONE_ENABLED,
     AUTO_LEAVE_DURATION,
     DEFAULT_AUDIO_BITRATE,
@@ -56,7 +56,7 @@ class ConfigCommand(commands.Cog):
                 f"{e[DEEZER_ENABLED]} **Deezer service**",
                 f"{e[GEMINI_ENABLED]} **Gemini features**",
                 f"{e[ALLOW_CHATBOT_IN_DMS]} Chatbot enabled in DMs",
-                f"{e[ctx.guild_id in CHATBOT_WHITELIST]} Chatbot enabled in this server",
+                f"{e[ctx.guild_id in CHATBOT_SERVER_WHITELIST]} Chatbot enabled in this server",
                 f"""{e[PINECONE_ENABLED]} Pinecone features (the chatbot's "memory")""",
             ]
         )
