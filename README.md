@@ -104,13 +104,7 @@ source venv/bin/activate
 - Install the dependencies.
 
 ```bash
-python -m pip install -r requirements.txt
-```
-
-OR
-
-```bash
-python3 -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 - [Create a bot and add it to a Discord server](https://guide.pycord.dev/getting-started/creating-your-first-bot), or add it to your apps. You can follow the first 3 sections of the guide.
