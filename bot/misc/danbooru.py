@@ -1,8 +1,30 @@
+import asyncio
 from aiohttp_client_cache import CachedSession, SQLiteBackend
 from bs4 import BeautifulSoup
+from typing import TYPE_CHECKING
 
 import discord
 from config import CACHE_EXPIRY
+
+
+if TYPE_CHECKING:
+    from commands.other.danbooru import Danbooru_
+
+
+class DanbooruView(discord.ui.View):
+    def __init__(self, ctx: discord.ApplicationContext, tag: str):
+        super().__init__(timeout=None)
+        self.ctx = ctx
+        self.tag = tag
+
+    @discord.ui.button(label="More !")
+    async def more_button(
+        self, button: discord.ui.Button, interaction: discord.Interaction
+    ) -> None:
+        asyncio.create_task(interaction.response.defer())
+        danbooru_cog: "Danbooru_" = self.ctx.bot.get_cog("Danbooru_")
+        await danbooru_cog.execute_danbooru_(self.ctx, self.tag)
+        self.ctx = None
 
 
 class Danbooru:
@@ -27,7 +49,7 @@ class Danbooru:
         ]
         return suggestions
 
-    async def get_posts(self, tag: str, limit: int = 10, random: bool = True) -> list:
+    async def get_posts(self, tag: str, limit: int = 10, random: bool = True) -> list[dict]:
         """Get Danboru posts from a tag."""
         params = {"limit": limit, "tags": tag, "random": str(random)}
         async with CachedSession(follow_redirects=True) as session:

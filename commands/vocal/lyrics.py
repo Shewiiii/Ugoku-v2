@@ -28,7 +28,7 @@ class lyricsView(discord.ui.View):
     def __init__(
         self, bot: discord.bot, ctx: discord.ApplicationContext, source_url: str
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=None)
         self.bot = bot
         self.ctx = ctx
         self.source_url: str = source_url

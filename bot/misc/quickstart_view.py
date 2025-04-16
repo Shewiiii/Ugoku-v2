@@ -6,7 +6,7 @@ from config import DEFAULT_EMBED_COLOR, CHATBOT_PREFIX, ALLOW_CHATBOT_IN_DMS
 
 
 class QuickstartView(View):
-    def __init__(self, timeout: Optional[int] = 1800) -> None:
+    def __init__(self, timeout: Optional[int] = None) -> None:
         super().__init__(timeout=timeout)
         self.page = 0
         self.embed = discord.Embed(

@@ -217,7 +217,8 @@ class Gembot:
         )
 
         # Limit history length
-        self.chat.history = self.chat.history[-GEMINI_HISTORY_SIZE:]
+        if len(self.chat.history) > GEMINI_HISTORY_SIZE:
+            self.chat.history.pop(0)
 
         return message
 
