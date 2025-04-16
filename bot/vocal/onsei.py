@@ -17,7 +17,7 @@ class Onsei:
 
     @staticmethod
     def get_cover(work_id: str) -> str:
-        return f"https://api.asmr-200.com/api/cover/{work_id}.jpg"
+        return f"https://api.asmr-200.com/api/cover/{str(int(work_id))}.jpg?type=main"
 
     @staticmethod
     async def request(work_id: str, api: Literal["tracks", "workInfo"]) -> list:
