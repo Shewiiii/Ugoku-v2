@@ -19,7 +19,7 @@ class QuickstartView(View):
         self.greetings = {
             "name": "",
             "value": (
-                "Heya, I am **Ugoku** ! A minimalist bot trying to bring fun in your server~\n"
+                "Hello ! My name is Yur-, I mean Ugoku ! a bot created by Shewi ~\nAlways ready to help !\n"
                 "I can play music in a voice channel, download songs, emotes or stickers for you, chat and more !\n"
                 "I don't have any silly Premium paywall, all the features can be used for free :yellow_heart: \n\n"
                 "-# You can reinvoke this embed at any time with `/quickstart`."

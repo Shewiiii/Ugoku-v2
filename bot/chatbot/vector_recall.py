@@ -46,11 +46,11 @@ class Memory:
 You are an assistant that classifies each Discord message into exactly one of four categories: 
 “question”, “info”, “other”, or “important_caracteristic”.
 Use these rules:
-• “question”: The message explicitly or implicitly asks something, or contains a question mark.
+• “question”: The message explicitly or implicitly **asks something**, or contains a question mark.
 • “info”: It provides information or opinions that are not personal preferences or factual personal details.
 • “other”: It doesn’t fit the other categories (e.g. greetings, jokes, improbable statements, nonsense, vague statements, affirmations).
 • “important_caracteristic”: It only concerns crutial informations about personal tastes (e.g. favorite food), 
-personal factual data (birthday, age, etc.), or real-world facts (historical events, fun facts).  
+personal factual data (birthday, age, etc.), real-world facts (historical events, fun facts) or a message the user asks to remember. Not a question! 
 Add in the text field the user message. It should be exact and should not loose information.\n
 """
         self.active = False
