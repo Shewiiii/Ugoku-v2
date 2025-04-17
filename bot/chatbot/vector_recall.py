@@ -7,9 +7,9 @@ from datetime import datetime
 import json
 
 import google.generativeai as genai
+from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
-from dotenv import load_dotenv
 import pytz
 
 from bot.chatbot.chat_dataclass import ChatbotMessage
@@ -22,9 +22,7 @@ from config import (
 
 
 # Init
-load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 response_schema = {
     "type": "object",
@@ -65,7 +63,7 @@ Add in the text field the user message. It should be exact and should not loose 
         logging.info("Initialization of Pinecone..")
         while not self.active:
             try:
-                self.pc = Pinecone(api_key=PINECONE_API_KEY)
+                self.pc = await asyncio.to_thread(Pinecone, api_key=PINECONE_API_KEY)
                 self.active = True
             except Exception as e:
                 await logging.error(
@@ -138,6 +136,17 @@ Add in the text field the user message. It should be exact and should not loose 
     ) -> Optional[str]:
         if not self.active:
             return
+        vectors = await self.get_vectors(text, id, top_k)
+        texts = [vector["metadata"].get("text") for vector in vectors]
+        if texts:
+            recall_string = ", ".join(str(recall).replace("\n", "") for recall in texts)
+            return recall_string
+
+    async def get_vectors(
+        self, text: str, id: int, top_k=999
+    ) -> Optional[list[ScoredVector]]:
+        if not self.active:
+            raise RuntimeError("Pinecone class not active")
         vectors = await self.generate_embeddings([text])
         results = await asyncio.to_thread(
             self.index.query,
@@ -148,10 +157,8 @@ Add in the text field the user message. It should be exact and should not loose 
             top_k=top_k,
             include_metadata=True,
         )
-        rec = [match["metadata"].get("text") for match in results["matches"]]
-        if rec:
-            rec_string = ", ".join(str(recall).replace("\n", "") for recall in rec)
-            return rec_string
+        vectors = [vector for vector in results["matches"]]
+        return vectors
 
 
 memory = Memory()

@@ -68,7 +68,7 @@ class SpotifySessions:
             logging.info("Spotify sessions initialized successfully")
 
         except Exception as e:
-            logging.error(f"Error initializing Spotify sessions: {repr(e)}, retrying in 5 seconds")
+            logging.error(f"Error initializing Spotify sessions: {repr(e)}, retrying in 10 seconds")
             await asyncio.sleep(10)
             await self.init_spotify()
 
