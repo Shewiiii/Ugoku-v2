@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
-
-import logging
+import time
 
 
 class Ping(commands.Cog):
@@ -17,9 +16,17 @@ class Ping(commands.Cog):
         },
     )
     async def ping(self, ctx: discord.ApplicationContext) -> None:
-        latency = round(self.bot.latency * 1000, 2)
-        logging.info(f"Pinged latency: {latency}ms.")
-        await ctx.respond(f"あわあわあわわわ ! {latency}ms")
+        # Bot latency
+        bot_latency = round(self.bot.latency * 1000, 2)
+        start = time.perf_counter()
+        response = f"あわあわあわわわ ! \n> Bot latency: {bot_latency}ms\n> Reponse latency: ..."
+        await ctx.respond(response)
+
+        # Response latency
+        delta = time.perf_counter() - start
+        response_latency = round(delta * 1000, 2)
+        response = response.replace("...", f"{response_latency}ms")
+        await ctx.edit(content=response)
 
 
 def setup(bot):
