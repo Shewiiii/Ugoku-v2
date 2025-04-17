@@ -24,7 +24,6 @@ class DanbooruView(discord.ui.View):
         asyncio.create_task(interaction.response.defer())
         danbooru_cog: "Danbooru_" = self.ctx.bot.get_cog("Danbooru_")
         await danbooru_cog.execute_danbooru_(self.ctx, self.tag)
-        self.ctx = None
 
 
 class Danbooru:
