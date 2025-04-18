@@ -24,6 +24,7 @@ class Search(commands.Cog):
         play_next: bool = False,
         offset: int = 0,
         interaction: Optional[discord.Interaction] = None,
+        close_view: bool = False,
     ) -> None:
         defer_task = None if interaction else asyncio.create_task(ctx.defer())
         respond = interaction.channel.send if interaction else ctx.respond
@@ -100,6 +101,7 @@ class Search(commands.Cog):
                 self.page = 1
                 self.max_per_page = 10
                 self.update()
+                self.close_view = close_view
 
             def update(self) -> None:
                 # Song list
@@ -200,6 +202,9 @@ class Search(commands.Cog):
                         for tn in selected_track_names
                     ],
                 )
+                if close_view:
+                    await sent_embed.delete()
+                    self.clear_items()
 
         view = SelectView()
         if defer_task:
@@ -233,7 +238,9 @@ class Search(commands.Cog):
             int, description="Offset the search results.", default=0
         ),  # type: ignore
     ) -> None:
-        await self.execute_search(ctx, type, query, max_number_of_results, play_next, offset)
+        await self.execute_search(
+            ctx, type, query, max_number_of_results, play_next, offset
+        )
 
 
 def setup(bot):

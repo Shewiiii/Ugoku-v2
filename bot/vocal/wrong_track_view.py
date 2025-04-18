@@ -57,6 +57,7 @@ class WrongTrackView(View):
                 type="track",
                 query=self.user_query if self.user_query else self.display_name,
                 interaction=interaction,
+                close_view=True,
             )
         )
 
