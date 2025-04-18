@@ -6,18 +6,20 @@ import uuid
 from datetime import datetime
 import json
 
-import google.generativeai as genai
+from google.genai import types
 from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
 import pytz
 
-from bot.chatbot.chat_dataclass import ChatbotMessage
-from bot.chatbot.gemini_model import global_model
+from bot.chatbot.chat_dataclass import ChatbotHistory
+from bot.chatbot.gemini_client import client
 from config import (
+    GEMINI_UTILS_MODEL,
     CHATBOT_TIMEZONE,
     PINECONE_RECALL_WINDOW,
     PINECONE_ENABLED,
+    GEMINI_SAFETY_SETTINGS,
 )
 
 
@@ -41,15 +43,15 @@ class Memory:
     def __init__(self) -> None:
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.prompt = """
-You are an assistant that classifies each Discord message into exactly one of four categories: 
-“question”, “info”, “other”, or “important_caracteristic”.
-Use these rules:
-• “question”: The message explicitly or implicitly **asks something**, or contains a question mark.
-• “info”: It provides information or opinions that are not personal preferences or factual personal details.
-• “other”: It doesn’t fit the other categories (e.g. greetings, jokes, improbable statements, nonsense, vague statements, affirmations).
-• “important_caracteristic”: It only concerns crutial informations about personal tastes (e.g. favorite food), 
-personal factual data (birthday, age, etc.), real-world facts (historical events, fun facts) or a message the user asks to remember. Not a question! 
-Add in the text field the user message. It should be exact and should not loose information.\n
+Here a set of 3 messages categorize and memorize.
+Use these rules to define the type:
+- “important_caracteristic”: IF ANY OF THE MESSAGE countains an information about personal tastes (e.g. favorite food), 
+personal factual data (birthday, age, etc.), real-world facts (historical events, fun facts, life info) 
+or if the user asks to remember something. 
+- “question”: The messages explicitly or implicitly **asks something**, or contains a question mark, while not having “important_caracteristic”
+- “info”: It provides information or opinions that are not personal preferences or factual personal details.
+- “other”: If it doesn't fit the other categories.
+In the text field, add what info we should remember if “important_caracteristic”, else, nothing. It should not loose information.\n
 """
         self.active = False
 
@@ -91,7 +93,9 @@ Add in the text field the user message. It should be exact and should not loose 
         vectors: list = [vector["values"] for vector in embeddings]
         return vectors
 
-    async def store(self, chatbot_message: ChatbotMessage) -> bool:
+    # async def store(self, chatbot_message: ChatbotMessage) -> bool:
+    async def store(self, user_history: ChatbotHistory) -> bool:
+        """If relevant, store a Pinecone vector in the index based on the last 3 messages."""
         if not self.active:
             return
 
@@ -101,21 +105,30 @@ Add in the text field the user message. It should be exact and should not loose 
         # Generate metadata using Gemini
         metadata = json.loads(
             (
-                await global_model.generate_content_async(
-                    f'{self.prompt}{chatbot_message.author} said "{chatbot_message.content}"',
-                    generation_config=genai.types.GenerationConfig(
+                await client.aio.models.generate_content(
+                    model=GEMINI_UTILS_MODEL,
+                    contents=f"{self.prompt}{user_history:pinecone_last_3}",
+                    config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=response_schema,
                         candidate_count=1,
+                        automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                            disable=True
+                        ),
+                        safety_settings=GEMINI_SAFETY_SETTINGS,
                     ),
                 )
             ).text
         )
-        metadata["id"] = chatbot_message.guild_id
-        metadata["text"] = f"{date}-{chatbot_message.author}: {metadata['text']}"
+        last_message = user_history.history[-1]
+        metadata["id"] = last_message.guild_id
+        metadata["text"] = f"{date}-{last_message.author}: {metadata['text']}"
 
         if metadata["query_type"] in {"info", "question", "other"}:
             return False
+        else:
+            # Important carac: remove the messages from the Pinecone history
+            user_history.pinecone_remove_last_three()
 
         # Create the embeddings/vectors
         vector_values = await self.generate_embeddings(metadata["text"])

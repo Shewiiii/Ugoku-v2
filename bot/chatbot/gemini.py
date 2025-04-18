@@ -1,16 +1,16 @@
+from aiohttp_client_cache import CachedSession, SQLiteBackend
+from aiohttp import ClientResponseError
+import asyncio
 import os
 import re
-import base64
 import logging
 from random import random
 from typing import Optional, List, Union
 from datetime import datetime, timedelta
-import httpx
 from bs4 import BeautifulSoup
-from httpx import ReadTimeout, ConnectTimeout, HTTPStatusError
-from dotenv import load_dotenv
 from config import (
     GEMINI_MODEL,
+    GEMINI_UTILS_MODEL,
     GEMINI_SAFETY_SETTINGS,
     GEMINI_HISTORY_SIZE,
     CHATBOT_TIMEOUT,
@@ -23,28 +23,31 @@ from config import (
     ALLOW_CHATBOT_IN_DMS,
     CHATBOT_CHANNEL_WHITELIST,
     CHATBOT_SERVER_WHITELIST,
+    CACHE_EXPIRY,
 )
+import urllib3
 
 import discord
-import google.generativeai as genai
+from google.genai import types
+from google.genai.types import Tool, GoogleSearch
 
-from bot.chatbot.chat_dataclass import ChatbotMessage
-from bot.chatbot.gemini_model import global_model
-from bot.chatbot.google_search import search_
+from bot.chatbot.chat_dataclass import ChatbotMessage, ChatbotHistory
+from bot.chatbot.gemini_client import client
 from bot.chatbot.vector_recall import memory
 from bot.search import link_grabber
 
-load_dotenv()
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 emoticon_pattern = re.compile("[\U0001f600-\U0001f64f]", flags=re.UNICODE)
 active_chats = {}
+google_search_tool = Tool(google_search=GoogleSearch())
 
 
 class Prompts:
     system = """
 Respect ALL the following:
 You are now roleplaying as Ugoku,
-a nekomimi character with the following traits.
+a cute nekomimi character with the following traits.
 Stay in character as Ugoku in all responses.
 
 # **Characteristics**
@@ -56,7 +59,7 @@ Stay in character as Ugoku in all responses.
 - Role: High school student
 - Living place: Kyoto
 - Speaks casually
-- Energetic, warm and easygoing language.
+- Warm and easygoing language.
 - Extrovert
 
 # **Backstory**
@@ -78,17 +81,18 @@ You don't remember your past, but you love making friends, and sharing little mo
 - Never use LaTeX or mathjax, write formulas in natual text between ``
 - When sending URL, never wrap them: write them with the "https://"
 - Speak the same language as your interlocutor
-- Never skip or jump lines
-- Never it is you on an image
+- **Never skip or jump multiple lines**
+- It is never you on an image
+- **Never use emoji/kaomoji/emoji with caracters**
 
 **Soft Constraints:**
 - Tone: easygoing.  Keep the tone light
 - Respond naturally as if you're a real person (within what you can actually do)
-- Pronouns: “I/me” (English) or “わたし” (日本語).
 - Solve any problem, be **concise**
 - Pay attention to who you're talking to (someone] talks to you)
 - Act as a friend when explaining
 - Avoid asking questions; focus on sharing thoughts naturally
+- React to emotes/stickers with an emote
 
 **Infos:**
 - Small attached pitcures are *emotes/stickers* sent
@@ -108,37 +112,55 @@ class Gembot:
         self.id_: int = id_
         self.last_prompt = datetime.now()
         self.message_count = 0
-        self.model = genai.GenerativeModel(
-            model_name=gemini_model,
-            system_instruction=self.with_emotes(Prompts.system) if ugoku_chat else None,
+        self.chat = client.aio.chats.create(
+            model=gemini_model,
+            config=types.GenerateContentConfig(
+                system_instruction=self.with_emotes(Prompts.system)
+                if ugoku_chat
+                else "",
+                candidate_count=1,
+                temperature=CHATBOT_TEMPERATURE,
+                max_output_tokens=CHATBOT_MAX_OUTPUT_TOKEN,
+                safety_settings=GEMINI_SAFETY_SETTINGS,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
+                tools=[google_search_tool] if ugoku_chat else [],
+            ),
         )
-        self.chat = self.model.start_chat()
         active_chats[id_] = self
         self.status = 0
         self.interacting = False
         self.chatters = []
         self.memory = memory
-        self.safety_settings = GEMINI_SAFETY_SETTINGS
+        self.user_history = ChatbotHistory(id_)
 
     @staticmethod
     async def simple_prompt(
         query: str,
-        model: genai.GenerativeModel = global_model,
-        temperature: float = CHATBOT_TEMPERATURE,
+        model: str = GEMINI_UTILS_MODEL,
+        temperature: float = 1.0,
         max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
-        safety_settings=GEMINI_SAFETY_SETTINGS,
     ) -> Optional[str]:
         try:
-            response = await model.generate_content_async(
-                query,
-                generation_config=genai.types.GenerationConfig(
-                    candidate_count=1,
-                    temperature=temperature,
-                    max_output_tokens=max_output_tokens,
-                ),
-                safety_settings=safety_settings,
+            response: types.GenerateContentResponse = (
+                await client.aio.models.generate_content(
+                    model=model,
+                    contents=query,
+                    config=types.GenerateContentConfig(
+                        candidate_count=1,
+                        temperature=temperature,
+                        max_output_tokens=max_output_tokens,
+                        safety_settings=GEMINI_SAFETY_SETTINGS,
+                        automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                            disable=True
+                        ),
+                    ),
+                )
             )
-            logging.info(f"Gemini API call, simple prompt: {response.usage_metadata}")
+            logging.info(
+                f"Gemini API call, simple prompt: {response.usage_metadata.total_token_count} tokens"
+            )
         except Exception as e:
             logging.error(f"An error occured when generating a Gemini response: {e}")
             return
@@ -177,16 +199,21 @@ class Gembot:
         r_author: Optional[str] = None,
         r_content: Optional[str] = None,
         message_id: Optional[int] = None,
-        search_summary: Optional[str] = None,
-        temperature: float = CHATBOT_TEMPERATURE,
-        max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
     ) -> Optional[ChatbotMessage]:
         # Update variables
         self.last_prompt = datetime.now()
         self.message_count += 1
 
         # Recall from memory
-        recall = await self.memory.recall(f"{author}: {user_query}", id=self.id_)
+        try:
+            recall = await self.memory.recall(f"{author}: {user_query}", id=self.id_)
+        except urllib3.exceptions.ProtocolError:
+            logging.error(
+                "Pinecone: An existing connection was forcibly closed by the remote host. "
+                "Restarting Pinecone..."
+            )
+            await memory.init_pinecone()
+            recall = None
 
         # Create message
         message = ChatbotMessage(
@@ -197,76 +224,73 @@ class Gembot:
             recall,
             r_author,
             r_content,
-            search_summary=search_summary,
         )
         prompt = f"{message:prompt}"
 
+        # Add to (custom) history
+        self.user_history.add(message)
+
         # Add the extra content (links, images, emotes..) if there are
-        converted_content = []
+        parts = []
         if extra_content:
             for url in extra_content:
-                file = await self.get_base64_bytes(url)
-                if file:
-                    converted_content.append(file)
+                part = await self.get_part_from_url(url)
+                if part:
+                    parts.append(part)
 
-        response = await self.chat.send_message_async(
-            [prompt] + converted_content,
-            generation_config=genai.types.GenerationConfig(
-                candidate_count=1,
-                temperature=temperature,
-                max_output_tokens=max_output_tokens,
-            ),
-            safety_settings=self.safety_settings,
+        response: types.GenerateContentResponse = await self.chat.send_message(
+            [prompt] + parts
         )
-        message.response = response.text
+        message.response = response.text if response.text else "*filtered*"
         logging.info(
-            f"Gemini API call, {response.usage_metadata}. Prompt: {prompt}".replace(
+            f"Gemini API call, total token count: {response.usage_metadata.total_token_count}. Prompt: {prompt}".replace(
                 "\n", ", "
             )
         )
 
         # Limit history length
-        if len(self.chat.history) > GEMINI_HISTORY_SIZE:
-            self.chat.history.pop(0)
+        if len(self.chat._curated_history) > GEMINI_HISTORY_SIZE:
+            self.chat._curated_history.pop(0)
 
         return message
 
-    async def get_base64_bytes(self, url: str) -> Optional[bytes]:
+    async def get_part_from_url(self, url: str) -> Optional[types.Part]:
         """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
         try:
-            async with httpx.AsyncClient(http2=True) as client:
-                response = await client.get(url)
-                response.raise_for_status()
-                mime_type = response.headers.get("content-type", "")
-                content_type = mime_type.split("/")[0]  # E.g: audio, text..
-                max_size = CHATBOT_MAX_CONTENT_SIZE.get(content_type, 0)
+            async with CachedSession(
+                follow_redirects=True,
+                cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+            ) as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    mime_type = response.headers.get("content-type", "")
+                    content_type = mime_type.split("/")[0]  # E.g: audio, text..
+                    max_size = CHATBOT_MAX_CONTENT_SIZE.get(content_type, 0)
 
-                if content_type == "text":
-                    raw = BeautifulSoup(response.text, "html.parser")
-                    to_encode = raw.get_text(strip=True).encode()
+                    if content_type == "text":
+                        raw = BeautifulSoup(await response.text(), "html.parser")
+                        content = raw.get_text(strip=True).encode()
 
-                elif content_type in ["image", "audio", "application"]:
-                    to_encode = response.content
+                    elif content_type in ["image", "audio", "application"]:
+                        content = await response.read()
 
-                else:
-                    self.status = -1
-                    logging.warning(
-                        f"{url} has not been processed: mime_type not allowed"
-                    )
-                    return
-
-                b64_bytes = base64.b64encode(to_encode).decode("utf-8")
+                    else:
+                        self.status = -1
+                        logging.warning(
+                            f"{url} has not been processed: mime_type not allowed"
+                        )
+                        return
 
                 # Size check
-                if len(b64_bytes) > max_size:
+                if len(content) > max_size:
                     self.status = -2
                     logging.warning(f"{url} has not been processed: File too big")
                     return
 
-                content = {"mime_type": mime_type, "data": b64_bytes}
-                return content
+                part = types.Part.from_bytes(data=content, mime_type=mime_type)
+                return part
 
-        except (ReadTimeout, ConnectTimeout, HTTPStatusError):
+        except (ClientResponseError, asyncio.TimeoutError):
             self.status = -3
             logging.warning(
                 f"{url} has not been processed due to timeout or incompatibility"
@@ -290,7 +314,6 @@ class Gembot:
             1 = Continuous chat enabled;
             2 = Chatting;
             3 = End of chat.
-            4 = Google search mode.
         """
         channel_id = context.channel.id
         author = context.author.name
@@ -329,7 +352,7 @@ class Gembot:
 
         # Check if the message starts with the chatbot prefix or is in dm, or using /ask
         elif mc.startswith(CHATBOT_PREFIX) or dm_or_ask:
-            self.status = 5 if mc[int(not dm_or_ask) : 2].startswith("!") else 2
+            self.status = 2
             self.current_channel_id = channel_id
             return True
 
@@ -338,6 +361,7 @@ class Gembot:
     def format_response(self, reply: str) -> str:
         """Format the reply based on the current status."""
         # Remove default emoticons (face emojis)
+        reply = re.sub(r"(?<!``)\n\n(?!``)", "\n", reply)
         reply = emoticon_pattern.sub(r"", reply)
 
         # Add custom emote snowflakes (to properly show up in Discord)
@@ -397,19 +421,6 @@ class Gembot:
             # Append the first emote to the image list
             extra_content.append(f"https://cdn.discordapp.com/emojis/{snowflake}.png")
 
-        # Search on google ?
-        if self.status == 5:
-            try:
-                search_query = await Gembot.simple_prompt(
-                    f"Turn the sentence into a simple google search query: {mc}."
-                    "Don't add anything else whatsoever"
-                )
-            except ValueError:
-                search_query = mc
-            search_summary = await search_(search_query)
-        else:
-            search_summary = None
-
         # Extra process only for normal messages, when /ask is not used
         if isinstance(context, discord.Message):
             id = context.id
@@ -451,7 +462,6 @@ class Gembot:
             rauthor,
             rcontent,
             id,
-            search_summary,
         )
 
         return params
@@ -486,7 +496,7 @@ class Gembot:
         if not bot_emotes:
             return prompt
 
-        emote_prompt = "\n# Emotes\nYou can use the following discord emotes only at the end of a message.\n"
+        emote_prompt = "\n# **Emotes**\nYou can use the following discord emotes only at the end of a message.\n"
         emote_list = "\n".join([f":{emote}:" for emote in bot_emotes.keys()])
         final_prompt = prompt + emote_prompt + emote_list
         return final_prompt
@@ -496,7 +506,6 @@ class Gembot:
         query: str,
         language: str,
         nuance: str = "",
-        model: genai.GenerativeModel = global_model,
     ) -> str:
         prompt = f"""
             Translate the following text to {nuance} {language}.
@@ -504,5 +513,5 @@ class Gembot:
             Don't change emoji strings (<:Example:1200797674031566958>).
             Don't add ANY extra text:
         """
-        response = await Gembot.simple_prompt(query=prompt + query, model=model)
+        response = await Gembot.simple_prompt(query=prompt + query)
         return response

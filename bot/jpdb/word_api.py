@@ -5,11 +5,12 @@ import re
 import logging
 from typing import Optional
 
+from google.genai import types
+
 
 from bot.chatbot.gemini import Gembot
-from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL, CACHE_EXPIRY
-import google.generativeai as genai
-
+from bot.chatbot.gemini_client import client
+from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL, CACHE_EXPIRY, GEMINI_SAFETY_SETTINGS
 
 response_schema = {
     "type": "object",
@@ -205,19 +206,26 @@ class JpdbWordApi:
         """Generate a sentence example with Gemini."""
         sentences = {"jp": "", "en": ""}
         if self.gembot:
-            request = await self.gembot.model.generate_content_async(
-                "Send a simple Japanese sentence **in jp** and the "
-                "English translation **in en**"
-                f"that includes the word {word} ({meaning[0]})."
-                "Don't send anything else. "
-                "Never put romajis, only kana and kanji."
-                "Put the whole word in bold in the correct language.",
-                generation_config=genai.types.GenerationConfig(
-                    response_mime_type="application/json",
-                    response_schema=response_schema,
-                    candidate_count=1,
-                    temperature=1,
-                ),
+            request: types.GenerateContentResponse = (
+                await client.aio.models.generate_content(
+                    model=GEMINI_UTILS_MODEL,
+                    contents="Send a simple Japanese sentence **in jp** and the "
+                    "English translation **in en**"
+                    f"that includes the word {word} ({meaning[0]})."
+                    "Don't send anything else. "
+                    "Never put romajis, only kana and kanji."
+                    "Put the whole word in bold in the correct language.",
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=response_schema,
+                        candidate_count=1,
+                        temperature=1,
+                        automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                            disable=True
+                        ),
+                        safety_settings=GEMINI_SAFETY_SETTINGS,
+                    ),
+                )
             )
             try:
                 sentences = json.loads(request.candidates[0].content.parts[0].text)

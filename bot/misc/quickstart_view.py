@@ -43,8 +43,7 @@ class QuickstartView(View):
             "value": "Unfortunately, only whitelisted servers can use the chatbot, but you can "
             + ("still DM me or " if ALLOW_CHATBOT_IN_DMS else "")
             + "ask me to whitelist it at ugokuchanbot@gmail.com !\n"
-            f"Otherwise, just add `{CHATBOT_PREFIX}` before sending your message, and I will respond to you as best as I can~\n"
-            "You can also try to add `!` before your message, so I can search on google for you !\n\n"
+            f"Otherwise, just add `{CHATBOT_PREFIX}` before sending your message, and I will respond to you as best as I can~\n\n"
             "*psst, you can also [fork the repo](https://github.com/Shewiiii/Ugoku-v2), as the project is open-source !*",
             "inline": False,
         }

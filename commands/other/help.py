@@ -258,17 +258,6 @@ class HelpDropdown(discord.ui.Select):
                 ),
                 inline=False,
             )
-            # search prefix (search on google before answering)
-            embed.add_field(
-                name=f"{CHATBOT_PREFIX}! or !",
-                value=(
-                    "Activate the chatbot, and search on Google your query before answering. "
-                    "Works in DMs and with the /ask command\n"
-                    f"Example: ``{CHATBOT_PREFIX}!Who is Keqing ?``\n"
-                    f"Works on: **Allowed servers Only {', DMs' if ALLOW_CHATBOT_IN_DMS else ''}**"
-                ),
-                inline=False,
-            )
 
         elif selected == "Misc":
             embed = discord.Embed(title="Misc Commands", color=discord.Color.purple())

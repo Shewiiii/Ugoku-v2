@@ -11,7 +11,7 @@ mutagen
 typing-extensions
 youtube-transcript-api
 yt-dlp[default] --pre
-google-generativeai
+google-genai
 pytz
 pinecone[grpc]
 httpx[http2]

@@ -4,7 +4,8 @@ import pytz
 from typing import Optional, List
 
 
-from config import CHATBOT_TIMEZONE
+from config import CHATBOT_TIMEZONE, GEMINI_HISTORY_SIZE
+from dataclasses import field
 
 
 @dataclass
@@ -16,8 +17,7 @@ class ChatbotMessage:
     pinecone_recall: Optional[str] = None
     referenced_author: Optional[str] = None
     referenced_content: Optional[str] = None
-    response: Optional[str] = None
-    search_summary: Optional[str] = None
+    response: str = "*filtered*"
     date: datetime = datetime.now()
     timezone = pytz.timezone(CHATBOT_TIMEZONE)
 
@@ -37,18 +37,13 @@ class ChatbotMessage:
                     else "No Pinecone recall",
                 ]
 
-                if self.search_summary:
-                    infos.append(f"Google search results: {self.search_summary}")
-
                 if self.referenced_author and self.referenced_content:
                     infos.append(
                         f"Message referencing {self.referenced_author}: "
                         f'"{self.referenced_content}"'
                     )
 
-                message = (
-                    f"[{', '.join(infos)}, **{self.author} talks to you**] {self.content}"
-                )
+                message = f"[{', '.join(infos)}, **{self.author} talks to you**] {self.content}"
                 return message
             case _:
                 return str(self)
@@ -57,4 +52,29 @@ class ChatbotMessage:
 @dataclass
 class ChatbotHistory:
     guild_id: int
-    messages: List[ChatbotMessage]
+    history: List[ChatbotMessage] = field(default_factory=list)
+    pinecone_history: List[ChatbotMessage] = field(default_factory=list)
+    # So 2 histories here:
+    # - history is the standard one, no real use right now
+    # - pinecone_history is used to analyse the messages, put new vectors in the Pinecone index, then
+    # messages used to generate it are removed from pinecone_history, to avoid superfluous vectors
+
+    def __format__(self, format_spec):
+        if format_spec == "pinecone_last_3":
+            formatted_messages = [msg.content for msg in self.pinecone_history[-3:]]
+            return ", ".join(formatted_messages)
+        return str(self)
+
+    def add(self, chatbot_message: ChatbotMessage) -> None:
+        if not isinstance(chatbot_message, ChatbotMessage):
+            raise TypeError("Not a ChatbotMessage class")
+        self.history.append(chatbot_message)
+        self.pinecone_history.append(chatbot_message)
+        for h in self.history, self.pinecone_history:
+            if len(h) > GEMINI_HISTORY_SIZE:
+                h.pop(0)
+
+    def pinecone_remove_last_three(self) -> None:
+        for _ in range(3):
+            if self.pinecone_history:
+                self.pinecone_history.pop()

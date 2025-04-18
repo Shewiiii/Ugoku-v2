@@ -3,7 +3,7 @@ import discord
 import logging
 from discord.ext import commands
 from config import GEMINI_ENABLED
-from google.generativeai.types.generation_types import BlockedPromptException
+from google.genai.errors import APIError
 
 if GEMINI_ENABLED:
     from bot.chatbot.chat_dataclass import ChatbotMessage
@@ -53,16 +53,10 @@ class Ask(commands.Cog):
         try:
             chatbot_message: ChatbotMessage = await chat.send_message(*params)
 
-        except BlockedPromptException:
+        except APIError as e:
             defer_task.cancel()
             await ctx.respond("*filtered*", ephemeral=ephemeral)
-            logging.error(f"Response blocked by Gemini in {chat.id_}")
-            return
-
-        except BlockedPromptException:
-            logging.error(
-                "Prompt against Gemini's policies! Please change it and try again."
-            )
+            logging.error(f"Response blocked by Gemini in {chat.id_}: {e.message}")
             return
 
         # Response
@@ -70,7 +64,7 @@ class Ask(commands.Cog):
         formatted_reply = f"-# {ctx.author.name}: {query}\n{formatted_response}"
         tasks = []
         tasks.append(ctx.respond(formatted_reply, ephemeral=ephemeral))
-        tasks.append(chat.memory.store(chatbot_message))
+        tasks.append(chat.memory.store(chat.user_history))
         defer_task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 

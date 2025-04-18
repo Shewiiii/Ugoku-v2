@@ -4,10 +4,7 @@ import discord
 from discord.ext import commands
 
 from config import GEMINI_ENABLED, CHATBOT_PREFIX
-from google.generativeai.types.generation_types import (
-    BlockedPromptException,
-    StopCandidateException,
-)
+from google.genai.errors import APIError
 
 if GEMINI_ENABLED:
     from bot.chatbot.chat_dataclass import ChatbotMessage
@@ -67,14 +64,10 @@ if GEMINI_ENABLED:
                 params = await chat.get_params(message, message.content)
                 try:
                     chatbot_message: ChatbotMessage = await chat.send_message(*params)
-                except StopCandidateException:
+                except APIError as e:
                     await message.channel.send("*filtered*")
-                    logging.error(f"Response blocked by Gemini in {chat.id_}")
-                    return
-                except BlockedPromptException:
                     logging.error(
-                        "Prompt against Gemini's policies! "
-                        "Please change it and try again."
+                        f"Response blocked by Gemini in {chat.id_}:{e.message}"
                     )
                     return
 
@@ -88,7 +81,8 @@ if GEMINI_ENABLED:
                 await message.channel.send(chunked_message[i])
 
             # Memory
-            if await chat.memory.store(chatbot_message):
+            # if await chat.memory.store(chatbot_message):
+            if await chat.memory.store(chat.user_history):
                 await first_msg.edit(
                     f"-# Ugoku will remember about this. \n{chunked_message[0]}"
                 )
