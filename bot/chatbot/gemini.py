@@ -13,6 +13,7 @@ from config import (
     GEMINI_UTILS_MODEL,
     GEMINI_SAFETY_SETTINGS,
     GEMINI_HISTORY_SIZE,
+    GEMINI_ENABLED,
     CHATBOT_TIMEOUT,
     CHATBOT_PREFIX,
     CHATBOT_TEMPERATURE,
@@ -173,6 +174,9 @@ class Gembot:
         message: Union[discord.ApplicationContext, discord.Message],
     ) -> Optional[int]:
         """Get the chat id to use for the chatbot. Return `None` if it should not be used for this message."""
+        if not GEMINI_ENABLED:
+            return
+
         if isinstance(message.channel, discord.DMChannel) and ALLOW_CHATBOT_IN_DMS:
             # Id = channel (dm) id if in DMs
             id_ = message.channel.id

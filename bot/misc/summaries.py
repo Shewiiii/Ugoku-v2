@@ -6,11 +6,16 @@ from youtube_transcript_api import YouTubeTranscriptApi
 
 from bot.chatbot.gemini import Prompts, Gembot
 from bot.utils import extract_video_id, get_cache_path
+from config import COOKIES_PATH
 
 
 class Summaries:
     def __init__(self) -> None:
-        pass
+        if COOKIES_PATH and Path(COOKIES_PATH).is_file():
+            cookie_path = COOKIES_PATH
+        else:
+            cookie_path = None
+        self.ytt_api = YouTubeTranscriptApi(cookie_path=cookie_path)
 
     @staticmethod
     async def summarize(text: str) -> Optional[str]:
@@ -19,15 +24,12 @@ class Summaries:
         response = await Gembot.simple_prompt(prompt + text)
         return response
 
-    @staticmethod
-    async def get_youtube_transcript_text(url: str) -> Optional[str]:
+    async def get_youtube_transcript_text(self, url: str) -> Optional[str]:
         video_id = extract_video_id(url)
         if not video_id:
             return
 
-        transcript_list = await asyncio.to_thread(
-            YouTubeTranscriptApi.list_transcripts, video_id
-        )
+        transcript_list = await asyncio.to_thread(self.ytt_api.list, video_id)
 
         transcripts: dict = (
             transcript_list._manually_created_transcripts
@@ -35,7 +37,7 @@ class Summaries:
         )
         if transcripts:
             transcript_data = list(transcripts.values())[0].fetch()
-            text = "\n".join(entry["text"] for entry in transcript_data)
+            text = "\n".join(entry.text for entry in transcript_data)
 
             return text
 
