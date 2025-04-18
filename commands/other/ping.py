@@ -19,7 +19,7 @@ class Ping(commands.Cog):
         # Bot latency
         bot_latency = round(self.bot.latency * 1000, 2)
         start = time.perf_counter()
-        response = f"あわあわあわわわ ! \n> Bot latency: {bot_latency}ms\n> Reponse latency: ..."
+        response = f"あわあわあわわわ ! \n> Bot latency: {bot_latency}ms\n> Response latency: ..."
         await ctx.respond(response)
 
         # Response latency
