@@ -28,10 +28,10 @@ class ChatbotMessage:
         # To honor my friend Hibiki, a C# dev
         match format_spec:
             case "date":
-                return datetime.now(self.date).strftime("%Y-%m-%d %H:%M")
+                return self.date.strftime("%Y-%m-%d %H:%M")
             case "prompt":
                 infos = [
-                    f"Time in Kyoto: {datetime.now(self.timezone)}",
+                    f"Time in Kyoto: {datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")}",
                     f"Pinecone recall: {self.pinecone_recall}"
                     if self.pinecone_recall
                     else "No Pinecone recall",

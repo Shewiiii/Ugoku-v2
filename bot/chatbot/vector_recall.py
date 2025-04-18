@@ -99,10 +99,9 @@ In the text field, add what info we should remember if “important_caracteristi
         if not self.active:
             return
 
-        # Infos to summarize
-        date: str = datetime.now(self.timezone).strftime("%Y-%m-%d")
 
         # Generate metadata using Gemini
+        date: str = datetime.now(self.timezone).strftime("%Y-%m-%d")
         metadata = json.loads(
             (
                 await client.aio.models.generate_content(
