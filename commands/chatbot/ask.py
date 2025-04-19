@@ -64,7 +64,7 @@ class Ask(commands.Cog):
         formatted_reply = f"-# {ctx.author.name}: {query}\n{formatted_response}"
         tasks = []
         tasks.append(ctx.respond(formatted_reply, ephemeral=ephemeral))
-        tasks.append(chat.memory.store(chat.user_history))
+        tasks.append(chat.memory.store(chat.history))
         defer_task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 

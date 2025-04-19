@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 import pytz
 from typing import Optional, List
 
@@ -14,7 +15,7 @@ class ChatbotMessage:
     guild_id: int
     author: str
     content: str
-    pinecone_recall: Optional[str] = None
+    recall_vectors: list[Optional[ScoredVector]] = field(default_factory=list)
     referenced_author: Optional[str] = None
     referenced_content: Optional[str] = None
     response: str = "*filtered*"
@@ -24,18 +25,25 @@ class ChatbotMessage:
     def __init_subclass__(cls):
         pass
 
+    def format_recall_vectors(self) -> str:
+        """Format recall vectors to a text for the prompt."""
+        texts = [vector["metadata"].get("text") for vector in self.recall_vectors]
+        if texts:
+            recall_string = ", ".join(str(recall).replace("\n", "") for recall in texts)
+            return recall_string
+        else:
+            return ""
+
     def __format__(self, format_spec):
         # To honor my friend Hibiki, a C# dev
         match format_spec:
             case "date":
                 return self.date.strftime("%Y-%m-%d %H:%M")
             case "prompt":
-                infos = [
-                    f"Time in Kyoto: {datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")}",
-                    f"Pinecone recall: {self.pinecone_recall}"
-                    if self.pinecone_recall
-                    else "No Pinecone recall",
-                ]
+                infos = [datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")]
+
+                if recall_text := self.format_recall_vectors():
+                    infos.append(f"Recall: {recall_text}")
 
                 if self.referenced_author and self.referenced_content:
                     infos.append(
@@ -44,6 +52,7 @@ class ChatbotMessage:
                     )
 
                 message = f"[{', '.join(infos)}, **{self.author} talks to you**] {self.content}"
+
                 return message
             case _:
                 return str(self)
@@ -58,6 +67,7 @@ class ChatbotHistory:
     # - history is the standard one, no real use right now
     # - pinecone_history is used to analyse the messages, put new vectors in the Pinecone index, then
     # messages used to generate it are removed from pinecone_history, to avoid superfluous vectors
+    recalled_vector_ids: set[str] = field(default_factory=set)
 
     def __format__(self, format_spec):
         if format_spec == "pinecone_last_3":
@@ -78,3 +88,7 @@ class ChatbotHistory:
         for _ in range(3):
             if self.pinecone_history:
                 self.pinecone_history.pop()
+
+    def store_recall(self, vectors: list[ScoredVector]) -> None:
+        for vector in vectors:
+            self.recalled_vector_ids.add(vector["id"])

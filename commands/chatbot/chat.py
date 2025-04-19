@@ -82,7 +82,7 @@ if GEMINI_ENABLED:
 
             # Memory
             # if await chat.memory.store(chatbot_message):
-            if await chat.memory.store(chat.user_history):
+            if await chat.memory.store(chat.history):
                 await first_msg.edit(
                     f"-# Ugoku will remember about this. \n{chunked_message[0]}"
                 )

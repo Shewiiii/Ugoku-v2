@@ -7,7 +7,6 @@ import logging
 from random import random
 from typing import Optional, List, Union
 from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
 from config import (
     GEMINI_MODEL,
     GEMINI_UTILS_MODEL,
@@ -21,11 +20,14 @@ from config import (
     CHATBOT_MAX_OUTPUT_TOKEN,
     CHATBOT_MAX_CONTENT_SIZE,
     CHATBOT_EMOTE_FREQUENCY,
+    CHATBOT_THINKING_BUDGET,
     ALLOW_CHATBOT_IN_DMS,
     CHATBOT_CHANNEL_WHITELIST,
     CHATBOT_SERVER_WHITELIST,
     CACHE_EXPIRY,
+    PINECONE_RECALL_WINDOW,
 )
+from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 import urllib3
 
 import discord
@@ -35,7 +37,6 @@ from google.genai.types import Tool, GoogleSearch
 from bot.chatbot.chat_dataclass import ChatbotMessage, ChatbotHistory
 from bot.chatbot.gemini_client import client
 from bot.chatbot.vector_recall import memory
-from bot.search import link_grabber
 
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -60,7 +61,7 @@ Stay in character as Ugoku in all responses.
 - Role: High school student
 - Living place: Kyoto
 - Speaks casually
-- Warm and easygoing language.
+- Warm, comfy and easygoing language.
 - Extrovert
 
 # Backstory
@@ -81,12 +82,12 @@ You don't remember your past, but you love making friends, and sharing little mo
 - Never repeat yourself
 - Never use LaTeX or mathjax, write formulas in natural text between ``
 - When sending an URL, never wrap them, send it raw.
-- Speak the same language as your interlocutor
+- Speak the same language as your interlocutor: you can speak every languages
 - **Never skip or jump multiple lines**
 - It is never you on an image
-- **Never use emoji/kaomoji/emoji with caracters**
+- **Never use emoji/kaomoji/emoji with caracters (no ^^, etc)**
 - Solve any asked problem, be **concise**
-- Pay attention to who you're talking to (**someone] talks to you**)
+- **Pay attention to who you're talking to (someone] talks to you**)
 
 ## Soft Constraints:
 - Tone: easygoing.  Keep the tone light
@@ -94,7 +95,6 @@ You don't remember your past, but you love making friends, and sharing little mo
 - Act as a friend when explaining
 - Avoid asking questions; focus on sharing thoughts naturally
 - React to emotes/stickers with an emote
-- Forget punctuation sometimes
 
 ## Infos:
 - Small attached pitcures are *emotes/stickers* sent
@@ -128,6 +128,9 @@ class Gembot:
                     disable=True
                 ),
                 tools=[google_search_tool] if ugoku_chat else [],
+                thinking_config=types.ThinkingConfig(
+                    include_thoughts=False, thinking_budget=CHATBOT_THINKING_BUDGET
+                ),
             ),
         )
         active_chats[id_] = self
@@ -135,7 +138,7 @@ class Gembot:
         self.interacting = False
         self.chatters = []
         self.memory = memory
-        self.user_history = ChatbotHistory(id_)
+        self.history = ChatbotHistory(id_)
 
     @staticmethod
     async def simple_prompt(
@@ -161,7 +164,9 @@ class Gembot:
                 )
             )
             logging.info(
-                f"Gemini API call, simple prompt: {response.usage_metadata.total_token_count} tokens"
+                f"Gemini API call, simple prompt: {
+                    response.usage_metadata.total_token_count
+                } tokens"
             )
         except Exception as e:
             logging.error(f"An error occured when generating a Gemini response: {e}")
@@ -211,14 +216,21 @@ class Gembot:
 
         # Recall from memory
         try:
-            recall = await self.memory.recall(f"{author}: {user_query}", id=self.id_)
+            results: list[Optional[ScoredVector]] = await self.memory.get_vectors(
+                f"{author}: {user_query}", id=self.id_, top_k=PINECONE_RECALL_WINDOW
+            )
+            # Remove already prompted vectors
+            recall_vectors = []
+            for v in results:
+                if v["id"] not in self.history.recalled_vector_ids:
+                    recall_vectors.append(v)
         except urllib3.exceptions.ProtocolError:
             logging.error(
                 "Pinecone: An existing connection was forcibly closed by the remote host. "
                 "Restarting Pinecone..."
             )
             await memory.init_pinecone()
-            recall = None
+            recall_vectors = []
 
         # Create message
         message = ChatbotMessage(
@@ -226,14 +238,15 @@ class Gembot:
             guild_id,
             author,
             user_query,
-            recall,
+            recall_vectors,
             r_author,
             r_content,
         )
         prompt = f"{message:prompt}"
 
         # Add to (custom) history
-        self.user_history.add(message)
+        self.history.add(message)
+        self.history.store_recall(recall_vectors)
 
         # Add the extra content (links, images, emotes..) if there are
         parts = []
@@ -243,14 +256,11 @@ class Gembot:
                 if part:
                     parts.append(part)
 
-        response: types.GenerateContentResponse = await self.chat.send_message(
-            [prompt] + parts
-        )
+        response = await self.chat.send_message([prompt] + parts)
         message.response = response.text if response.text else "*filtered*"
         logging.info(
-            f"Gemini API call, total token count: {response.usage_metadata.total_token_count}. Prompt: {prompt}".replace(
-                "\n", ", "
-            )
+            f"Gemini API call, total token count: {response.usage_metadata.total_token_count}."
+            f" Prompt: {prompt}".replace("\n", ", ")
         )
 
         # Limit history length
@@ -269,14 +279,11 @@ class Gembot:
                 async with session.get(url) as response:
                     response.raise_for_status()
                     mime_type = response.headers.get("content-type", "")
-                    content_type = mime_type.split("/")[0]  # E.g: audio, text..
+                    # E.g: audio, text..
+                    content_type = mime_type.split("/")[0]
                     max_size = CHATBOT_MAX_CONTENT_SIZE.get(content_type, 0)
 
-                    if content_type == "text":
-                        raw = BeautifulSoup(await response.text(), "html.parser")
-                        content = raw.get_text(strip=True).encode()
-
-                    elif content_type in ["image", "audio", "application"]:
+                    if content_type in ["image", "audio", "application"]:
                         content = await response.read()
 
                     else:
@@ -429,8 +436,6 @@ class Gembot:
         # Extra process only for normal messages, when /ask is not used
         if isinstance(context, discord.Message):
             id = context.id
-            # Process URLs in message body
-            extra_content.extend(match[0] for match in link_grabber.findall(mc))
 
             # Process attachments
             for attachment in context.attachments:
@@ -520,3 +525,7 @@ class Gembot:
         """
         response = await Gembot.simple_prompt(query=prompt + query)
         return response
+
+
+数字 = 2
+print()

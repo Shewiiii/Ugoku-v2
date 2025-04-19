@@ -17,7 +17,6 @@ from bot.chatbot.gemini_client import client
 from config import (
     GEMINI_UTILS_MODEL,
     CHATBOT_TIMEZONE,
-    PINECONE_RECALL_WINDOW,
     PINECONE_ENABLED,
     GEMINI_SAFETY_SETTINGS,
 )
@@ -51,7 +50,8 @@ or if the user asks to remember something.
 - “question”: The messages explicitly or implicitly **asks something**, or contains a question mark, while not having “important_caracteristic”
 - “info”: It provides information or opinions that are not personal preferences or factual personal details.
 - “other”: If it doesn't fit the other categories.
-In the text field, add what info we should remember if “important_caracteristic”, else, nothing. It should not loose information.\n
+In the text field, add what info we should remember if the type == “important_caracteristic”,  It should not loose information 
+but nothing otherwise.\n
 """
         self.active = False
 
@@ -94,11 +94,10 @@ In the text field, add what info we should remember if “important_caracteristi
         return vectors
 
     # async def store(self, chatbot_message: ChatbotMessage) -> bool:
-    async def store(self, user_history: ChatbotHistory) -> bool:
+    async def store(self, history: ChatbotHistory) -> bool:
         """If relevant, store a Pinecone vector in the index based on the last 3 messages."""
         if not self.active:
             return
-
 
         # Generate metadata using Gemini
         date: str = datetime.now(self.timezone).strftime("%Y-%m-%d")
@@ -106,7 +105,7 @@ In the text field, add what info we should remember if “important_caracteristi
             (
                 await client.aio.models.generate_content(
                     model=GEMINI_UTILS_MODEL,
-                    contents=f"{self.prompt}{user_history:pinecone_last_3}",
+                    contents=f"{self.prompt}{history:pinecone_last_3}",
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=response_schema,
@@ -119,7 +118,7 @@ In the text field, add what info we should remember if “important_caracteristi
                 )
             ).text
         )
-        last_message = user_history.history[-1]
+        last_message = history.history[-1]
         metadata["id"] = last_message.guild_id
         metadata["text"] = f"{date}-{last_message.author}: {metadata['text']}"
 
@@ -127,7 +126,7 @@ In the text field, add what info we should remember if “important_caracteristi
             return False
         else:
             # Important carac: remove the messages from the Pinecone history
-            user_history.pinecone_remove_last_three()
+            history.pinecone_remove_last_three()
 
         # Create the embeddings/vectors
         vector_values = await self.generate_embeddings(metadata["text"])
@@ -140,23 +139,9 @@ In the text field, add what info we should remember if “important_caracteristi
         logging.info(f"Added to Pinecone: {metadata['text']}")
         return True
 
-    async def recall(
-        self,
-        text: str,
-        id: int,
-        top_k: int = PINECONE_RECALL_WINDOW,
-    ) -> Optional[str]:
-        if not self.active:
-            return
-        vectors = await self.get_vectors(text, id, top_k)
-        texts = [vector["metadata"].get("text") for vector in vectors]
-        if texts:
-            recall_string = ", ".join(str(recall).replace("\n", "") for recall in texts)
-            return recall_string
-
     async def get_vectors(
         self, text: str, id: int, top_k=999
-    ) -> Optional[list[ScoredVector]]:
+    ) -> list[Optional[ScoredVector]]:
         if not self.active:
             raise RuntimeError("Pinecone class not active")
         vectors = await self.generate_embeddings([text])

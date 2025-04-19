@@ -76,7 +76,7 @@ if __name__ == "__main__":  # Anti ProcessPoolExecutor shield
         bot.load_extension(module_name)
 
     @bot.event
-    async def on_guild_join(guild: discord.Guild):
+    async def on_guild_join(guild: discord.Guild) -> None:
         channel = guild.system_channel
         if channel is None:
             for c in guild.text_channels:

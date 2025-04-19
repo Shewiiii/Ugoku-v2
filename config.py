@@ -127,8 +127,9 @@ CHATBOT_MAX_CONTENT_SIZE = {
     'image': 7000000,
     'application': 2000000
 } # Max length of an attachment, in bytes
-PINECONE_RECALL_WINDOW = 10
-PINECONE_INDEX_NAME = 'ugoku2'
+CHATBOT_THINKING_BUDGET = 1024 # In token
+PINECONE_RECALL_WINDOW = 4
+PINECONE_INDEX_NAME = 'ugoku'
 GEMINI_MODEL = 'gemini-2.5-flash-preview-04-17'
 GEMINI_UTILS_MODEL = 'gemini-2.0-flash' # Used for summaries and lyrics
 GEMINI_HISTORY_SIZE = 1000 # How many messages to keep in chat history

@@ -22,6 +22,7 @@ from config import (
     CHATBOT_MAX_CONTENT_SIZE,
     CHATBOT_MAX_OUTPUT_TOKEN,
     CHATBOT_EMOTE_FREQUENCY,
+    CHATBOT_THINKING_BUDGET,
     CHATBOT_TIMEZONE,
     GEMINI_HISTORY_SIZE,
     PINECONE_RECALL_WINDOW,
@@ -74,6 +75,7 @@ class ConfigCommand(commands.Cog):
             [
                 f"{e['misc']} Chatbot model: {GEMINI_MODEL}",
                 f"{e['misc']} Chatbot temperature: {CHATBOT_TEMPERATURE}",
+                f"{e['misc']} Chatbot thinking budget: {CHATBOT_THINKING_BUDGET}",
                 f"{e[bool(CHATBOT_EMOTES)]} Chatbot emotes: {len(CHATBOT_EMOTES)}",
                 f"{e['misc']} Chatbot emote frequency: {CHATBOT_EMOTE_FREQUENCY:.1f}",
                 f"{e['misc']} Chatbot history size: {GEMINI_HISTORY_SIZE}",
