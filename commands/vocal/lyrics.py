@@ -59,18 +59,6 @@ class lyricsView(discord.ui.View):
             )
         )
 
-    @discord.ui.button(
-        label="Close",
-        style=discord.ButtonStyle.secondary,
-    )
-    async def close_button_callback(
-        self, button: discord.ui.Button, interaction: discord.Interaction
-    ) -> None:
-        await interaction.message.delete()
-        self.clear_items()
-        self.ctx = self.bot = None
-
-
 class Lyrics(commands.Cog):
     def __init__(self, bot) -> None:
         self.bot = bot
@@ -80,14 +68,12 @@ class Lyrics(commands.Cog):
         ctx: discord.ApplicationContext,
         query: Optional[str],
         convert_to: Optional[str] = None,
-        send: bool = False,
     ) -> None:
         if not query:
             guild_id = ctx.guild.id
             session = session_manager.server_sessions.get(guild_id)
-            respond = ctx.send if send else ctx.respond
             if not (session and session.queue):
-                await respond("No song is playing !")
+                await ctx.respond("No song is playing !", ephemeral=True)
                 return
             track: Track = session.queue[0]
 
@@ -95,24 +81,25 @@ class Lyrics(commands.Cog):
             # Use Spotify features for more precise results
             tracks: Track = await self.bot.spotify.get_tracks(query)
             if not tracks:
-                await respond("No lyrics found !")
+                await ctx.respond("No lyrics found !", ephemeral=True)
                 return
             track: Track = tracks[0]
 
         lyrics = await BotLyrics.get(track)
         if not lyrics:
-            await respond(lyrics or "No lyrics found !")
+            await ctx.respond(lyrics or "No lyrics found !", ephemeral=True)
             return
 
         # CONVERT
         if convert_to:
             if not GEMINI_ENABLED:
-                await respond(
+                await ctx.respond(
                     "Chatbot features need to be enabled in "
-                    "order to use lyrics conversion."
+                    "order to use lyrics conversion.",
+                    ephemeral=True,
                 )
                 return
-            asyncio.create_task(respond("Converting~"))
+            asyncio.create_task(ctx.respond("Converting~"))
             lyrics = await BotLyrics.convert(lyrics, convert_to)
 
         # Split the lyrics in case it's too long
@@ -134,10 +121,14 @@ class Lyrics(commands.Cog):
             # Add a cover to the embed
             embed.set_author(name="Lyrics", icon_url=track.cover_url)
             asyncio.create_task(
-                respond(embed=embed, view=lyricsView(self.bot, ctx, track.source_url))
+                ctx.respond(
+                    embed=embed,
+                    view=lyricsView(self.bot, ctx, track.source_url),
+                    ephemeral=True,
+                )
             )
         else:
-            asyncio.create_task(respond(embed=embed))
+            asyncio.create_task(ctx.respond(embed=embed, ephemeral=True))
 
     @commands.slash_command(
         name="lyrics",
@@ -156,7 +147,7 @@ class Lyrics(commands.Cog):
         # Uncomment the following if Spotify features are disabled
         # artist: str = Optional[str]
     ) -> None:
-        asyncio.create_task(ctx.defer())
+        asyncio.create_task(ctx.defer(ephemeral=True))
         await self.execute_lyrics(ctx, query, convert_to)
 
 

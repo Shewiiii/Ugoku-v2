@@ -129,7 +129,9 @@ class Search(commands.Cog):
                 # Select menu
                 self.children[3].max_values = end_index - start_index
                 self.children[3].options = [
-                    discord.SelectOption(label=f"{i + 1}. {str(tracks[i])[:95]}")
+                    discord.SelectOption(
+                        label=f"{i + 1}. {str(tracks[i])[:95]}", value=str(i)
+                    )
                     for i in range(start_index, end_index)
                 ]
 
@@ -194,13 +196,10 @@ class Search(commands.Cog):
                 self, select, interaction: discord.Interaction
             ) -> None:
                 asyncio.create_task(interaction.response.defer())
-                selected_track_names: list = select.values
+                selected_track_indexes: list = select.values
                 await self.play(
                     interaction,
-                    [
-                        tracks[int(re.findall(r"\d+", tn)[0]) - 1]
-                        for tn in selected_track_names
-                    ],
+                    [tracks[int(i)] for i in selected_track_indexes],
                 )
                 if close_view:
                     await sent_embed.delete()

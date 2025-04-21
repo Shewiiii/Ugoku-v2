@@ -378,6 +378,7 @@ class ServerSession:
         show_wrong_track_embed: bool = False,
         user_query: Optional[str] = None,
         load_dummies: bool = True,
+        send: bool = False,
     ) -> None:
         """Adds tracks to the queue and starts playback if not already playing."""
 
@@ -411,6 +412,8 @@ class ServerSession:
                 content=content,
                 view=view,
             )
+            if not send
+            else ctx.send(content, view=view)
         )
 
         # Play !

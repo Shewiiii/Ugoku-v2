@@ -56,31 +56,14 @@ class ForgetView(discord.ui.View):
     )
     async def select_callback(self, select, interaction: discord.Interaction) -> None:
         asyncio.create_task(interaction.response.defer())
-        selected_vector_texts: list = select.values
-        # Remove the index text
-        for i in range(len(selected_vector_texts)):
-            t: str = selected_vector_texts[i]
-            selected_vector_texts[i] = t[t.find(" ") + 1 :]
-
-        # Remove...removed vectors from the view's vector list
-        # The time complexity is horrendous
-        removed_vectors = [
-            vector
-            for vector in self.vectors
-            if any(
-                selected_text in vector["metadata"]["text"]
-                for selected_text in selected_vector_texts
-            )
-        ]
-
-        removed_vector_ids = {vector["id"] for vector in removed_vectors}
+        removed_vector_ids: list[ScoredVector] = select.values
         self.vectors = [
             vector for vector in self.vectors if vector["id"] not in removed_vector_ids
         ]
 
         await asyncio.to_thread(memory.index.delete, removed_vector_ids)
         await self.channel.send(
-            f"Removed {len(removed_vector_ids)} vector{'s' if len(removed_vectors) > 1 else ''} !"
+            f"Removed {len(removed_vector_ids)} vector{'s' if len(removed_vector_ids) > 1 else ''} !"
         )
         self.update()
         await self.webhook_msg.edit(embed=self.embed, view=self)
@@ -115,7 +98,8 @@ class ForgetView(discord.ui.View):
             self.children[2].max_values = end_index - start_index
             self.children[2].options = [
                 discord.SelectOption(
-                    label=f"{i + 1}. {self.vectors[i]['metadata']['text'][:95]}"
+                    label=f"{i + 1}. {self.vectors[i]['metadata']['text'][:95]}",
+                    value=self.vectors[i]["id"],
                 )
                 for i in range(start_index, end_index)
             ]

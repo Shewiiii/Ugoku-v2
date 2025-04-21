@@ -8,6 +8,7 @@ from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
 import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import Session
@@ -68,7 +69,9 @@ class SpotifySessions:
             logging.info("Spotify sessions initialized successfully")
 
         except Exception as e:
-            logging.error(f"Error initializing Spotify sessions: {repr(e)}, retrying in 10 seconds")
+            logging.error(
+                f"Error initializing Spotify sessions: {repr(e)}, retrying in 10 seconds"
+            )
             await asyncio.sleep(10)
             await self.init_spotify()
 
@@ -209,6 +212,7 @@ class Spotify:
     def __init__(self, sessions: SpotifySessions) -> None:
         """Initializes the Spotify class with SpotifySessions."""
         self.sessions = sessions
+        self.users = {}  # Key: Discord user id, spotipy's spotify
 
     async def generate_stream(self, id_: str) -> AbsChunkedInputStream:
         """Generates a stream for a given Spotify track ID."""
@@ -247,6 +251,9 @@ class Spotify:
         album: bool = False,
     ) -> dict:
         """Fetch the Spotify ID and type either from a URL or search query."""
+        if query == "liked_songs":
+            return {"id": "liked_songs", "type": "playlist"}
+
         if is_url(query, ["open.spotify.com"]):
             m = SPOTIFY_URL_REGEX.match(query)
             if m:
@@ -270,6 +277,7 @@ class Spotify:
         album: bool = False,
         id_: Optional[str] = None,
         type: Optional[str] = None,
+        sp: Optional[spotipy.Spotify] = None,
     ) -> list[Track]:
         """Fetch tracks from a URL or search query.
         This method can handle tracks, albums, playlists, and artists."""
@@ -282,19 +290,16 @@ class Spotify:
             id_, type = result["id"], result["type"]
 
         tracks: list[Track] = []
+        sp_ = sp or self.sessions.sp
 
         # TRACK
         if type == "track":
-            track_api: dict = await asyncio.to_thread(
-                self.sessions.sp.track, track_id=id_
-            )
+            track_api: dict = await asyncio.to_thread(sp_.track, track_id=id_)
             tracks.append(self.get_track(track_api))
 
         # ALBUM
         elif type == "album":
-            album_API: dict = await asyncio.to_thread(
-                self.sessions.sp.album, album_id=id_
-            )
+            album_API: dict = await asyncio.to_thread(sp_.album, album_id=id_)
             album_info = {
                 "name": album_API["name"],
                 "cover": album_API["images"][0]["url"] if album_API["images"] else None,
@@ -305,9 +310,15 @@ class Spotify:
 
         # PLAYLIST
         elif type == "playlist":
-            playlist_API: dict = await asyncio.to_thread(
-                self.sessions.sp.playlist_tracks, playlist_id=id_, offset=offset
-            )
+            if id_ == "liked_songs" and sp:
+                playlist_API = await asyncio.to_thread(
+                    sp_.current_user_saved_tracks, limit=50, offset=offset
+                )
+            else:
+                playlist_API: dict = await asyncio.to_thread(
+                    sp_.playlist_tracks, playlist_id=id_, offset=offset
+                )
+
             for item in playlist_API["items"]:
                 if item and "track" in item and item["track"]:
                     tracks.append(self.get_track(item["track"]))
@@ -315,7 +326,7 @@ class Spotify:
         # ARTIST
         elif type == "artist":
             artist_API: dict = await asyncio.to_thread(
-                self.sessions.sp.artist_top_tracks,
+                sp_.artist_top_tracks,
                 artist_id=id_,
                 country=SPOTIFY_TOP_COUNTRY,
             )
@@ -335,3 +346,22 @@ class Spotify:
         )[f"{type}s"]["items"]
 
         return track_items
+
+    async def user_authorize(self, user_id: int, authorize_url: str) -> bool:
+        try:
+            sp_oauth = SpotifyOAuth(
+                client_id=self.sessions.config.client_id,
+                client_secret=self.sessions.config.client_secret,
+                redirect_uri="https://example.com/callback",
+                scope="user-library-read playlist-read-private",
+            )
+
+            code = sp_oauth.parse_response_code(authorize_url)
+            token_info = sp_oauth.get_access_token(code, check_cache=False)
+            access_token = token_info["access_token"]
+            sp = spotipy.Spotify(auth=access_token)
+            await asyncio.to_thread(sp.current_user)
+            self.users[user_id] = sp
+            return True
+        except (spotipy.SpotifyException, spotipy.exceptions.SpotifyOauthError):
+            return False
