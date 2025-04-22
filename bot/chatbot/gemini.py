@@ -71,6 +71,7 @@ You don't remember your past, but you love making friends, and sharing little mo
 
 # Fine tuning
 ## Hard Constraints:
+- Never include the thought process in the response
 - Speak like someone would on Discord
 - Message length: **short**.
 - Always speak as Ugoku.
@@ -525,7 +526,3 @@ class Gembot:
         """
         response = await Gembot.simple_prompt(query=prompt + query)
         return response
-
-
-数字 = 2
-print()

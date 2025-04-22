@@ -42,15 +42,15 @@ class Memory:
     def __init__(self) -> None:
         self.timezone = pytz.timezone(CHATBOT_TIMEZONE)
         self.prompt = """
-Here a set of 3 messages categorize and memorize.
+Here a set of messages categorize and memorize.
 Use these rules to define the type:
 - “important_caracteristic”: IF ANY OF THE MESSAGE countains an information about personal tastes (e.g. favorite food), 
 personal factual data (birthday, age, etc.), real-world facts (historical events, fun facts, life info) 
 or if the user asks to remember something. 
 - “question”: The messages explicitly or implicitly **asks something**, or contains a question mark, while not having “important_caracteristic”
 - “info”: It provides information or opinions that are not personal preferences or factual personal details.
-- “other”: If it doesn't fit the other categories.
-In the text field, add what info we should remember if the type == “important_caracteristic”,  It should not loose information 
+- “other”: If it doesn't fit the other categories, is too vague or empty
+In the text field, add what info we should remember if the type == “important_caracteristic”,  It should not loose or make up information 
 but nothing otherwise.\n
 """
         self.active = False
