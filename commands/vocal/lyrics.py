@@ -73,7 +73,7 @@ class Lyrics(commands.Cog):
             guild_id = ctx.guild.id
             session = session_manager.server_sessions.get(guild_id)
             if not (session and session.queue):
-                await ctx.respond("No song is playing !", ephemeral=True)
+                await ctx.followup.send("No song is playing !", ephemeral=True)
                 return
             track: Track = session.queue[0]
 
@@ -81,25 +81,25 @@ class Lyrics(commands.Cog):
             # Use Spotify features for more precise results
             tracks: Track = await self.bot.spotify.get_tracks(query)
             if not tracks:
-                await ctx.respond("No lyrics found !", ephemeral=True)
+                await ctx.followup.send("No lyrics found !", ephemeral=True)
                 return
             track: Track = tracks[0]
 
         lyrics = await BotLyrics.get(track)
         if not lyrics:
-            await ctx.respond(lyrics or "No lyrics found !", ephemeral=True)
+            await ctx.followup.send(lyrics or "No lyrics found !", ephemeral=True)
             return
 
         # CONVERT
         if convert_to:
             if not GEMINI_ENABLED:
-                await ctx.respond(
+                await ctx.followup.send(
                     "Chatbot features need to be enabled in "
                     "order to use lyrics conversion.",
                     ephemeral=True,
                 )
                 return
-            asyncio.create_task(ctx.respond("Converting~"))
+            asyncio.create_task(ctx.followup.send("Converting~"))
             lyrics = await BotLyrics.convert(lyrics, convert_to)
 
         # Split the lyrics in case it's too long
@@ -121,14 +121,14 @@ class Lyrics(commands.Cog):
             # Add a cover to the embed
             embed.set_author(name="Lyrics", icon_url=track.cover_url)
             asyncio.create_task(
-                ctx.respond(
+                ctx.followup.send(
                     embed=embed,
                     view=lyricsView(self.bot, ctx, track.source_url),
                     ephemeral=True,
                 )
             )
         else:
-            asyncio.create_task(ctx.respond(embed=embed, ephemeral=True))
+            asyncio.create_task(ctx.followup.send(embed=embed, ephemeral=True))
 
     @commands.slash_command(
         name="lyrics",
