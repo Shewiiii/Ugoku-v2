@@ -21,6 +21,7 @@ class ChatbotMessage:
     response: str = "*filtered*"
     date: datetime = datetime.now()
     timezone = pytz.timezone(CHATBOT_TIMEZONE)
+    sources: Optional[str] = None 
 
     def __init_subclass__(cls):
         pass

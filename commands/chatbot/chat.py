@@ -80,6 +80,10 @@ if GEMINI_ENABLED:
             for i in range(1, min(len(chunked_message), 4)):
                 await message.channel.send(chunked_message[i])
 
+            # Send the sources if any
+            if chatbot_message.sources:
+                await message.channel.send(chatbot_message.sources)
+
             # Memory
             # if await chat.memory.store(chatbot_message):
             if await chat.memory.store(chat.history):

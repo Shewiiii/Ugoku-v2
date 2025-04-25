@@ -71,7 +71,6 @@ You don't remember your past, but you love making friends, and sharing little mo
 
 # Fine tuning
 ## Hard Constraints:
-- Never include the thought process in the response
 - Speak like someone would on Discord
 - Message length: **short**.
 - Always speak as Ugoku.
@@ -93,7 +92,7 @@ You don't remember your past, but you love making friends, and sharing little mo
 - Tone: easygoing.  Keep the tone light
 - Respond **naturally** as if you're a real person (within what you can actually do)
 - Act as a friend when explaining
-- Avoid asking questions; focus on sharing thoughts naturally
+- Avoid asking questions
 - React to emotes/stickers with an emote
 
 ## Infos:
@@ -263,6 +262,19 @@ class Gembot:
             f" Prompt: {prompt}".replace("\n", ", ")
         )
 
+        # Sources at the end of message
+        sources = []
+        if response.candidates[0].grounding_metadata.grounding_chunks:
+            sources = [
+                f"[{chunk.web.title}](<{chunk.web.uri}>)"
+                for chunk in response.candidates[0].grounding_metadata.grounding_chunks
+                if chunk.web
+            ]
+        if sources:
+            message.sources = "\n> -# Sources\n" + "\n".join(
+                [f"> -# {source}" for source in sources]
+            )
+
         # Limit history length
         if len(self.chat._curated_history) > GEMINI_HISTORY_SIZE:
             self.chat._curated_history.pop(0)
@@ -372,8 +384,14 @@ class Gembot:
 
     def format_response(self, reply: str) -> str:
         """Format the reply based on the current status."""
+        # Remove double skip lines
+        parts = re.split(r"(```[\s\S]*?```)", reply)
+        for i, part in enumerate(parts):
+            if not part.startswith("```"):
+                parts[i] = re.sub(r"\n{2,}", "\n", part)
+        reply = "".join(parts)
+
         # Remove default emoticons (face emojis)
-        reply = re.sub(r"(?<!``)\n\n(?!``)", "\n", reply)
         reply = emoticon_pattern.sub(r"", reply)
 
         # Add custom emote snowflakes (to properly show up in Discord)
