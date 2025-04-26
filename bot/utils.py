@@ -71,18 +71,7 @@ def is_onsei(string: str) -> bool:
 
 
 def sanitize_filename(filename: str) -> str:
-    """
-    Sanitize a filename by removing or replacing illegal characters.
-
-    Args:
-        filename (str): The filename to sanitize.
-
-    Returns:
-        str: The sanitized filename.
-
-    Note:
-        This function keeps only alphanumeric characters, hyphens, underscores, and periods.
-    """
+    """Sanitize a filename by removing illegal characters."""
     # For Windows, common illegal characters include: / / : * ? " < > |
     # The following pattern keeps only alphanumeric characters, hyphens, underscores, and periods.
     sanitized_filename = re.sub(r"[^A-Za-z0-9._-]", "_", filename)

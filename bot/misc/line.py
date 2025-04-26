@@ -11,7 +11,7 @@ from discord import ApplicationContext
 from bs4 import BeautifulSoup
 import imageio.v3
 
-from bot.search import link_grabber
+from bot.search import link_grabber, is_url
 from bot.utils import sanitize_filename
 from config import TEMP_FOLDER, CACHE_EXPIRY
 
@@ -20,7 +20,7 @@ def get_link(string: str) -> str:
     return link_grabber.findall(string)[-1][0]
 
 
-async def convert_to_gif(sticker_count: int, path: Path) -> None:
+async def convert_to_gif(sticker_count: int, path: Path, loop: int = 0) -> None:
     for i in range(sticker_count):
         png_file = path / f"{i + 1}.png"
         gif_file = path / f"{i + 1}.gif"
@@ -30,7 +30,9 @@ async def convert_to_gif(sticker_count: int, path: Path) -> None:
             first_frame_meta = reader.get_meta_data(0)
             duration = first_frame_meta.get("duration", 100)
 
-            with imageio.get_writer(gif_file, duration=duration, disposal=2) as writer:
+            with imageio.get_writer(
+                gif_file, duration=duration, disposal=2, loop=loop
+            ) as writer:
                 for frame in reader:
                     rgba_frame = Image.fromarray(frame).convert("RGBA")
                     writer.append_data(rgba_frame)
@@ -49,9 +51,15 @@ async def fetch_sticker_image(
             await png_file.write(sticker_image)
 
 
-async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> str:
+async def get_stickerpack(
+    link: str, ctx: ApplicationContext | None = None, loop: int = 0
+) -> str:
+    if not is_url(link, "store.line.me"):
+        raise ValueError("Not a Line Store url")
     try:
-        async with CachedSession(cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),) as session:
+        async with CachedSession(
+            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+        ) as session:
             async with session.get(link) as response:
                 response.raise_for_status()
                 raw = BeautifulSoup(await response.text(), features="html.parser")
@@ -66,7 +74,7 @@ async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> s
         raise e
 
     # Remove unwanted characters from the pack name
-    pack_name = sanitize_filename(pack_name)
+    pack_name = sanitize_filename(f"{pack_name}_{loop}")
 
     # Setup the folders
     folder_path = TEMP_FOLDER / pack_name
@@ -90,7 +98,9 @@ async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> s
     if ctx:
         await ctx.edit(content="Saving the stickers...")
 
-    async with CachedSession(cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),) as session:
+    async with CachedSession(
+        cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+    ) as session:
         tasks = []
         for i, sticker in enumerate(stickers):
             preview_link = get_link(sticker["data-preview"])
@@ -100,10 +110,10 @@ async def get_stickerpack(link: str, ctx: ApplicationContext | None = None) -> s
         await asyncio.gather(*tasks, return_exceptions=True)
 
     # Convert APNGs to GIFs if needed
-    if sticker_type in ["animation-sticker", "popup-sticker"]:
+    if sticker_type in {"animation-sticker", "popup-sticker"}:
         if ctx:
             await ctx.edit(content="Converting APNG files to GIF...")
-        await convert_to_gif(sticker_count, folder_path)
+        await convert_to_gif(sticker_count, folder_path, loop)
 
     # Archive the folder
     if ctx:

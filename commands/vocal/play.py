@@ -167,7 +167,7 @@ class Play(commands.Cog):
         ),  # type: ignore
         artist_mode: discord.Option(
             bool,
-            description="Plays the 10 first tracks of the queried artist if enabled.",
+            description="Play the 10 first tracks of the queried artist if enabled.",
             default=0,
         ),  # type: ignore
         album: discord.Option(
