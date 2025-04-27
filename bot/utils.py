@@ -352,111 +352,95 @@ async def tag_ogg_file(
 def split_into_chunks(text: str, max_length: int = 1024) -> list:
     """Convert a string into a list of chunks with an adjustable size.
     Written with Gemini."""
-    token_pattern = r"(\[[^\]]*\]\([^)]*\)|^[ \t]*```[^\n]*\n?|[^\s\[]+|\s+)"
-    tokens = re.findall(token_pattern, text, flags=re.DOTALL | re.MULTILINE)
+    token_pattern = r"(\[[^\]]*\]\([^)]*\)|[ \t]*```[^\n]*\n?|\S+|\s+)"
+    tokens = re.findall(token_pattern, text, flags=re.MULTILINE)
 
     if not tokens:
-        return [text] if text else []
+        return []
 
     chunks = []
     current_chunk_tokens = []
     current_chunk_len = 0
     inside_code_block = False
-    last_open_fence_token = ""
-    last_indent = ""
-    last_added_token_was_whitespace = False
+    code_block_indent = ""
+    code_block_opening_fence = ""
 
-    def build_and_add_chunk(tokens_to_add, is_final_chunk=False):
-        nonlocal inside_code_block
+    def build_and_add_chunk(tokens_to_add, closing_fence_to_add=""):
+        nonlocal chunks
         if not tokens_to_add:
             return
-        chunk_str = "".join(tokens_to_add)
-        if inside_code_block and not is_final_chunk:
-            if last_indent is not None:
-                chunk_str += f"\n{last_indent}```"
-        chunks.append(chunk_str)
 
-    for i, tok in enumerate(tokens):
+        chunk_str = "".join(tokens_to_add)
+        if closing_fence_to_add:
+            if not chunk_str.endswith("\n"):
+                chunk_str += "\n"
+            chunk_str += f"{code_block_indent}```"
+
+        if chunk_str:
+            chunks.append(chunk_str)
+
+    for tok in tokens:
         tok_len = len(tok)
-        tok_is_opening_fence = False
-        tok_is_closing_fence = False
-        tok_is_whitespace = tok.isspace()
-        current_indent = ""
 
         fence_match = re.fullmatch(r"([ \t]*)```([^\n]*\n?)", tok)
-        if fence_match:
+        is_fence = fence_match is not None
+        is_opening_fence = False
+        is_closing_fence = False
+        current_indent = ""
+
+        if is_fence:
             current_indent = fence_match.group(1)
             if not inside_code_block:
-                tok_is_opening_fence = True
-            elif inside_code_block and current_indent == last_indent:
-                tok_is_closing_fence = True
+                is_opening_fence = True
+            elif current_indent == code_block_indent:
+                is_closing_fence = True
 
-        reserve_closing_len = 0
-        if inside_code_block and not tok_is_closing_fence:
-            if last_indent is not None:
-                reserve_closing_len = len(f"\n{last_indent}```")
+        reserve_len = 0
+        closing_fence = ""
+        if inside_code_block and not is_closing_fence:
+            closing_fence = f"\n{code_block_indent}```"
+            reserve_len = len(closing_fence)
 
-        if current_chunk_len + tok_len > max_length - reserve_closing_len:
-            token_to_process = tok
-            finalizing_chunk_tokens = list(current_chunk_tokens)
-
-            if (
-                last_added_token_was_whitespace
-                and not tok_is_whitespace
-                and not tok_is_opening_fence
-                and finalizing_chunk_tokens
-            ):
-                last_whitespace = finalizing_chunk_tokens.pop()
-                token_to_process = last_whitespace + tok
-                tok_len = len(token_to_process)
-
-            build_and_add_chunk(finalizing_chunk_tokens, is_final_chunk=False)
+        if current_chunk_len + tok_len > max_length - reserve_len:
+            build_and_add_chunk(current_chunk_tokens)
 
             current_chunk_tokens = []
             current_chunk_len = 0
 
             if inside_code_block:
-                if last_open_fence_token:
-                    current_chunk_tokens.append(last_open_fence_token)
-                    current_chunk_len += len(last_open_fence_token)
+                if code_block_opening_fence:
+                    current_chunk_tokens.append(code_block_opening_fence)
+                    current_chunk_len += len(code_block_opening_fence)
 
-            reserve_closing_len_new = 0
-            if inside_code_block and not tok_is_closing_fence:
-                if last_indent is not None:
-                    reserve_closing_len_new = len(f"\n{last_indent}```")
-
-            if current_chunk_len + tok_len > max_length - reserve_closing_len_new:
+            if current_chunk_len + tok_len > max_length:
                 pass
 
-            current_chunk_tokens.append(token_to_process)
+            current_chunk_tokens.append(tok)
             current_chunk_len += tok_len
-            last_added_token_was_whitespace = token_to_process.isspace()
 
-            if tok_is_opening_fence:
+            if is_opening_fence:
                 inside_code_block = True
-                last_indent = current_indent
-                last_open_fence_token = token_to_process
-            elif tok_is_closing_fence:
+                code_block_indent = current_indent
+                code_block_opening_fence = tok
+            elif is_closing_fence:
                 inside_code_block = False
+                code_block_indent = ""
+                code_block_opening_fence = ""
 
         else:
             current_chunk_tokens.append(tok)
             current_chunk_len += tok_len
-            last_added_token_was_whitespace = tok_is_whitespace
 
-            if tok_is_opening_fence:
+            if is_opening_fence:
                 inside_code_block = True
-                last_indent = current_indent
-                last_open_fence_token = tok
-            elif tok_is_closing_fence:
+                code_block_indent = current_indent
+                code_block_opening_fence = tok
+            elif is_closing_fence:
                 inside_code_block = False
+                code_block_indent = ""
+                code_block_opening_fence = ""
 
-    build_and_add_chunk(current_chunk_tokens, is_final_chunk=True)
-
-    if not text:
-        return []
-    if not chunks and text:
-        return [text]
+    build_and_add_chunk(current_chunk_tokens)
     return chunks
 
 
