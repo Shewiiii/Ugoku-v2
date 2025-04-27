@@ -68,6 +68,17 @@ class ForgetView(discord.ui.View):
         self.update()
         await self.webhook_msg.edit(embed=self.embed, view=self)
 
+    @discord.ui.button(
+        label="Close",
+        style=discord.ButtonStyle.secondary,
+    )
+    async def close_button_callback(
+        self, button: discord.ui.Button, interaction: discord.Interaction
+    ) -> None:
+        await interaction.message.delete()
+        self.clear_items()
+        self.ctx = self.bot = None
+
     def update(self) -> None:
         # Vector list
         start_index = (self.page - 1) * self.max_per_page

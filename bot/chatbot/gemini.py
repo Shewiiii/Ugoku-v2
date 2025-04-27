@@ -22,6 +22,7 @@ from config import (
     CHATBOT_EMOTE_FREQUENCY,
     CHATBOT_THINKING_BUDGET,
     ALLOW_CHATBOT_IN_DMS,
+    CHATBOT_ASK_SERVER_WHITELIST,
     CHATBOT_CHANNEL_WHITELIST,
     CHATBOT_SERVER_WHITELIST,
     CACHE_EXPIRY,
@@ -176,6 +177,7 @@ class Gembot:
     @staticmethod
     def get_chat_id(
         message: Union[discord.ApplicationContext, discord.Message],
+        ask_command: bool = False,
     ) -> Optional[int]:
         """Get the chat id to use for the chatbot. Return `None` if it should not be used for this message."""
         if not GEMINI_ENABLED:
@@ -185,10 +187,12 @@ class Gembot:
             # Id = channel (dm) id if in DMs
             id_ = message.channel.id
         elif message.guild:
-            # Id = server id if globally whitelisted
-            if message.guild.id in CHATBOT_SERVER_WHITELIST:
+            # Id = server id if the server is globally whitelisted
+            if message.guild.id in CHATBOT_SERVER_WHITELIST or (
+                ask_command and message.guild.id in CHATBOT_ASK_SERVER_WHITELIST
+            ):
                 id_ = message.guild.id
-            # Id = channel id if the channel whitelisted
+            # Id = channel id if the channel is whitelisted
             elif message.channel.id in CHATBOT_CHANNEL_WHITELIST:
                 id_ = message.channel.id
             else:
