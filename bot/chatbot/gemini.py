@@ -102,9 +102,9 @@ You don't remember your past, but you love making friends, and sharing little mo
 
 """
     summarize = """
-        Make a complete summary of the following, in less than 1800 caracters.
-        Try to be concise:
-        """
+make a complete summary of the following, in less than 1800 caracters.
+Try to be concise:
+"""
 
 
 class Gembot:

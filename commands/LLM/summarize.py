@@ -5,6 +5,7 @@ from discord.ext import commands
 from bot.chatbot.gemini import Gembot
 from bot.search import is_url
 from bot.misc.summaries import Summaries
+from config import LANGUAGES
 
 
 class Summarize(commands.Cog):
@@ -20,8 +21,19 @@ class Summarize(commands.Cog):
             discord.IntegrationType.user_install,
         },
     )
-    async def summarize(self, ctx: discord.ApplicationContext, query: str) -> None:
-        if not Gembot.get_chat_id(ctx): # Can this server or channel use Gemini features ?
+    async def summarize(
+        self,
+        ctx: discord.ApplicationContext,
+        query: discord.Option(
+            str, description="The text or Youtube URL you want to summarize"
+        ),  # type: ignore
+        language: discord.Option(
+            str, choices=LANGUAGES, required=True, default="English"
+        ),  # type: ignore
+    ) -> None:
+        if not Gembot.get_chat_id(
+            ctx
+        ):  # Can this server or channel use Gemini features ?
             await ctx.respond("Summaries are not available !")
             return
 
@@ -36,7 +48,7 @@ class Summarize(commands.Cog):
         # Prepare the summary
         text = "Something went wrong during the summary generation."
         try:
-            text = await self.s.summarize(query)
+            text = await self.s.summarize(query, language)
         except Exception as e:
             await defer_task
             text += f"\n-# {repr(e)}"

@@ -18,10 +18,10 @@ class Summaries:
         self.ytt_api = YouTubeTranscriptApi(cookie_path=cookie_path)
 
     @staticmethod
-    async def summarize(text: str) -> Optional[str]:
+    async def summarize(text: str, language: str = "English") -> Optional[str]:
         """Make a summary from a text using GPT-4o Mini."""
         prompt = Prompts.summarize
-        response = await Gembot.simple_prompt(prompt + text)
+        response = await Gembot.simple_prompt(f"Use {language} and {prompt} {text}")
         return response
 
     async def get_youtube_transcript_text(self, url: str) -> Optional[str]:
