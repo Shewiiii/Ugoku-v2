@@ -30,6 +30,7 @@ from bot.search import link_grabber, is_url
 
 if TYPE_CHECKING:
     from bot.vocal.spotify import Spotify
+    from bot.vocal.server_session import ServerSession
 
 
 def extract_number(string: str) -> str:
@@ -523,13 +524,14 @@ async def upload(
 
 
 def vocal_action_check(
-    session,
+    session: "ServerSession",
     ctx: discord.ApplicationContext,
     respond_function,
     check_queue: bool = True,
     silent: bool = False,
 ) -> bool:
-    """Checks if a user is allowed to execute an operation in vc."""
+    """Checks if a user is allowed to execute an operation in vc.
+    Update the last context if it is the case."""
     if not session:
         if not silent:
             asyncio.create_task(respond_function(content="No active session !"))
@@ -547,6 +549,7 @@ def vocal_action_check(
             asyncio.create_task(respond_function(content="No songs in the queue !"))
         return False
 
+    session.last_context = ctx
     return True
 
 

@@ -24,19 +24,11 @@ class SessionManager:
         self, ctx: discord.ApplicationContext, bot: discord.Bot
     ) -> Optional[ServerSession]:
         """
-        Connect to a voice channel and create or retrieve a ServerSession.
+        Connect to a voice channel, create or retrieve a ServerSession and update the last context.
 
         This method attempts to connect to the user's voice channel and create
         a new ServerSession if one doesn't exist for the guild, or retrieve
         an existing one.
-
-        Args:
-            ctx (discord.ApplicationContext): The context of the command invocation.
-            bot (discord.Bot): The Discord bot instance.
-
-        Returns:
-            Optional[ServerSession]: A ServerSession instance if connection is successful,
-                                     None if the user is not in a voice channel.
 
         Note:
             This method will create a new voice client connection if one doesn't exist.
@@ -62,6 +54,8 @@ class SessionManager:
             self.server_sessions[guild_id] = session
             # Define the voice client when it's done
             asyncio.create_task(session.wait_for_connect_task())
+
+        session.last_context = ctx
         return self.server_sessions[guild_id]
 
 
