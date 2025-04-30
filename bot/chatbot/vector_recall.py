@@ -105,8 +105,9 @@ but nothing otherwise.\n
             (
                 await client.aio.models.generate_content(
                     model=GEMINI_UTILS_MODEL,
-                    contents=f"{self.prompt}{history:pinecone_last_3}",
+                    contents=f"{history:pinecone_last_3}",
                     config=types.GenerateContentConfig(
+                        system_instruction=self.prompt,
                         response_mime_type="application/json",
                         response_schema=response_schema,
                         candidate_count=1,
@@ -118,7 +119,7 @@ but nothing otherwise.\n
                 )
             ).text
         )
-        last_message = history.history[-1]
+        last_message = history.messages[-1]
         metadata["id"] = last_message.guild_id
         metadata["text"] = f"{date}-{last_message.author}: {metadata['text']}"
 

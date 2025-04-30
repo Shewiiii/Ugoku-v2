@@ -96,8 +96,9 @@ class ForgetView(discord.ui.View):
         )
         splitted = split_into_chunks(vector_text_list)
         self.embed.fields = []
-        self.embed.add_field(name="Results", value=splitted[0])
-        [self.embed.add_field(name="", value=part) for part in splitted[1:]]
+        self.embed.add_field(name="Results", value=splitted[0] if splitted else "")
+        for part in splitted[1:]:
+            self.embed.add_field(name="", value=part)
 
         # Buttons
         self.children[0].disabled = self.page <= 1

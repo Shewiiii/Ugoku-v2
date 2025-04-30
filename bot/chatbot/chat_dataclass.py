@@ -5,7 +5,7 @@ import pytz
 from typing import Optional, List
 
 
-from config import CHATBOT_TIMEZONE, GEMINI_HISTORY_SIZE
+from config import CHATBOT_TIMEZONE, CHATBOT_HISTORY_SIZE, OPENAI_ENABLED
 from dataclasses import field
 
 
@@ -21,7 +21,8 @@ class ChatbotMessage:
     response: str = "*filtered*"
     date: datetime = datetime.now()
     timezone = pytz.timezone(CHATBOT_TIMEZONE)
-    sources: Optional[str] = None 
+    sources: Optional[str] = None
+    urls: Optional[list[str]] = None
 
     def __init_subclass__(cls):
         pass
@@ -44,7 +45,7 @@ class ChatbotMessage:
                 infos = [datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")]
 
                 if recall_text := self.format_recall_vectors():
-                    infos.append(f"Recall: {recall_text}")
+                    infos.append(f"memory: {recall_text}")
 
                 if self.referenced_author and self.referenced_content:
                     infos.append(
@@ -62,10 +63,12 @@ class ChatbotMessage:
 @dataclass
 class ChatbotHistory:
     guild_id: int
-    history: List[ChatbotMessage] = field(default_factory=list)
+    messages: List[ChatbotMessage] = field(default_factory=list)
+    openai_input: List[str] = field(default_factory=list)
     pinecone_history: List[ChatbotMessage] = field(default_factory=list)
-    # So 2 histories here:
-    # - history is the standard one, no real use right now
+    # So 3 histories here:
+    # - messages is the standard one, used in vector recalls
+    # - openai input, used for openai compatibility
     # - pinecone_history is used to analyse the messages, put new vectors in the Pinecone index, then
     # messages used to generate it are removed from pinecone_history, to avoid superfluous vectors
     recalled_vector_ids: set[str] = field(default_factory=set)
@@ -77,13 +80,54 @@ class ChatbotHistory:
         return str(self)
 
     def add(self, chatbot_message: ChatbotMessage) -> None:
-        if not isinstance(chatbot_message, ChatbotMessage):
+        msg = chatbot_message
+        if not isinstance(msg, ChatbotMessage):
             raise TypeError("Not a ChatbotMessage class")
-        self.history.append(chatbot_message)
-        self.pinecone_history.append(chatbot_message)
-        for h in self.history, self.pinecone_history:
-            if len(h) > GEMINI_HISTORY_SIZE:
+        self.messages.append(msg)
+        self.pinecone_history.append(msg)
+
+        if OPENAI_ENABLED:
+            self.openai_input = self.create_openai_input(msg.content, msg.urls)
+
+        for h in self.messages, self.pinecone_history, self.openai_input:
+            if len(h) > CHATBOT_HISTORY_SIZE:
                 h.pop(0)
+
+        if len(self.openai_input) > CHATBOT_HISTORY_SIZE * 2:  # Including Q&A
+            self.openai_input.pop(0)
+
+    def create_openai_input(
+        self, new_prompt: str, urls: Optional[list[str]] = None
+    ) -> List[str]:
+        """Return an input for OpenAI responses based on the history and a new message."""
+        new_entry = {
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": new_prompt},
+            ],
+        }
+        if urls:
+            for url in urls:
+                new_entry["content"].append(
+                    {
+                        "type": "input_image",
+                        "image_url": url,
+                    }
+                )
+
+        return self.openai_input + [new_entry]
+
+    def add_openai_assistant_response(self, response: str) -> None:
+        self.openai_input.append(
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "output_text", "text": response},
+                ],
+            }
+        )
+        if len(self.openai_input) > CHATBOT_HISTORY_SIZE * 2:  # Including Q&A
+            self.openai_input.pop(0)
 
     def pinecone_remove_last_three(self) -> None:
         for _ in range(3):

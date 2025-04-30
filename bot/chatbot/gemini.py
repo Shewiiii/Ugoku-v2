@@ -4,14 +4,15 @@ import asyncio
 import os
 import re
 import logging
+from openai import AsyncOpenAI, BadRequestError
 from random import random
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Literal
 from datetime import datetime, timedelta
 from config import (
     GEMINI_MODEL,
     GEMINI_UTILS_MODEL,
     GEMINI_SAFETY_SETTINGS,
-    GEMINI_HISTORY_SIZE,
+    CHATBOT_HISTORY_SIZE,
     GEMINI_ENABLED,
     CHATBOT_TIMEOUT,
     CHATBOT_PREFIX,
@@ -20,13 +21,14 @@ from config import (
     CHATBOT_MAX_OUTPUT_TOKEN,
     CHATBOT_MAX_CONTENT_SIZE,
     CHATBOT_EMOTE_FREQUENCY,
-    CHATBOT_THINKING_BUDGET,
     ALLOW_CHATBOT_IN_DMS,
     CHATBOT_ASK_SERVER_WHITELIST,
     CHATBOT_CHANNEL_WHITELIST,
     CHATBOT_SERVER_WHITELIST,
     CACHE_EXPIRY,
     PINECONE_RECALL_WINDOW,
+    OPENAI_ENABLED,
+    OPENAI_MODEL,
 )
 from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 import urllib3
@@ -41,6 +43,7 @@ from bot.chatbot.vector_recall import memory
 
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 emoticon_pattern = re.compile("[\U0001f600-\U0001f64f]", flags=re.UNICODE)
 active_chats = {}
 google_search_tool = Tool(google_search=GoogleSearch())
@@ -128,9 +131,7 @@ class Gembot:
                     disable=True
                 ),
                 tools=[google_search_tool] if ugoku_chat else [],
-                thinking_config=types.ThinkingConfig(
-                    include_thoughts=False, thinking_budget=CHATBOT_THINKING_BUDGET
-                ),
+                thinking_config=types.ThinkingConfig(include_thoughts=False),
             ),
         )
         active_chats[id_] = self
@@ -139,6 +140,7 @@ class Gembot:
         self.chatters = []
         self.memory = memory
         self.history = ChatbotHistory(id_)
+        self.openai = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_ENABLED else None
 
     @staticmethod
     async def simple_prompt(
@@ -208,7 +210,7 @@ class Gembot:
         user_query: str,
         author: str,
         guild_id: int,
-        extra_content: Optional[List[str]] = None,
+        urls: Optional[List[str]] = None,
         r_author: Optional[str] = None,
         r_content: Optional[str] = None,
         message_id: Optional[int] = None,
@@ -244,46 +246,94 @@ class Gembot:
             recall_vectors,
             r_author,
             r_content,
+            urls=urls,
         )
         prompt = f"{message:prompt}"
 
-        # Add to (custom) history
+        api = "openai" if OPENAI_ENABLED else "gemini"
+        await self.request_chat_response(message, prompt=prompt, urls=urls, api=api)
+
+        # Add to (custom) history if successful
         self.history.add(message)
         self.history.store_recall(recall_vectors)
-
-        # Add the extra content (links, images, emotes..) if there are
-        parts = []
-        if extra_content:
-            for url in extra_content:
-                part = await self.get_part_from_url(url)
-                if part:
-                    parts.append(part)
-
-        response = await self.chat.send_message([prompt] + parts)
-        message.response = response.text if response.text else "*filtered*"
-        logging.info(
-            f"Gemini API call, total token count: {response.usage_metadata.total_token_count}."
-            f" Prompt: {prompt}".replace("\n", ", ")
-        )
-
-        # Sources at the end of message
-        sources = []
-        if response.candidates[0].grounding_metadata.grounding_chunks:
-            sources = [
-                f"[{chunk.web.title}](<{chunk.web.uri}>)"
-                for chunk in response.candidates[0].grounding_metadata.grounding_chunks
-                if chunk.web
-            ]
-        if sources:
-            message.sources = "\n> -# Sources\n" + "\n".join(
-                [f"> -# {source}" for source in sources]
-            )
-
-        # Limit history length
-        if len(self.chat._curated_history) > GEMINI_HISTORY_SIZE:
-            self.chat._curated_history.pop(0)
+        if OPENAI_ENABLED:
+            self.history.add_openai_assistant_response(message.response)
 
         return message
+
+    async def request_chat_response(
+        self,
+        chatbot_message: ChatbotMessage,
+        prompt: str,
+        urls: Optional[list] = None,
+        api: Literal["gemini", "openai"] = "gemini",
+    ) -> ChatbotMessage:
+        """Add a response to a given message, based on the current message history and postprocess.
+        urls is a list of URLs."""
+        chatbot_message.response = "*filtered*"  # By default
+
+        if api == "gemini":
+            content = [prompt]
+            if urls:
+                for url in urls:
+                    part = await self.get_part_from_url(url)
+                    if part:
+                        content.append(part)
+
+            response = await self.chat.send_message(content)
+            if response.text:
+                chatbot_message.response = response.text
+            logging.info(
+                f"Gemini API call, total token count: {response.usage_metadata.total_token_count}."
+                f" Prompt: {prompt}".replace("\n", ", ")
+            )
+
+            # Sources at the end of message
+            sources = []
+            if response.candidates[0].grounding_metadata.grounding_chunks:
+                sources = [
+                    f"[{chunk.web.title}](<{chunk.web.uri}>)"
+                    for chunk in response.candidates[
+                        0
+                    ].grounding_metadata.grounding_chunks
+                    if chunk.web
+                ]
+            if sources:
+                chatbot_message.sources = "\n> -# Sources\n" + "\n".join(
+                    [f"> -# {source}" for source in sources]
+                )
+
+            # Limit history length
+            if len(self.chat._curated_history) > CHATBOT_HISTORY_SIZE:
+                self.chat._curated_history.pop(0)
+
+        elif api == "openai":  # Text and images supported only
+            if not self.openai:
+                raise ValueError("OpenAI not enabled")
+
+            openai_input = self.history.create_openai_input(prompt, urls)
+            try:
+                response = await self.openai.responses.create(
+                    instructions=self.with_emotes(Prompts.system),
+                    model=OPENAI_MODEL,
+                    input=openai_input,
+                )
+                chatbot_message.response = response.output_text
+            except BadRequestError as e:
+                if e.status_code == 400:
+                    logging.error(repr(e))
+                    # Incompatible file, retry without URLs
+                    self.status = -1
+                    chatbot_message.urls = None
+                    return await self.request_chat_response(
+                        chatbot_message,
+                        prompt,
+                        api="openai",
+                    )
+
+                logging.error(repr(e))
+
+        return chatbot_message
 
     async def get_part_from_url(self, url: str) -> Optional[types.Part]:
         """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
@@ -439,7 +489,7 @@ class Gembot:
             mc = mc[:-1]
 
         # Extra message content
-        extra_content = []
+        urls = []
         rauthor = rcontent = None
 
         # Process custom emojis
@@ -453,7 +503,7 @@ class Gembot:
             mc = mc.replace(emote_full, f":{name}:")
 
             # Append the first emote to the image list
-            extra_content.append(f"https://cdn.discordapp.com/emojis/{snowflake}.png")
+            urls.append(f"https://cdn.discordapp.com/emojis/{snowflake}.png")
 
         # Extra process only for normal messages, when /ask is not used
         if isinstance(context, discord.Message):
@@ -462,12 +512,12 @@ class Gembot:
             # Process attachments
             for attachment in context.attachments:
                 if attachment.url:
-                    extra_content.append(attachment.url)
+                    urls.append(attachment.url)
 
             # Process stickers
             if context.stickers:
                 sticker: discord.StickerItem = context.stickers[0]
-                extra_content.append(sticker.url)
+                urls.append(sticker.url)
 
             # Process message reference (if any)
             if context.reference and context.reference.message_id:
@@ -480,7 +530,7 @@ class Gembot:
                     for attachment in rmessage.attachments
                     if attachment.url
                 ]
-                extra_content.extend(urls)
+                urls.extend(urls)
 
         else:  # Application context
             id = context.interaction.id
@@ -490,7 +540,7 @@ class Gembot:
             mc,
             context.author.global_name,
             context.guild.id if context.guild else context.channel.id,
-            extra_content,
+            urls,
             rauthor,
             rcontent,
             id,

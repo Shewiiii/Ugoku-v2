@@ -20,3 +20,4 @@ pycryptodome
 aiohttp-client-cache[all]
 legacy-cgi
 googlesearch-python
+openai
