@@ -11,7 +11,7 @@ from typing import Optional, List, Union
 import discord
 from librespot.audio import AbsChunkedInputStream
 
-from bot.utils import get_cache_path, respond
+from bot.utils import get_cache_path, respond, send_response
 from bot.vocal.queue_view import QueueView
 from bot.vocal.now_playing_view import nowPlayingView
 from bot.vocal.wrong_track_view import WrongTrackView
@@ -64,6 +64,7 @@ class ServerSession:
         self.queue: List[Track] = []
         self.to_loop: List[Optional[dict]] = []
         self.last_played_time: datetime = datetime.now()
+        self.start_time: datetime = datetime.now() # Meaningless at initialization
         self.loop_current: bool = False
         self.loop_queue: bool = False
         self.skipped: bool = False
@@ -115,7 +116,6 @@ class ServerSession:
     ) -> None:
         """Sends an embed with information about the currently playing track."""
         track: Track = self.queue[0]
-
         # Embed
         if track.unloaded_embed:
             message = ""
@@ -167,7 +167,7 @@ class ServerSession:
                 )
             elif send:
                 # If skipping, just edit the embed,
-                # #resend a new one otherwise (if the track ended naturally)
+                # resend a new one otherwise (if the track ended naturally)
                 if not (self.skipped or self.previous or edit_only):
                     old_message = self.now_playing_message
                     asyncio.create_task(old_message.delete())
@@ -267,6 +267,7 @@ class ServerSession:
             after=lambda e=None: self.after_playing(ctx, e),
         )
         self.ffmpeg_source = ffmpeg_source
+        self.start_time = datetime.now()
 
         # Log
         logging.info(
@@ -540,19 +541,30 @@ class ServerSession:
 
         asyncio.run_coroutine_threadsafe(self.play_next(ctx), self.bot.loop)
 
-    async def play_next(self, ctx: discord.ApplicationContext) -> None:
+    async def play_next(
+        self, ctx: discord.ApplicationContext, force_remove: bool = False
+    ) -> None:
         """Plays the next track in the queue, handling looping and previous track logic.
         Do not call this method explicitely."""
         played_track: Track = self.queue[0]
+        force_remove = (datetime.now() - self.start_time).total_seconds() < 0.5
+        # If last played was less than 0.5 seconds before
 
-        if not (self.loop_current or self.previous):
-            self.stack_previous.append(played_track)
+        if not force_remove:
+            if not (self.loop_current or self.previous):
+                self.stack_previous.append(played_track)
 
-        if self.loop_queue and not self.loop_current:
-            self.to_loop.append(played_track)
+            if self.loop_queue and not self.loop_current:
+                self.to_loop.append(played_track)
 
-        if not self.loop_current:
+        if force_remove or not self.loop_current:
             self.queue.pop(0)
+            if force_remove:
+                send_response(
+                    self.last_context.send,
+                    f"Removed {played_track} due to an error.",
+                    guild_id=self.guild_id,
+                )
 
         # After pop
         if not self.queue:
