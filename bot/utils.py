@@ -523,6 +523,35 @@ async def upload(
     await ctx.edit(content=f"Here you go ! [Direct URL]({message.attachments[0].url})")
 
 
+def vocal_connect_check(ctx: discord.ApplicationContext, respond_function) -> bool:
+    """Check if the bot has enough permissions for the bot to function. Send a message otherwise.
+    Return a bool accordingly."""
+    if not ctx.author.voice:
+        asyncio.create_task(
+            respond_function(content="You are not in an active voice channel !")
+        )
+        return False
+
+    if not ctx.channel.permissions_for(ctx.guild.me).send_messages:
+        asyncio.create_task(
+            respond_function(
+                content="I don't have permission to send messages in this channel!"
+            )
+        )
+        return False
+
+    voice_perms = ctx.author.voice.channel.permissions_for(ctx.guild.me)
+    if not (voice_perms.connect and voice_perms.speak):
+        asyncio.create_task(
+            respond_function(
+                content="I don't have permission to speak in your voice channel!"
+            )
+        )
+        return False
+
+    return True
+
+
 def vocal_action_check(
     session: "ServerSession",
     ctx: discord.ApplicationContext,
@@ -537,7 +566,10 @@ def vocal_action_check(
             asyncio.create_task(respond_function(content="No active session !"))
         return False
 
-    if not ctx.author.voice or ctx.author.voice.channel != session.voice_client.channel:
+    if not ctx.author.voice or (
+        session.voice_client
+        and ctx.author.voice.channel != session.voice_client.channel
+    ):
         if not silent:
             asyncio.create_task(
                 respond_function(content="You are not in an active voice channel !")

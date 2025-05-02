@@ -149,7 +149,7 @@ class ServerSession:
         # View (buttons)
         if not self.now_playing_view:
             self.now_playing_view = nowPlayingView(
-                self.bot, ctx, self.voice_client, self
+                self.bot, self.voice_client, self
             )
         else:
             await self.now_playing_view.update_buttons(edit=False)

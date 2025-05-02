@@ -11,13 +11,11 @@ class nowPlayingView(discord.ui.View):
     def __init__(
         self,
         bot: discord.bot,
-        ctx: discord.ApplicationContext,
         voice_client: discord.voice_client,
         server_session: "ServerSession",
     ) -> None:
         super().__init__(timeout=None)
         self.bot = bot
-        self.ctx = ctx
         self.voice_client = voice_client
         self.server_session: "ServerSession" = server_session
 
@@ -44,7 +42,7 @@ class nowPlayingView(discord.ui.View):
         voice = interaction.user.voice
         if not voice:
             return
-        return voice.channel == self.ctx.voice_client.channel
+        return voice.channel == self.server_session.last_context.voice_client.channel
 
     async def update_buttons(
         self, paused: Optional[bool] = None, delay: float = 0.0, edit: bool = True
@@ -115,10 +113,12 @@ class nowPlayingView(discord.ui.View):
 
         if self.voice_client.is_playing():
             pause_cog = self.bot.get_cog("Pause")
-            await pause_cog.execute_pause(self.ctx, silent=True)
+            await pause_cog.execute_pause(self.server_session.last_context, silent=True)
         else:
             resume_cog = self.bot.get_cog("Resume")
-            await resume_cog.execute_resume(self.ctx, silent=True)
+            await resume_cog.execute_resume(
+                self.server_session.last_context, silent=True
+            )
 
     @discord.ui.button(label="Previous", style=ButtonStyle.secondary, disabled=True)
     async def previous_callback(
@@ -129,7 +129,7 @@ class nowPlayingView(discord.ui.View):
             return
 
         cog = self.bot.get_cog("Previous")
-        await cog.execute_previous(self.ctx, silent=True)
+        await cog.execute_previous(self.server_session.last_context, silent=True)
 
     @discord.ui.button(
         label="Skip",
@@ -143,7 +143,7 @@ class nowPlayingView(discord.ui.View):
             return
 
         cog = self.bot.get_cog("Skip")
-        await cog.execute_skip(self.ctx, silent=True)
+        await cog.execute_skip(self.server_session.last_context, silent=True)
 
     @discord.ui.button(
         label="Loop",
@@ -189,7 +189,7 @@ class nowPlayingView(discord.ui.View):
             return
 
         cog = self.bot.get_cog("Loop")
-        await cog.execute_loop(self.ctx, mode, silent=True)
+        await cog.execute_loop(self.server_session.last_context, mode, silent=True)
 
     async def shuffle_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
@@ -199,7 +199,7 @@ class nowPlayingView(discord.ui.View):
             return
 
         cog = self.bot.get_cog("Shuffle")
-        await cog.execute_shuffle(self.ctx, silent=True)
+        await cog.execute_shuffle(self.server_session.last_context, silent=True)
 
     async def effect_callback(
         self, button: discord.ui.Button, interaction: discord.Interaction
@@ -213,7 +213,9 @@ class nowPlayingView(discord.ui.View):
             effect = "default"
         else:
             effect = "Raum size 100%, decay 2s"
-        await cog.execute_effect(self.ctx, effect=effect, silent=True)
+        await cog.execute_effect(
+            self.server_session.last_context, effect=effect, silent=True
+        )
         await self.update_buttons()
 
     async def lyrics_callback(
@@ -224,7 +226,7 @@ class nowPlayingView(discord.ui.View):
             return
 
         cog = self.bot.get_cog("Lyrics")
-        await cog.execute_lyrics(self.ctx, query=None)
+        await cog.execute_lyrics(self.server_session.last_context, query=None)
         await self.update_buttons()
 
     async def leave_callback(
@@ -235,8 +237,8 @@ class nowPlayingView(discord.ui.View):
             return
 
         cog = self.bot.get_cog("Leave")
-        await cog.execute_leave(self.ctx, send=True)
+        await cog.execute_leave(self.server_session.last_context, send=True)
 
     def close(self) -> None:
         self.clear_items()
-        self.server_session = self.bot = self.ctx = self.voice_client = None
+        self.server_session = self.bot = self.voice_client = None

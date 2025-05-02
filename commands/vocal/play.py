@@ -12,7 +12,7 @@ from bot.vocal.audio_service_handlers import (
     play_onsei,
     play_ytdlp,
 )
-from bot.utils import is_onsei, process_song_query
+from bot.utils import is_onsei, process_song_query, vocal_connect_check
 from bot.search import is_url
 from config import (
     SPOTIFY_ENABLED,
@@ -182,16 +182,17 @@ class Play(commands.Cog):
             default="default",
         ),  # type: ignore
     ) -> None:
-        await self.execute_play(
-            ctx,
-            query,
-            service.lower(),
-            offset=playlist_offset,
-            artist_mode=artist_mode,
-            album=album,
-            effect=effect,
-            play_next=play_next,
-        )
+        if vocal_connect_check(ctx, ctx.respond):
+            await self.execute_play(
+                ctx,
+                query,
+                service.lower(),
+                offset=playlist_offset,
+                artist_mode=artist_mode,
+                album=album,
+                effect=effect,
+                play_next=play_next,
+            )
 
 
 def setup(bot):
