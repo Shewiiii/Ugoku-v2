@@ -24,7 +24,7 @@ class Ping(commands.Cog):
 
         # Response latency
         delta = time.perf_counter() - start
-        response_latency = round(delta * 1000, 2)
+        response_latency = round(delta * 1000 / 2, 2)
         response = response.replace("...", f"{response_latency}ms")
         await ctx.edit(content=response)
 
