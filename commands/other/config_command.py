@@ -17,6 +17,8 @@ from config import (
     DEFAULT_AUDIO_VOLUME,
     DEFAULT_STREAMING_SERVICE,
     GEMINI_MODEL,
+    OPENAI_ENABLED,
+    OPENAI_MODEL,
     CHATBOT_TEMPERATURE,
     CHATBOT_EMOTES,
     CHATBOT_MAX_CONTENT_SIZE,
@@ -55,6 +57,7 @@ class ConfigCommand(commands.Cog):
                 f"{e[SPOTIFY_ENABLED]} **Spotify client**: Librespot",
                 f"{e[DEEZER_ENABLED]} **Deezer service**",
                 f"{e[GEMINI_ENABLED]} **Gemini features**",
+                f"{e[OPENAI_ENABLED]} OpenAI features (chatbot only)",
                 f"{e[ALLOW_CHATBOT_IN_DMS]} Chatbot enabled in DMs",
                 f"{e[ctx.guild_id in CHATBOT_SERVER_WHITELIST]} Chatbot enabled in this server",
                 f"""{e[PINECONE_ENABLED]} Pinecone features (the chatbot's "memory")""",
@@ -72,7 +75,8 @@ class ConfigCommand(commands.Cog):
         )
         chatbot_settings = "\n".join(
             [
-                f"{e['misc']} Chatbot model: {GEMINI_MODEL}",
+                f"{e['misc']} Chatbot Gemini model: {GEMINI_MODEL}",
+                f"{e['misc']} Chatbot OpenAI model: {OPENAI_MODEL}",
                 f"{e['misc']} Chatbot temperature: {CHATBOT_TEMPERATURE}",
                 f"{e[bool(CHATBOT_EMOTES)]} Chatbot emotes: {len(CHATBOT_EMOTES)}",
                 f"{e['misc']} Chatbot emote frequency: {CHATBOT_EMOTE_FREQUENCY:.1f}",

@@ -3,7 +3,7 @@ import logging
 import discord
 from discord.ext import commands
 
-from config import GEMINI_ENABLED, CHATBOT_PREFIX
+from config import GEMINI_ENABLED, CHATBOT_PREFIX, GEMINI_PREFIX, OPENAI_ENABLED
 from google.genai.errors import APIError
 
 if GEMINI_ENABLED:
@@ -60,8 +60,14 @@ if GEMINI_ENABLED:
             if not (await chat.interaction(message, message.content) or dm):
                 return
 
+            # api
+            if OPENAI_ENABLED and not low.startswith(f"{p}{GEMINI_PREFIX}"):
+                api = "openai"
+            else:
+                api = "gemini"
+
             async with message.channel.typing():
-                params = await chat.get_params(message, message.content)
+                params = await chat.get_params(message, message.content, api=api)
                 try:
                     chatbot_message: ChatbotMessage = await chat.send_message(*params)
                 except APIError as e:

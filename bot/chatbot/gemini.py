@@ -214,6 +214,7 @@ class Gembot:
         r_author: Optional[str] = None,
         r_content: Optional[str] = None,
         message_id: Optional[int] = None,
+        api: str = "openai" if OPENAI_ENABLED else "gemini"
     ) -> Optional[ChatbotMessage]:
         # Update variables
         self.last_prompt = datetime.now()
@@ -250,7 +251,6 @@ class Gembot:
         )
         prompt = f"{message:prompt}"
 
-        api = "openai" if OPENAI_ENABLED else "gemini"
         await self.request_chat_response(message, prompt=prompt, urls=urls, api=api)
 
         # Add to (custom) history if successful
@@ -474,6 +474,7 @@ class Gembot:
         self,
         context: Union[discord.Message, discord.ApplicationContext],
         message_content: str,
+        api: Literal["gemini", "openai"]
     ) -> tuple:
         """Get Gemini message params from a discord.Message."""
 
@@ -544,6 +545,7 @@ class Gembot:
             rauthor,
             rcontent,
             id,
+            api
         )
 
         return params

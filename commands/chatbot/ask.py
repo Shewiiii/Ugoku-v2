@@ -1,11 +1,12 @@
 import asyncio
 import discord
-import logging
 from discord.ext import commands
-from config import GEMINI_ENABLED
 from google.genai.errors import APIError
+import logging
+from typing import Literal
 
 from bot.utils import split_into_chunks
+from config import GEMINI_ENABLED, OPENAI_ENABLED
 
 if GEMINI_ENABLED:
     from bot.chatbot.chat_dataclass import ChatbotMessage
@@ -29,6 +30,7 @@ class Ask(commands.Cog):
         ctx: discord.ApplicationContext,
         query: discord.Option(str, description="Ask Ugoku anything !"),  # type: ignore
         ephemeral: bool = False,
+        api: Literal["gemini", "openai"] = "openai" if OPENAI_ENABLED else "gemini" 
     ) -> None:
         if not GEMINI_ENABLED:
             await ctx.respond("Chatbot features are not enabled.")
@@ -54,7 +56,7 @@ class Ask(commands.Cog):
 
         # Create response
         await chat.interaction(ctx, query, ask_command=True)
-        params = await chat.get_params(ctx, query)
+        params = await chat.get_params(ctx, query, api=api)
         try:
             chatbot_message: ChatbotMessage = await chat.send_message(*params)
         except APIError as e:
