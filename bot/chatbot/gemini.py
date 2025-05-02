@@ -257,7 +257,6 @@ class Gembot:
         parts = await self.request_chat_response(
             message, prompt=prompt, urls=urls, api=api
         )
-        print(parts)
 
         # Add to (custom) history if successful
         self.history.add(message)
