@@ -14,7 +14,7 @@ if GEMINI_ENABLED:
 
 class Ask(commands.Cog):
     def __init__(self, bot) -> None:
-        self.bot = bot
+        self.bot: discord.Bot = bot
 
     @commands.slash_command(
         name="ask",
@@ -62,8 +62,9 @@ class Ask(commands.Cog):
             chat.status = 2
 
         # Create response
-        await chat.interaction(ctx, query, ask_command=True)
+        await chat.interact(ctx, query, self.bot.user.id, ask_command=True)
         params = await chat.get_params(ctx, query, api=api)
+
         try:
             chatbot_message: ChatbotMessage = await chat.send_message(*params)
         except APIError as e:

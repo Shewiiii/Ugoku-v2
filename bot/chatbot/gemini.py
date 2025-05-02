@@ -398,14 +398,14 @@ class Gembot:
             logging.error(f"Error processing {url}: {e}")
             return
 
-    # async def interaction(self, message: discord.Message) -> bool:
-    async def interaction(
+    async def interact(
         self,
         context: Union[discord.Message, discord.ApplicationContext],
         message_content: str,
+        bot_user_id: int,
         ask_command: bool = False,
     ) -> bool:
-        """Determine if the bot should interact based on the message content.
+        """Determine if the bot should interact based on the message content, and update the chat status.
         Status hint:
             0 = No chat;
             1 = Continuous chat enabled;
@@ -447,8 +447,13 @@ class Gembot:
                 self.status = 2
                 return True
 
-        # Check if the message starts with the chatbot prefix or is in dm, or using /ask
-        elif mc.startswith(CHATBOT_PREFIX) or dm_or_ask:
+        # Check if the message starts with the chatbot prefix, is in dm/using /ask, 
+        # or pings the bot (<@...>)
+        elif (
+            mc.startswith(CHATBOT_PREFIX)
+            or dm_or_ask
+            or re.search(rf"<@!?{bot_user_id}>", mc)
+        ):
             self.status = 2
             self.current_channel_id = channel_id
             return True

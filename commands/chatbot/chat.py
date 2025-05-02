@@ -13,7 +13,7 @@ if GEMINI_ENABLED:
 
     class Chatbot(commands.Cog):
         def __init__(self, bot) -> None:
-            self.bot = bot
+            self.bot: discord.Bot = bot
 
         @commands.slash_command(
             name="reset-chatbot",
@@ -57,7 +57,9 @@ if GEMINI_ENABLED:
                 return
 
             dm = isinstance(message.channel, discord.DMChannel)
-            if not (await chat.interaction(message, message.content) or dm):
+            if not (
+                await chat.interact(message, message.content, self.bot.user.id) or dm
+            ):
                 return
 
             async with message.channel.typing():
