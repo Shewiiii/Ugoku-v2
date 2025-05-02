@@ -19,7 +19,7 @@ class ChatbotMessage:
     referenced_author: Optional[str] = None
     referenced_content: Optional[str] = None
     response: str = "*filtered*"
-    date: datetime = datetime.now()
+    date_: datetime = datetime.now()
     timezone = pytz.timezone(CHATBOT_TIMEZONE)
     sources: Optional[str] = None
     urls: Optional[list[str]] = None
@@ -36,28 +36,27 @@ class ChatbotMessage:
         else:
             return ""
 
-    def __format__(self, format_spec):
-        # To honor my friend Hibiki, a C# dev
-        match format_spec:
-            case "date":
-                return self.date.strftime("%Y-%m-%d %H:%M")
-            case "prompt":
-                infos = [datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")]
+    def date(self):
+        """Return the date corresponding to when the message has been creating.
+        Follows the format %Y-%m-%d %H:%M."""
+        return self.date_.strftime("%Y-%m-%d %H:%M")
 
-                if recall_text := self.format_recall_vectors():
-                    infos.append(f"memory: {recall_text}")
+    def prompt(self) -> str:
+        """Return the formatted prompt of the message to generate a response."""
+        infos = [datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")]
 
-                if self.referenced_author and self.referenced_content:
-                    infos.append(
-                        f"Message referencing {self.referenced_author}: "
-                        f'"{self.referenced_content}"'
-                    )
+        if recall_text := self.format_recall_vectors():
+            infos.append(f"memory: {recall_text}")
 
-                message = f"[{', '.join(infos)}, **{self.author} talks to you**] {self.content}"
+        if self.referenced_author and self.referenced_content:
+            infos.append(
+                f"Message referencing {self.referenced_author}: "
+                f'"{self.referenced_content}"'
+            )
 
-                return message
-            case _:
-                return str(self)
+        message = f"[{', '.join(infos)}, **{self.author} talks to you**] {self.content}"
+
+        return message
 
 
 @dataclass
@@ -87,13 +86,14 @@ class ChatbotHistory:
         self.pinecone_history.append(msg)
 
         if OPENAI_ENABLED:
-            self.openai_input = self.create_openai_input(msg.content, msg.urls)
+            new_prompt = f"[{msg.author} talks to you]: {msg.content}"
+            self.openai_input = self.create_openai_input(new_prompt, msg.urls)
 
         for h in self.messages, self.pinecone_history, self.openai_input:
-            if len(h) > CHATBOT_HISTORY_SIZE:
+            while len(h) > CHATBOT_HISTORY_SIZE:
                 h.pop(0)
 
-        if len(self.openai_input) > CHATBOT_HISTORY_SIZE * 2:  # Including Q&A
+        while len(self.openai_input) > CHATBOT_HISTORY_SIZE * 2:  # Including Q&A
             self.openai_input.pop(0)
 
     def create_openai_input(

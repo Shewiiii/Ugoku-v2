@@ -3,7 +3,6 @@ import discord
 from discord.ext import commands
 from google.genai.errors import APIError
 import logging
-from typing import Literal
 
 from bot.utils import split_into_chunks
 from config import GEMINI_ENABLED, OPENAI_ENABLED
@@ -29,9 +28,17 @@ class Ask(commands.Cog):
         self,
         ctx: discord.ApplicationContext,
         query: discord.Option(str, description="Ask Ugoku anything !"),  # type: ignore
-        ephemeral: bool = False,
-        api: Literal["gemini", "openai"] = "openai" if OPENAI_ENABLED else "gemini" 
+        ephemeral: discord.Option(
+            bool, description="Should the message be visible by others ?", default=False
+        ),  # type: ignore
+        api: discord.Option(
+            str,
+            "The service to use",
+            choices=["Gemini"] + ["OpenAI"] if OPENAI_ENABLED else [],
+            default="OpenAI" if OPENAI_ENABLED else "Gemini",
+        ),  # type: ignore
     ) -> None:
+        api: str = api.lower()
         if not GEMINI_ENABLED:
             await ctx.respond("Chatbot features are not enabled.")
             return

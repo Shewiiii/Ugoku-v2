@@ -3,7 +3,10 @@ from discord.ext import commands
 
 from config import (
     CHATBOT_PREFIX,
+    GEMINI_PREFIX,
     GEMINI_MODEL,
+    OPENAI_MODEL,
+    OPENAI_ENABLED,
     DEFAULT_EMBED_COLOR,
     ALLOW_CHATBOT_IN_DMS,
 )
@@ -45,6 +48,7 @@ class HelpDropdown(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         """Callback that fires when the user picks an option from the dropdown."""
         selected = self.values[0]
+        default_model = OPENAI_MODEL if OPENAI_ENABLED else GEMINI_MODEL
 
         if selected == "Music Bot":
             embed = discord.Embed(
@@ -186,7 +190,7 @@ class HelpDropdown(discord.ui.Select):
             embed.add_field(
                 name="About the chatbot",
                 value=(
-                    f"The Ugoku chatbot is based on the {GEMINI_MODEL} model. "
+                    f"The Ugoku chatbot is based on the {default_model} model by default. "
                     "It is an AI character that can respond "
                     "to various types of questions "
                     f"using the bot prefix **{CHATBOT_PREFIX}**, "
@@ -198,7 +202,8 @@ class HelpDropdown(discord.ui.Select):
                     "(birthdate, events, fun facts...), "
                     "to enhance conversations and provide more relevant responses. "
                     "However, this information is strictly private "
-                    "and will never be shared across servers or DMs."
+                    "and will never be shared across servers or DMs. "
+                    "**To delete them**, use `/forget` where the message has been sent."
                 ),
                 inline=False,
             )
@@ -244,6 +249,16 @@ class HelpDropdown(discord.ui.Select):
                 value=(
                     "Activate the chatbot\n"
                     f"Example: ``{CHATBOT_PREFIX}Hi, who are you ?``\n"
+                    "Works on: **Allowed servers Only**"
+                ),
+                inline=False,
+            )
+            # force to use Gemini (if OpenAI enabled)
+            embed.add_field(
+                name=CHATBOT_PREFIX + GEMINI_PREFIX,
+                value=(
+                    "Force to use Gemini if OpenAI is enabled. If not, this prefix has no effect\n"
+                    f"Example: ``{CHATBOT_PREFIX}{GEMINI_PREFIX}Hi, who are you ?``\n"
                     "Works on: **Allowed servers Only**"
                 ),
                 inline=False,
@@ -321,9 +336,7 @@ class HelpDropdown(discord.ui.Select):
                     "Shewi here. Ugoku is a simple bot I made in my spare time for fun.\n"
                     "My initial motivation was to make a music bot that allows "
                     "everyone to download and share songs easily, directly within Discord. "
-                    "To my knowledge, no Discord music bot offers high-quality audio, "
-                    "and Ugoku's purpose is to fill that niche gap. "
-                    "Turns out, I had more fun than expected when coding it, so here we go!"
+                    "Turns out, I had more fun than expected when coding it, so here you go!"
                 ),
                 inline=False,
             )
@@ -332,7 +345,7 @@ class HelpDropdown(discord.ui.Select):
                 value=(
                     "By default, Ugoku requests FLAC audio directly from Deezer, "
                     "then trancodes it to Opus 510kbps to align with the Discord API. "
-                    "If the song is not available on Deezer, Ogg 320kbps audio from Spotify is used instead."
+                    "If the song is not available on Deezer, Ogg 320kbps audio from Spotify is used instead. "
                     "For other sources, it will use the best audio quality available."
                 ),
                 inline=False,

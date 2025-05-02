@@ -16,6 +16,7 @@ from config import (
     GEMINI_ENABLED,
     CHATBOT_TIMEOUT,
     CHATBOT_PREFIX,
+    GEMINI_PREFIX,
     CHATBOT_TEMPERATURE,
     CHATBOT_EMOTES,
     CHATBOT_MAX_OUTPUT_TOKEN,
@@ -29,6 +30,7 @@ from config import (
     PINECONE_RECALL_WINDOW,
     OPENAI_ENABLED,
     OPENAI_MODEL,
+    PINECONE_INDEX_NAME,
 )
 from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 import urllib3
@@ -90,7 +92,7 @@ You don't remember your past, but you love making friends, and sharing little mo
 - It is never you on an image
 - **Never use emoji/kaomoji/emoji with caracters (no ^^, etc)**
 - Solve any asked problem, be **concise**
-- **Pay attention to who you're talking to (someone] talks to you**)
+- **Pay attention to who you're talking to (example: [user] talks to you**)
 
 ## Soft Constraints:
 - Tone: easygoing.  Keep the tone light
@@ -214,7 +216,7 @@ class Gembot:
         r_author: Optional[str] = None,
         r_content: Optional[str] = None,
         message_id: Optional[int] = None,
-        api: str = "openai" if OPENAI_ENABLED else "gemini"
+        api: str = "openai" if OPENAI_ENABLED else "gemini",
     ) -> Optional[ChatbotMessage]:
         # Update variables
         self.last_prompt = datetime.now()
@@ -235,7 +237,7 @@ class Gembot:
                 "Pinecone: An existing connection was forcibly closed by the remote host. "
                 "Restarting Pinecone..."
             )
-            await memory.init_pinecone()
+            await memory.init_pinecone(PINECONE_INDEX_NAME)
             recall_vectors = []
 
         # Create message
@@ -249,17 +251,36 @@ class Gembot:
             r_content,
             urls=urls,
         )
-        prompt = f"{message:prompt}"
 
-        await self.request_chat_response(message, prompt=prompt, urls=urls, api=api)
+        prompt = message.prompt()
+        parts = await self.request_chat_response(
+            message, prompt=prompt, urls=urls, api=api
+        )
+        print(parts)
 
         # Add to (custom) history if successful
         self.history.add(message)
         self.history.store_recall(recall_vectors)
-        if OPENAI_ENABLED:
+        if api == "openai":
             self.history.add_openai_assistant_response(message.response)
+            # Add to Gemini history as well
+            user_input = types.Content(parts=parts, role="user")
+            model_output = types.Content(
+                parts=[types.Part(text=message.response)], role="model"
+            )
+            self.chat.record_history(
+                user_input=user_input,
+                model_output=[model_output],
+                automatic_function_calling_history=[],
+                is_valid=True,
+            )
+            self.limit_gemini_history()
 
         return message
+
+    def limit_gemini_history(self):
+        while len(self.chat._curated_history) > CHATBOT_HISTORY_SIZE * 2:
+            self.chat._curated_history.pop(0)
 
     async def request_chat_response(
         self,
@@ -267,20 +288,19 @@ class Gembot:
         prompt: str,
         urls: Optional[list] = None,
         api: Literal["gemini", "openai"] = "gemini",
-    ) -> ChatbotMessage:
-        """Add a response to a given message, based on the current message history and postprocess.
-        urls is a list of URLs."""
+    ) -> list[types.Part]:
+        """Add a response to a given message based on the current message history.
+        urls is a list of URLs. Return a list of parts."""
         chatbot_message.response = "*filtered*"  # By default
+        parts = [types.Part(text=prompt)]
+        if urls:
+            for url in urls:
+                part = await self.get_part_from_url(url)
+                if part:
+                    parts.append(part)
 
         if api == "gemini":
-            content = [prompt]
-            if urls:
-                for url in urls:
-                    part = await self.get_part_from_url(url)
-                    if part:
-                        content.append(part)
-
-            response = await self.chat.send_message(content)
+            response = await self.chat.send_message(parts)
             if response.text:
                 chatbot_message.response = response.text
             logging.info(
@@ -304,8 +324,7 @@ class Gembot:
                 )
 
             # Limit history length
-            if len(self.chat._curated_history) > CHATBOT_HISTORY_SIZE:
-                self.chat._curated_history.pop(0)
+            self.limit_gemini_history()
 
         elif api == "openai":  # Text and images supported only
             if not self.openai:
@@ -333,7 +352,7 @@ class Gembot:
 
                 logging.error(repr(e))
 
-        return chatbot_message
+        return parts
 
     async def get_part_from_url(self, url: str) -> Optional[types.Part]:
         """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
@@ -474,14 +493,22 @@ class Gembot:
         self,
         context: Union[discord.Message, discord.ApplicationContext],
         message_content: str,
-        api: Literal["gemini", "openai"]
+        api: Optional[Literal["gemini", "openai"]] = None,
     ) -> tuple:
         """Get Gemini message params from a discord.Message."""
+        mc = message_content
+        starts_with_gemini_prefix = mc.startswith(f"{CHATBOT_PREFIX}{GEMINI_PREFIX}")
+
+        # api
+        if not api:
+            if OPENAI_ENABLED and not starts_with_gemini_prefix:
+                api = "openai"
+            else:
+                api = "gemini"
 
         # Remove prefix
-        mc = message_content
         if mc.startswith(CHATBOT_PREFIX):
-            if self.status == 1:
+            if self.status == 1 or starts_with_gemini_prefix:
                 mc = mc[2:]
             else:
                 mc = mc[1:]
@@ -545,7 +572,7 @@ class Gembot:
             rauthor,
             rcontent,
             id,
-            api
+            api,
         )
 
         return params
