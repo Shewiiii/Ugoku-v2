@@ -226,7 +226,7 @@ class nowPlayingView(discord.ui.View):
             return
 
         cog = self.bot.get_cog("Lyrics")
-        await cog.execute_lyrics(self.server_session.last_context, query=None)
+        await cog.execute_lyrics(interaction, query=None)
         await self.update_buttons()
 
     async def leave_callback(
