@@ -41,8 +41,8 @@ class CurrentChatbotService(commands.Cog):
         chat: Gembot = active_chats.get(id_)
 
         await ctx.respond(
-            f"In the current chat, goku is using **{chat.default_api.capitalize()}** "
-            f"by default with the model **{chat.current_model_dn}**",
+            f"In the current chat, Ugoku is using **{chat.default_api.capitalize()}** "
+            f"by default with the model **{chat.current_model_dn}**.",
             ephemeral=True,
         )
 
