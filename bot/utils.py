@@ -353,8 +353,14 @@ async def tag_ogg_file(
 def split_into_chunks(text: str, max_length: int = 1024) -> list:
     """Convert a string into a list of chunks with an adjustable size.
     Written with Gemini."""
-    token_pattern = r"(\[[^\]]*\]\([^)]*\)|[ \t]*```[^\n]*\n?|\S+|\s+)"
-    tokens = re.findall(token_pattern, text, flags=re.MULTILINE)
+    token_pattern = r"(^[ \t]*>.*(?:\n|$)|\[[^\]]*\]\((?:<[^>]*>|[^)<>\s]+)\)|[ \t]*```[^\n]*\n?|\S+|\s+)"
+    try:
+        tokens = re.findall(token_pattern, text, flags=re.MULTILINE)
+    except Exception as e:
+        print(f"Regex error during tokenization: {e}")
+        tokens = text.split()
+        if not tokens:
+            return []
 
     if not tokens:
         return []
@@ -366,21 +372,30 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
     code_block_indent = ""
     code_block_opening_fence = ""
 
-    def build_and_add_chunk(tokens_to_add, closing_fence_to_add=""):
-        nonlocal chunks
+    def build_and_add_chunk(tokens_to_add, add_closing_fence=False):
+        nonlocal chunks, current_chunk_tokens, current_chunk_len
         if not tokens_to_add:
             return
 
         chunk_str = "".join(tokens_to_add)
-        if closing_fence_to_add:
+
+        if add_closing_fence and code_block_indent is not None:
             if not chunk_str.endswith("\n"):
                 chunk_str += "\n"
             chunk_str += f"{code_block_indent}```"
 
         if chunk_str:
+            if len(chunk_str) > max_length and len(tokens_to_add) > 1:
+                # print("Warning: Fence addition exceeded max_length, adjusting chunk.")
+                last_token = tokens_to_add.pop()
+                build_and_add_chunk(tokens_to_add, add_closing_fence)
+                current_chunk_tokens = [last_token]
+                current_chunk_len = len(last_token)
+                return
+
             chunks.append(chunk_str)
 
-    for tok in tokens:
+    for i, tok in enumerate(tokens):
         tok_len = len(tok)
 
         fence_match = re.fullmatch(r"([ \t]*)```([^\n]*\n?)", tok)
@@ -396,24 +411,38 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
             elif current_indent == code_block_indent:
                 is_closing_fence = True
 
-        reserve_len = 0
-        closing_fence = ""
-        if inside_code_block and not is_closing_fence:
-            closing_fence = f"\n{code_block_indent}```"
-            reserve_len = len(closing_fence)
-
-        if current_chunk_len + tok_len > max_length - reserve_len:
-            build_and_add_chunk(current_chunk_tokens)
+        if current_chunk_len > 0 and current_chunk_len + tok_len > max_length:
+            build_and_add_chunk(
+                current_chunk_tokens, add_closing_fence=inside_code_block
+            )
 
             current_chunk_tokens = []
             current_chunk_len = 0
 
-            if inside_code_block:
-                if code_block_opening_fence:
+            if inside_code_block and code_block_opening_fence:
+                if len(code_block_opening_fence) <= max_length:
+                    current_chunk_tokens.append(code_block_opening_fence)
+                    current_chunk_len += len(code_block_opening_fence)
+                else:
+                    print(
+                        f"Warning: Code block fence '{code_block_opening_fence.strip()}' alone exceeds max_length={max_length}."
+                    )
                     current_chunk_tokens.append(code_block_opening_fence)
                     current_chunk_len += len(code_block_opening_fence)
 
-            if current_chunk_len + tok_len > max_length:
+            if tok_len > max_length and current_chunk_len == 0:
+                current_chunk_tokens.append(tok)
+                current_chunk_len += tok_len
+                if is_opening_fence:
+                    inside_code_block = True
+                    code_block_indent = current_indent
+                    code_block_opening_fence = tok
+                elif is_closing_fence:
+                    inside_code_block = False
+                    code_block_indent = ""
+                    code_block_opening_fence = ""
+                continue
+            elif current_chunk_len + tok_len > max_length:
                 pass
 
             current_chunk_tokens.append(tok)
@@ -441,7 +470,8 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
                 code_block_indent = ""
                 code_block_opening_fence = ""
 
-    build_and_add_chunk(current_chunk_tokens)
+    build_and_add_chunk(current_chunk_tokens, add_closing_fence=inside_code_block)
+
     return chunks
 
 

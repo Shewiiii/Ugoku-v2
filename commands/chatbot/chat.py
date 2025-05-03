@@ -84,7 +84,9 @@ if GEMINI_ENABLED:
 
             # Send the sources if any
             if chatbot_message.sources:
-                await message.channel.send(chatbot_message.sources)
+                source_chunks = split_into_chunks(chatbot_message.sources)
+                for chunk in source_chunks:
+                    await message.channel.send(chunk)
 
             # Memory
             # if await chat.memory.store(chatbot_message):

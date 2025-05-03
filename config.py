@@ -25,6 +25,10 @@ GEMINI_MODEL = 'gemini-2.5-flash-preview-04-17'
 GEMINI_UTILS_MODEL = 'gemini-2.0-flash' # Used for summaries and lyrics
 OPENAI_MODEL = 'gpt-4.1-mini-2025-04-14'
 
+# Display names
+GEMINI_MODEL_DISPLAY_NAME = 'Gemini 2.5 Flash'
+OPENAI_MODEL_DISPLAY_NAME = "GPT-4.1 mini"
+
 #  ===SETTINGS===
 # Ytdlp settings
 COOKIES_PATH = './cookies.txt' # Parse cookies to ytdl to help with bot detection. Learn more: https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies
