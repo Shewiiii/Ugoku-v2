@@ -13,7 +13,7 @@ from bot.utils import get_metadata, extract_cover_art, extract_number, respond, 
 from bot.search import is_url
 from bot.vocal.session_manager import onsei
 from bot.vocal.track_dataclass import Track
-from config import DEFAULT_EMBED_COLOR
+from config import DEFAULT_EMBED_COLOR, ONSEI_SERVER_WHITELIST
 
 
 def get_error_message(e: Exception) -> str:
@@ -158,10 +158,15 @@ async def play_onsei(
     work_id = extract_number(query)
 
     try:
-        tracks: list[Track] = await onsei.get_all_tracks(work_id)
+        can_stream_nsfw = ctx.guild.id in ONSEI_SERVER_WHITELIST
+        tracks: list[Track] = await onsei.get_all_tracks(work_id, can_stream_nsfw)
     except Exception as e:
         response_params[1] = get_error_message(e)
         await respond(*response_params)
+        return
+
+    if not tracks:
+        await respond(ctx, "You can't stream audio works here.", defer_task=defer_task)
         return
 
     await session.add_to_queue(ctx, tracks, play_next=play_next)

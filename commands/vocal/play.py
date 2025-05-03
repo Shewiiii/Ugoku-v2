@@ -12,7 +12,7 @@ from bot.vocal.audio_service_handlers import (
     play_onsei,
     play_ytdlp,
 )
-from bot.utils import is_onsei, process_song_query, vocal_connect_check
+from bot.utils import is_onsei, process_song_query, vocal_connect_check, respond
 from bot.search import is_url
 from config import (
     SPOTIFY_ENABLED,
@@ -20,7 +20,6 @@ from config import (
     DEEZER_ENABLED,
     SPOTIFY_API_ENABLED,
     IMPULSE_RESPONSE_PARAMS,
-    ONSEI_SERVER_WHITELIST,
     YTDLP_DOMAINS,
 )
 
@@ -61,18 +60,24 @@ class Play(commands.Cog):
         play_next: bool = False,
         defer: bool = True,
     ) -> None:
-        respond = interaction.response.send_message if interaction else ctx.respond
         if not defer or interaction:
             defer_task = None
         else:
             defer_task = asyncio.create_task(ctx.defer())
+
+        async def error(msg: str):
+            if defer_task:
+                await defer_task
+            await respond(
+                ctx if not interaction else interaction.response.send_message, msg
+            )
 
         # Connect to the voice channel
         session: Optional[ServerSession] = sm.connect(ctx, self.bot)
         if not session:
             if defer_task:
                 await defer_task
-            await respond(content="You are not in an active voice channel !")
+            await error("You are not in an active voice channel !")
             return
 
         # Applying audio effects
@@ -90,11 +95,6 @@ class Play(commands.Cog):
             for attr, value in attrs.items():
                 setattr(session.audio_effect, attr, value)
 
-        async def error(msg: str):
-            if defer_task:
-                await defer_task
-            await respond(msg)
-
         # Process the query
         url = is_url(query)
         try:
@@ -109,11 +109,6 @@ class Play(commands.Cog):
 
         # Choose the right service
         if service == "onsei" or onsei:
-            if defer_task:
-                await defer_task
-            if session.guild_id not in ONSEI_SERVER_WHITELIST:
-                await error("You can't stream audio works here.")
-                return
             await play_onsei(ctx, query, session, play_next, defer_task)
 
         elif service == "custom" or custom:

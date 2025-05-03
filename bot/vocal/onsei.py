@@ -33,10 +33,10 @@ class Onsei:
                 content = await response.text()
                 return json.loads(content)
 
-    async def get_tracks_api(self, work_id: str) -> list:
+    async def get_tracks_api(self, work_id: str) -> dict:
         return await self.request(work_id, "tracks")
 
-    async def get_work_api(self, work_id: str) -> list:
+    async def get_work_api(self, work_id: str) -> dict:
         return await self.request(work_id, "workInfo")
 
     def process_file(
@@ -135,13 +135,15 @@ class Onsei:
 
         return final_tracks
 
-    async def get_all_tracks(self, work_id: str) -> list:
+    async def get_all_tracks(self, work_id: str, can_play_nsfw: bool = False) -> list:
         tracks_api, work_api, dominant_rgb = await asyncio.gather(
             self.get_tracks_api(work_id),
             self.get_work_api(work_id),
             get_dominant_rgb_from_url(self.get_cover(work_id)),
             return_exceptions=False,
         )
+        if work_api.get("nsfw") and not can_play_nsfw:
+            return []
 
         tracks = self.get_tracks(tracks_api, work_api, dominant_rgb=dominant_rgb)
 
