@@ -64,7 +64,7 @@ class ServerSession:
         self.queue: List[Track] = []
         self.to_loop: List[Optional[dict]] = []
         self.last_played_time: datetime = datetime.now()
-        self.start_time: datetime = datetime.now() # Meaningless at initialization
+        self.start_time: datetime = datetime.now()  # Meaningless at initialization
         self.loop_current: bool = False
         self.loop_queue: bool = False
         self.skipped: bool = False
@@ -148,9 +148,7 @@ class ServerSession:
 
         # View (buttons)
         if not self.now_playing_view:
-            self.now_playing_view = nowPlayingView(
-                self.bot, self.voice_client, self
-            )
+            self.now_playing_view = nowPlayingView(self.bot, self.voice_client, self)
         else:
             await self.now_playing_view.update_buttons(edit=False)
         view = self.now_playing_view
@@ -163,7 +161,7 @@ class ServerSession:
                     asyncio.create_task(self.old_message.delete())
                     self.old_message = None
                 self.now_playing_message = await ctx.send(
-                    content=message, embed=embed, view=view
+                    content=message, embed=embed, view=view, silent=True
                 )
             elif send:
                 # If skipping, just edit the embed,
@@ -172,7 +170,7 @@ class ServerSession:
                     old_message = self.now_playing_message
                     asyncio.create_task(old_message.delete())
                     self.now_playing_message = await ctx.send(
-                        content=message, embed=embed, view=view
+                        content=message, embed=embed, view=view, silent=True
                     )
                 else:
                     self.now_playing_message = await self.now_playing_message.edit(
