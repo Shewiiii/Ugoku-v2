@@ -186,6 +186,17 @@ class Search(commands.Cog):
                 asyncio.create_task(interaction.response.defer())
                 await self.play(interaction, tracks)
 
+            @discord.ui.button(
+                label="Close",
+                style=discord.ButtonStyle.secondary,
+            )
+            async def close_button_callback(
+                self, button: discord.ui.Button, interaction: discord.Interaction
+            ) -> None:
+                await interaction.message.delete()
+                self.clear_items()
+                self.ctx = self.bot = None
+
             @discord.ui.select(
                 placeholder="Select songs !",
                 min_values=1,
@@ -222,7 +233,9 @@ class Search(commands.Cog):
             choices=["track", "artist"],
             required=True,
         ),  # type: ignore
-        query: discord.Option(str, description="The song to search.", required=True),  # type: ignore
+        query: discord.Option(
+            str, description="The song or artist to search.", required=True
+        ),  # type: ignore
         max_number_of_results: discord.Option(
             int,
             description="Fixed to 10 for artists. Default and max is 100 for tracks.",
