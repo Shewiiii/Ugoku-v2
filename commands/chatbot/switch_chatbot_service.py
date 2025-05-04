@@ -28,7 +28,7 @@ class SwitchChatbotService(commands.Cog):
             await ctx.respond("The chatbot is only using Gemini.")
             return
 
-        id_ = Gembot.get_chat_id(ctx, ask_command=True)
+        id_ = Gembot.get_chat_id(ctx, gemini_command=True)
         if not id_:
             await ctx.respond(
                 "This channel or server is not allowed to use that command."

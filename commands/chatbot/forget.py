@@ -136,7 +136,7 @@ class Forget(commands.Cog):
     ) -> None:
         # I await afterward to gain a few ms
         defer_task = asyncio.create_task(ctx.defer())
-        id_ = Gembot.get_chat_id(ctx)
+        id_ = Gembot.get_chat_id(ctx, gemini_command=True)
         if not id_:
             await defer_task
             await ctx.respond(

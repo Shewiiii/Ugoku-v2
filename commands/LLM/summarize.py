@@ -31,9 +31,8 @@ class Summarize(commands.Cog):
             str, choices=LANGUAGES, required=True, default="English"
         ),  # type: ignore
     ) -> None:
-        if not Gembot.get_chat_id(
-            ctx
-        ):  # Can this server or channel use Gemini features ?
+        if not Gembot.get_chat_id(ctx, gemini_command=True):
+            # Can this server or channel use Gemini features ?
             await ctx.respond("Summaries are not available !")
             return
 

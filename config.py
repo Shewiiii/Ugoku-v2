@@ -125,7 +125,7 @@ ONSEI_SERVER_WHITELIST= {} # All servers ids allowed to stream onsei
 
 # Chatbot settings
 CHATBOT_SERVER_WHITELIST = {} # All server ids allowed to use the chatbot and /ask
-CHATBOT_ASK_SERVER_WHITELIST = {} # All server ids allow to use the /ask command
+GEMINI_SERVER_WHITELIST = {} # All server ids allow to use gemini features (except the chatbot)
 CHATBOT_CHANNEL_WHITELIST = {} # All channel/thread ids allowed to use the chatbot
 CHATBOT_PREFIX = '!' # Prefix to trigger the chatbot
 GEMINI_PREFIX = '-' # If OpenAI is enabled, CHATBOT_PREFIX+GEMINI_PREFIX will force to use Gemini instead
