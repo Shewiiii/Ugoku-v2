@@ -611,7 +611,6 @@ def vocal_action_check(
             asyncio.create_task(respond_function(content="No songs in the queue !"))
         return False
 
-    session.last_context = ctx
     return True
 
 
