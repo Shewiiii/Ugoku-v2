@@ -112,10 +112,8 @@ class Track:
 
         if artist_urls:
             embed_artists = ", ".join(
-                [
-                    f"[{self.artists[i]}]({artist_urls[i]})"
-                    for i in range(len(artist_urls))
-                ]
+                f"[{artist + '.' if len(artist) == 1 else artist}]({url})"
+                for artist, url in zip(self.artists, artist_urls)
             )
 
         self.embed = (
