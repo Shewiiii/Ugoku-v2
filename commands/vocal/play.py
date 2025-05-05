@@ -60,17 +60,23 @@ class Play(commands.Cog):
         play_next: bool = False,
         defer: bool = True,
     ) -> None:
+        # Defer task
         if not defer or interaction:
             defer_task = None
         else:
             defer_task = asyncio.create_task(ctx.defer())
 
+        # Error func to clean the code a bit
         async def error(msg: str):
             if defer_task:
                 await defer_task
             await respond(
                 ctx if not interaction else interaction.response.send_message, msg
             )
+
+        # Connection check
+        if not vocal_connect_check(ctx, ctx.respond):
+            return
 
         # Connect to the voice channel
         session: Optional[ServerSession] = sm.connect(ctx, self.bot)
@@ -177,17 +183,16 @@ class Play(commands.Cog):
             default="default",
         ),  # type: ignore
     ) -> None:
-        if vocal_connect_check(ctx, ctx.respond):
-            await self.execute_play(
-                ctx,
-                query,
-                service.lower(),
-                offset=playlist_offset,
-                artist_mode=artist_mode,
-                album=album,
-                effect=effect,
-                play_next=play_next,
-            )
+        await self.execute_play(
+            ctx,
+            query,
+            service.lower(),
+            offset=playlist_offset,
+            artist_mode=artist_mode,
+            album=album,
+            effect=effect,
+            play_next=play_next,
+        )
 
 
 def setup(bot):
