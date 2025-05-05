@@ -173,7 +173,8 @@ class DeezerChunkedInputStream:
             return b""
 
         except (RequestsConnectionError, ReadTimeout, ChunkedEncodingError):
-            self.stream.close()
+            if self.stream:
+                self.stream.close()
             self.set_chunks(self.current_position, force=True)
             return self.read()
 
@@ -181,7 +182,8 @@ class DeezerChunkedInputStream:
             chunk = e.partial
 
         except Exception as e:
-            self.stream.close()
+            if self.stream:
+                self.stream.close()
             logging.error(repr(e))
             return b""
 
