@@ -96,31 +96,6 @@ async def get_cover_data_from_file(filename: str) -> dict[str, discord.Colour]:
         }
 
 
-async def generate_info_embed(
-    url: str,
-    title: str,
-    album: str,
-    artists: list,
-    cover_url: Optional[str],
-    dominant_rgb: tuple[int, int, int],
-) -> discord.Embed:
-    """
-    Generate a Discord Embed with track information."""
-    artist_string = ", ".join(artists)
-
-    embed = discord.Embed(
-        title=title,
-        url=url,
-        description=f"By {artist_string}",
-        color=discord.Colour.from_rgb(*dominant_rgb),
-    )
-    embed.add_field(name="Part of the album", value=album, inline=True)
-    embed.set_author(name="Now playing")
-    embed.set_thumbnail(url=cover_url)
-
-    return embed
-
-
 async def fetch_audio_stream(url: Optional[str] = None) -> Path:
     """Fetch an audio file from a URL and cache it locally."""
     async with CachedSession(

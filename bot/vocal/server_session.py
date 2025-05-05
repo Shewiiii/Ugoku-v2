@@ -50,16 +50,18 @@ class ServerSession:
 
     def __init__(
         self,
+        ctx: discord.ApplicationContext,
         guild_id: int,
         voice_client: Optional[discord.VoiceClient],
         bot: discord.Bot,
-        channel_id: int,
+        voice_channel_id: int,
         session_manager: "SessionManager",
         connect_task: Optional[asyncio.Task] = None,
     ) -> None:
         self.connect_task: Optional[asyncio.Task] = connect_task
         self.bot: discord.Bot = bot
         self.guild_id: int = guild_id
+        self.voice_channel_id: int = voice_channel_id
         self.voice_client: Optional[discord.VoiceClient] = voice_client
         self.queue: List[Track] = []
         self.to_loop: List[Optional[dict]] = []
@@ -74,15 +76,14 @@ class ServerSession:
         self.previous: bool = False
         self.stack_previous: deque = deque([])
         self.is_seeking: bool = False
-        self.channel_id: int = channel_id
         self.now_playing_view: Optional[nowPlayingView] = None
         self.now_playing_message: Optional[discord.Message] = None
         self.old_message: Optional[discord.Message] = None
         self.session_manager: SessionManager = session_manager
-        self.auto_leave_task: asyncio.Task = asyncio.create_task(
-            self.check_auto_leave()
+        self.cleanup_task: asyncio.Task = asyncio.create_task(
+            self.create_cleanup_task()
         )
-        self.last_context = None
+        self.last_context: discord.ApplicationContext = ctx
         self.volume = DEFAULT_AUDIO_VOLUME
         self.onsei_volume = DEFAULT_ONSEI_VOLUME
         self.audio_effect = AudioEffect()
@@ -90,11 +91,20 @@ class ServerSession:
         self.deezer_download = Download(bot.deezer) if DEEZER_ENABLED else None
         self.stop_event: Optional[asyncio.Event] = None
         self.wrong_track_views: list[WrongTrackView] = []
-        self.ffmpeg_source: Optional[discord.FFmpegOpusAudio] = None
+        self.ffmpeg_sources: deque[discord.FFmpegOpusAudio] = deque([])
 
     async def wait_for_connect_task(self) -> None:
         if self.connect_task:
-            self.voice_client = await self.connect_task
+            try:
+                self.voice_client = await self.connect_task
+            except discord.errors.ClientException:
+                logging.error(
+                    "Already connected to a voice channel. Disconnecting and reconnecting."
+                )
+                if self.voice_client:
+                    await self.voice_client.disconnect()
+                channel = self.bot.get_channel(self.voice_channel_id)
+                self.voice_client = await channel.connect()
 
     async def display_queue(
         self, ctx: discord.ApplicationContext, defer_task: asyncio.Task
@@ -188,7 +198,7 @@ class ServerSession:
         if not (self.voice_client and self.queue):
             return
 
-        if not quiet and self.last_context:
+        if not quiet:
             asyncio.create_task(
                 self.last_context.send(f"Seeking to {position} seconds")
             )
@@ -248,11 +258,12 @@ class ServerSession:
             logging.error(f"No voice client in {self.guild_id} session")
             return
         if self.voice_client.is_playing():
-            logging.error(f"Audio is already playing in {self.channel_id}")
+            logging.error(f"Audio is already playing in {self.voice_channel_id}")
             return
+        self.clean_ffmpeg_sources()
 
         # Play !
-        ffmpeg_source = discord.FFmpegOpusAudio(
+        source = discord.FFmpegOpusAudio(
             track.stream_source,
             pipe=isinstance(
                 track.stream_source, (AbsChunkedInputStream, DeezerChunkedInputStream)
@@ -260,11 +271,11 @@ class ServerSession:
             bitrate=self.bitrate,
             **self.get_ffmpeg_options(track.service, start_position),
         )
+        self.ffmpeg_sources.append(source)
         self.voice_client.play(
-            ffmpeg_source,
+            source,
             after=lambda e=None: self.after_playing(ctx, e),
         )
-        self.ffmpeg_source = ffmpeg_source
         self.start_time = datetime.now()
 
         # Log
@@ -444,7 +455,11 @@ class ServerSession:
 
     async def stop_playback(self) -> None:
         """Stop the playback and cancel the after_playing callback."""
-        if not self.voice_client.is_playing():
+        if (
+            not self.voice_client
+            or not self.voice_client.is_playing()
+            or not self.voice_client.is_connected()
+        ):
             return
         self.stop_event = asyncio.Event()
         self.voice_client.stop()
@@ -515,10 +530,7 @@ class ServerSession:
         """Callback function executed after a track finishes playing."""
         self.last_played_time = datetime.now()
 
-        if self.ffmpeg_source:
-            self.ffmpeg_source.cleanup()
-            self.ffmpeg_source = None
-
+        self.clean_ffmpeg_sources()
         if error:
             logging.error(repr(error))
 
@@ -574,34 +586,58 @@ class ServerSession:
 
         await self.start_playing(ctx)
 
-    async def check_auto_leave(self) -> None:
-        """Checks for inactivity and automatically disconnects from the voice channel if inactive for too long."""
+    def clean_ffmpeg_sources(self) -> None:
+        f = len(self.ffmpeg_sources)
+
+        if (
+            not self.voice_client
+            or not self.voice_client.is_connected()
+            or not self.voice_client.is_playing()
+        ):
+            while self.ffmpeg_sources:
+                source = self.ffmpeg_sources.popleft()
+                source.cleanup()
+
+        elif self.voice_client.is_playing():
+            while f > 1:
+                source = self.ffmpeg_sources.popleft()
+                source.cleanup()
+
+    async def create_cleanup_task(self) -> None:
+        """Checks for inactivity and automatically disconnects from the voice channel if inactive.
+        Check for residual FFmpeg sources"""
         await asyncio.sleep(1)
         await self.wait_for_connect_task()
 
-        while self.voice_client.is_connected():
+        while True:
+            connected = self.voice_client.is_connected()
             if not self.voice_client.is_playing():
-                time_since_last_played = datetime.now() - self.last_played_time
-                time_until_disconnect = (
-                    timedelta(seconds=AUTO_LEAVE_DURATION) - time_since_last_played
-                )
-
-                logging.debug(
-                    "Time until disconnect due to "
-                    f"inactivity in {self.guild_id}: "
-                    f"{time_until_disconnect}"
-                )
+                if not connected:
+                    # Kill the session right away if the bot has been kicked
+                    time_until_disconnect = timedelta(seconds=0)
+                else:
+                    time_since_last_played = datetime.now() - self.last_played_time
+                    time_until_disconnect = (
+                        timedelta(seconds=AUTO_LEAVE_DURATION) - time_since_last_played
+                    )
 
                 if time_until_disconnect <= timedelta(seconds=0):
-                    await self.voice_client.disconnect()
-                    channel = self.bot.get_channel(self.channel_id)
-                    if channel:
-                        await channel.send("Baibai~")
+                    if connected:
+                        await self.voice_client.disconnect()
+                        channel = self.last_context.channel
+                        if channel:
+                            await channel.send("Baibai~")
                     await self.clean_session()
                     await asyncio.to_thread(gc.collect)
                     break
 
-            await asyncio.sleep(17)
+            # Ffmpeg garbage cleaner
+            if self.ffmpeg_sources and not self.voice_client.is_playing():
+                await asyncio.sleep(3)
+                if self.ffmpeg_sources and not self.voice_client.is_playing():
+                    self.clean_ffmpeg_sources()
+
+            await asyncio.sleep(5)
 
     async def close_streams(
         self,
@@ -641,19 +677,18 @@ class ServerSession:
             view.close()
 
         if self.voice_client:
-            if self.voice_client.is_playing():
-                await self.stop_playback()
             await self.voice_client.disconnect()
             self.voice_client.cleanup()
 
-        if self.auto_leave_task and not self.auto_leave_task.done():
-            self.auto_leave_task.cancel()
+        if self.cleanup_task and not self.cleanup_task.done():
+            self.cleanup_task.cancel()
         if self.connect_task and not self.connect_task.done():
             self.connect_task.cancel()
 
         self.session_manager.server_sessions.pop(self.guild_id)
 
         await self.close_streams()
+        self.clean_ffmpeg_sources()
         self.bot = None
         self.voice_client = None
         self.deezer_download = None
