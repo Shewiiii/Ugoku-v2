@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 import json
 
-from google.genai import types
+from google.genai import types, errors
 from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
@@ -100,24 +100,29 @@ but nothing otherwise.\n
 
         # Generate metadata using Gemini
         date: str = datetime.now(self.timezone).strftime("%Y-%m-%d")
-        metadata = json.loads(
-            (
-                await client.aio.models.generate_content(
-                    model=utils_models_manager.pick(),
-                    contents=f"{history:pinecone_last_3}",
-                    config=types.GenerateContentConfig(
-                        system_instruction=self.prompt,
-                        response_mime_type="application/json",
-                        response_schema=response_schema,
-                        candidate_count=1,
-                        automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                            disable=True
-                        ),
-                        safety_settings=GEMINI_SAFETY_SETTINGS,
+        model = (utils_models_manager.pick(),)
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=f"{history:pinecone_last_3}",
+                config=types.GenerateContentConfig(
+                    system_instruction=self.prompt,
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
+                    candidate_count=1,
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                        disable=True
                     ),
-                )
-            ).text
-        )
+                    safety_settings=GEMINI_SAFETY_SETTINGS,
+                ),
+            )
+        except errors.APIError as e:
+            if e.code == 429:
+                utils_models_manager.add_down_model(model)
+                return await self.store(history)
+            logging.error(repr(e))
+
+        metadata = json.loads(response.text)
         last_message = history.messages[-1]
         metadata["id"] = last_message.guild_id
         metadata["text"] = f"{date}-{last_message.author}: {metadata['text']}"
