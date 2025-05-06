@@ -219,9 +219,41 @@ class HelpDropdown(discord.ui.Select):
             embed.add_field(
                 name="/summarize",
                 value=(
-                    "Summarize a text or a YouTube video. **May NOT work on server/VPS hosted bots**\n"
+                    "Summarize a text or a YouTube video.\n"
                     "Example: ``/summarize https://www.youtube.com/watch?v=Km2DNLbB-6o``\n"
+                    f"Works on: **Allowed servers Only {', DMs' if ALLOW_CHATBOT_IN_DMS else ''}**"
+                ),
+                inline=False,
+            )
+            embed.add_field(
+                name="/reset-chatbot",
+                value=(
+                    "Reset the chatbot history. Does not remove Pinecone entries\n"
                     "Works on: Server / Personal"
+                ),
+                inline=False,
+            )
+            embed.add_field(
+                name="/forget",
+                value=(
+                    'Remove Pinecone entries ("vectors") from the databse, "'
+                    '"corresponding to the channel or server you are in.\n'
+                    "Works on: Server / Personal"
+                ),
+                inline=False,
+            )
+            embed.add_field(
+                name="/switch-chatbot-service",
+                value=(
+                    f"If OpenAI services are enabled, change the model from {OPENAI_MODEL} to {GEMINI_MODEL}\n"
+                    "Works on: Server / Personal"
+                ),
+                inline=False,
+            )
+            embed.add_field(
+                name="/current-chatbot-service",
+                value=(
+                    "Show what LLM model is currently usedWorks on: Server / Personal"
                 ),
                 inline=False,
             )
@@ -249,7 +281,7 @@ class HelpDropdown(discord.ui.Select):
                 value=(
                     "Activate the chatbot\n"
                     f"Example: ``{CHATBOT_PREFIX}Hi, who are you ?``\n"
-                    "Works on: **Allowed servers Only**"
+                    f"Works on: **Allowed servers Only {', DMs' if ALLOW_CHATBOT_IN_DMS else ''}**"
                 ),
                 inline=False,
             )
@@ -259,7 +291,7 @@ class HelpDropdown(discord.ui.Select):
                 value=(
                     "Force to use Gemini if OpenAI is enabled. If not, this prefix has no effect\n"
                     f"Example: ``{CHATBOT_PREFIX}{GEMINI_PREFIX}Hi, who are you ?``\n"
-                    "Works on: **Allowed servers Only**"
+                    f"Works on: **Allowed servers Only {', DMs' if ALLOW_CHATBOT_IN_DMS else ''}**"
                 ),
                 inline=False,
             )
