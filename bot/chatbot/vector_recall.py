@@ -13,9 +13,8 @@ from pinecone import ServerlessSpec
 import pytz
 
 from bot.chatbot.chat_dataclass import ChatbotHistory
-from bot.chatbot.gemini_client import client
+from bot.chatbot.gemini_client import client, utils_models_manager
 from config import (
-    GEMINI_UTILS_MODEL,
     CHATBOT_TIMEZONE,
     PINECONE_ENABLED,
     GEMINI_SAFETY_SETTINGS,
@@ -104,7 +103,7 @@ but nothing otherwise.\n
         metadata = json.loads(
             (
                 await client.aio.models.generate_content(
-                    model=GEMINI_UTILS_MODEL,
+                    model=utils_models_manager.pick(),
                     contents=f"{history:pinecone_last_3}",
                     config=types.GenerateContentConfig(
                         system_instruction=self.prompt,
@@ -145,17 +144,22 @@ but nothing otherwise.\n
     ) -> list[Optional[ScoredVector]]:
         if not self.active:
             raise RuntimeError("Pinecone class not active")
-        vectors = await self.generate_embeddings([text])
-        results = await asyncio.to_thread(
-            self.index.query,
-            vector=vectors[0],
-            filter={
-                "id": {"$eq": id}  # Guild id
-            },
-            top_k=top_k,
-            include_metadata=True,
-        )
-        vectors = [vector for vector in results["matches"]]
+        try:
+            vectors = await self.generate_embeddings([text])
+            results = await asyncio.to_thread(
+                self.index.query,
+                vector=vectors[0],
+                filter={
+                    "id": {"$eq": id}  # Guild id
+                },
+                top_k=top_k,
+                include_metadata=True,
+            )
+            vectors = [vector for vector in results["matches"]]
+        except Exception as e:
+            logging.error(repr(e))
+            vectors = []
+
         return vectors
 
 

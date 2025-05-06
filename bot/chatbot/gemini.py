@@ -10,7 +10,6 @@ from typing import Optional, List, Union, Literal
 from datetime import datetime, timedelta
 from config import (
     GEMINI_MODEL,
-    GEMINI_UTILS_MODEL,
     GEMINI_SAFETY_SETTINGS,
     CHATBOT_HISTORY_SIZE,
     GEMINI_ENABLED,
@@ -38,11 +37,11 @@ from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 import urllib3
 
 import discord
-from google.genai import types
+from google.genai import types, errors
 from google.genai.types import Tool, GoogleSearch
 
 from bot.chatbot.chat_dataclass import ChatbotMessage, ChatbotHistory
-from bot.chatbot.gemini_client import client
+from bot.chatbot.gemini_client import client, utils_models_manager
 from bot.chatbot.vector_recall import memory
 
 
@@ -154,11 +153,12 @@ class Gembot:
     @staticmethod
     async def simple_prompt(
         query: str,
-        model: str = GEMINI_UTILS_MODEL,
+        model: Optional[str] = None,
         temperature: float = 1.0,
         max_output_tokens: int = CHATBOT_MAX_OUTPUT_TOKEN,
     ) -> Optional[str]:
         try:
+            model = utils_models_manager.pick()
             response: types.GenerateContentResponse = (
                 await client.aio.models.generate_content(
                     model=model,
@@ -179,9 +179,15 @@ class Gembot:
                     response.usage_metadata.total_token_count
                 } tokens"
             )
-        except Exception as e:
+        except errors.APIError as e:
+            if e.code == 429:
+                utils_models_manager.add_down_model(model)
+                return await Gembot.simple_prompt(query, None, temperature, max_output_tokens)
             logging.error(f"An error occured when generating a Gemini response: {e}")
             return
+        except RuntimeError as e:
+            if str(e) == "No more model available":
+                return "Resource exhausted: please try again in a few minutes."
 
         return response.text
 

@@ -118,6 +118,7 @@ class Jpdb:
         self,
         user_id: int,
         api_key: str,
+        init_message: discord.WebhookMessage,
         ctx: Optional[discord.ApplicationContext] = None,
     ) -> None:
         self.user_id = user_id
@@ -128,6 +129,7 @@ class Jpdb:
         self.vocab = []
         self.review_cards = []
         self.ctx = ctx
+        self.init_message = init_message
 
     async def check_api_key(self) -> None:
         ping = await self.session.get(f"{self.base_url}ping")
@@ -352,7 +354,7 @@ class Jpdb:
         sentences = await word_api.generate_example_sentence(word, card["meanings"])
         embed = self.create_front_embed(card, sentences)
         view = self.get_front_view(card, sentences)
-        await self.ctx.send(embed=embed, view=view, silent=True)
+        await self.init_message.edit(embed=embed, view=view)
 
     @staticmethod
     def get_day_delta(timestamp: int) -> int:
@@ -369,18 +371,22 @@ class JpdbSessions:
         self.jpdb_sessions = {}
 
     async def get_session(
-        self, ctx: discord.ApplicationContext, api_key: Optional[str] = None
+        self,
+        ctx: discord.ApplicationContext,
+        init_message: discord.WebhookMessage,
+        api_key: Optional[str] = None,
     ) -> Jpdb:
         user_id = ctx.author.id
-        session = self.jpdb_sessions.get(user_id)
+        session: Jpdb = self.jpdb_sessions.get(user_id)
         if session:
             session.ctx = ctx
+            session.init_message = init_message
             return session
         elif not api_key:
             raise ValueError("No API key provided")
 
         # Else, create a new session
-        session = Jpdb(user_id, api_key, ctx)
+        session = Jpdb(user_id, api_key, ctx=ctx, init_message=init_message)
         # Raise a ValueError if invalid
         await session.check_api_key()
         self.jpdb_sessions[user_id] = session

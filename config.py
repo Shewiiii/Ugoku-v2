@@ -22,7 +22,13 @@ OPENAI_ENABLED = True
 
 # ===CHATBOT MODELS===
 GEMINI_MODEL = 'gemini-2.5-flash-preview-04-17'
-GEMINI_UTILS_MODEL = 'gemini-2.0-flash' # Used for summaries and lyrics
+GEMINI_UTILS_MODELS = [
+    'gemini-2.0-flash', 
+    'gemini-2.0-flash-lite', 
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemma-3-27b-it' # Very slow
+] # Used for summaries, lyrics, example sentences and memory management
 OPENAI_MODEL = 'gpt-4.1-mini-2025-04-14'
 
 # Display names

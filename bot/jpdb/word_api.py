@@ -8,9 +8,8 @@ from typing import Optional
 from google.genai import types
 
 
-from bot.chatbot.gemini import Gembot
-from bot.chatbot.gemini_client import client
-from config import GEMINI_ENABLED, GEMINI_UTILS_MODEL, CACHE_EXPIRY, GEMINI_SAFETY_SETTINGS
+from bot.chatbot.gemini_client import client, utils_models_manager
+from config import GEMINI_ENABLED, CACHE_EXPIRY, GEMINI_SAFETY_SETTINGS
 
 response_schema = {
     "type": "object",
@@ -20,8 +19,7 @@ response_schema = {
 
 
 class JpdbWordApi:
-    def __init__(self):
-        self.gembot = Gembot(0, GEMINI_UTILS_MODEL) if GEMINI_ENABLED else None
+    def __init__(self): ...
 
     @staticmethod
     def extract_pitch_accent(pitch_section: BeautifulSoup) -> str:
@@ -34,7 +32,6 @@ class JpdbWordApi:
 
         # First pitch accent
         first_pitch = pitch_container.find("div").find("div")
-
         moras = []
         kana = []
         pitch_pattern = []
@@ -205,10 +202,10 @@ class JpdbWordApi:
     ) -> dict:
         """Generate a sentence example with Gemini."""
         sentences = {"jp": "", "en": ""}
-        if self.gembot:
-            request: types.GenerateContentResponse = (
-                await client.aio.models.generate_content(
-                    model=GEMINI_UTILS_MODEL,
+        if GEMINI_ENABLED:
+            try:
+                request: types.GenerateContentResponse = await client.aio.models.generate_content(
+                    model=utils_models_manager.pick(),
                     contents="Send a simple Japanese sentence **in jp** and the "
                     "English translation **in en**"
                     f"that includes the word {word} ({meaning[0]})."
@@ -226,8 +223,6 @@ class JpdbWordApi:
                         safety_settings=GEMINI_SAFETY_SETTINGS,
                     ),
                 )
-            )
-            try:
                 sentences = json.loads(request.candidates[0].content.parts[0].text)
             except Exception as e:
                 logging.error(repr(e))
