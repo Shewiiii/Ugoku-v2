@@ -100,7 +100,7 @@ but nothing otherwise.\n
 
         # Generate metadata using Gemini
         date: str = datetime.now(self.timezone).strftime("%Y-%m-%d")
-        model = (utils_models_manager.pick(),)
+        model = utils_models_manager.pick()
         try:
             response = await client.aio.models.generate_content(
                 model=model,
