@@ -127,8 +127,8 @@ class Search(commands.Cog):
                 )
 
                 # Select menu
-                self.children[3].max_values = end_index - start_index
-                self.children[3].options = [
+                self.children[4].max_values = end_index - start_index
+                self.children[4].options = [
                     discord.SelectOption(
                         label=f"{i + 1}. {str(tracks[i])[:95]}", value=str(i)
                     )
