@@ -28,7 +28,13 @@ class SpotifyDownload(commands.Cog):
         if not SPOTIFY_ENABLED:
             await ctx.respond(content="Spotify features are not enabled.")
             return
-        defer_task = asyncio.create_task(ctx.respond("Give me a second~"))
+        defer_task = asyncio.create_task(
+            ctx.respond(
+                "Give me a second~\n-# Not working ? "
+                "The Spotify connection is probably down. "
+                "Please try again in a few minutes."
+            )
+        )
 
         # Convert the query
         try:
