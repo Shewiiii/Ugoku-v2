@@ -20,6 +20,7 @@ from config import (
     AUTO_LEAVE_DURATION,
     DEFAULT_AUDIO_VOLUME,
     DEFAULT_ONSEI_VOLUME,
+    DEFAULT_EMBED_COLOR,
     DEEZER_ENABLED,
     SPOTIFY_API_ENABLED,
     DEFAULT_AUDIO_BITRATE,
@@ -64,7 +65,7 @@ class ServerSession:
         self.voice_channel_id: int = voice_channel_id
         self.voice_client: Optional[discord.VoiceClient] = voice_client
         self.queue: List[Track] = []
-        self.to_loop: List[Optional[dict]] = []
+        self.to_loop: List[Track] = []
         self.last_played_time: datetime = datetime.now()
         self.start_time: datetime = datetime.now()  # Meaningless at initialization
         self.loop_current: bool = False
@@ -92,6 +93,7 @@ class ServerSession:
         self.stop_event: Optional[asyncio.Event] = None
         self.wrong_track_views: list[WrongTrackView] = []
         self.ffmpeg_sources: deque[discord.FFmpegOpusAudio] = deque([])
+        self.dummy_load = None
 
     async def wait_for_connect_task(self) -> None:
         if self.connect_task:
@@ -125,36 +127,42 @@ class ServerSession:
         edit_only: bool = False,
     ) -> None:
         """Sends an embed with information about the currently playing track."""
-        track: Track = self.queue[0]
         # Embed
-        if track.unloaded_embed:
-            message = ""
-            params = []
-            if SPOTIFY_API_ENABLED:
-                params.append(self.bot.spotify.sessions.sp)
-            embed = await track.generate_embed(*params)
+        message = ""
+        if self.queue:
+            track: Track = self.queue[0]
+            if track.unloaded_embed:
+                params = []
+                if SPOTIFY_API_ENABLED:
+                    params.append(self.bot.spotify.sessions.sp)
+                embed = await track.generate_embed(*params)
 
-        if track.embed:
-            # No need for a text message if embed
-            message = ""
-            embed = track.embed
+            if track.embed:
+                # No need for a text message if embed
+                embed = track.embed
 
-            # Update the embed with remaining tracks
-            next_name = "Next"
-            next_value = "End of queue!"
-            if len(self.queue) > 1:
-                next_value = f"{self.queue[1]:markdown}"
-            elif self.loop_queue and self.to_loop:
-                next_value = f"{self.to_loop[0]:markdown}"
-                next_name = "Next (Loop)"
+                # Update the embed with remaining tracks
+                next_name = "Next"
+                next_value = "End of queue!"
+                if len(self.queue) > 1:
+                    next_value = f"{self.queue[1]:markdown}"
+                elif self.loop_queue and self.to_loop:
+                    next_value = f"{self.to_loop[0]:markdown}"
+                    next_name = "Next (Loop)"
 
-            embed.fields[1].value = str(len(self.queue) - 1)  # Remaining
-            embed.fields[2].name = next_name  # Next
-            embed.fields[2].value = next_value  # Next
+                embed.fields[1].value = str(len(self.queue) - 1)  # Remaining
+                embed.fields[2].name = next_name  # Next
+                embed.fields[2].value = next_value  # Next
 
+            else:
+                message = f"Now playing: {track:markdown}"
+                embed = None
         else:
-            message = f"Now playing: {track:markdown}"
-            embed = None
+            embed = discord.Embed(
+                title="",
+                description="Queue ended ( ^^) _旦~~",
+                color=discord.Colour.from_rgb(*DEFAULT_EMBED_COLOR),
+            )
 
         # View (buttons)
         if not self.now_playing_view:
@@ -190,6 +198,8 @@ class ServerSession:
             logging.error(
                 f"Now playing embed sent in forbidden channel in {self.guild_id}"
             )
+        except Exception as e:
+            logging.error(repr(e))
 
     async def seek(self, position: int, quiet: bool = False) -> None:
         """Seeks to a specific position in the current track.
@@ -229,7 +239,7 @@ class ServerSession:
         self.last_context = ctx
 
         if not self.queue:
-            asyncio.create_task(self.now_playing_view.update_buttons())
+            await self.update_now_playing(self.last_context, edit_only=True)
             logging.info(f"Playback stopped in {self.guild_id}")
             return
 
@@ -310,7 +320,6 @@ class ServerSession:
         self.skipped = False
         self.is_seeking = False
         self.previous = False
-        self.edit_now_playing_embed = True
 
     def get_ffmpeg_options(self, service: str, start_position: int) -> dict[str, str]:
         # Volume
@@ -461,6 +470,15 @@ class ServerSession:
             or not self.voice_client.is_connected()
         ):
             return
+
+        if self.dummy_load and not self.dummy_load.done():
+            self.dummy_load.cancel()
+            try:
+                await self.dummy_load
+            except asyncio.CancelledError:
+                ...
+            self.dummy_load = None
+
         self.stop_event = asyncio.Event()
         self.voice_client.stop()
         await self.stop_event.wait()  # ... Until its completely stopped
@@ -485,7 +503,7 @@ class ServerSession:
             old_track: Track = self.stack_previous.popleft()
             # The removed track should not be in the queue
             # I check nonetheless to avoid weird issues
-            if track not in self.to_loop + self.queue:
+            if old_track not in self.to_loop + self.queue:
                 tasks.append(old_track.close())
 
         if tasks:
@@ -536,7 +554,6 @@ class ServerSession:
 
         # POST PROCESSING
         played_track: Track = self.queue[0]
-        played_track.timer.reset()
         close_stream = not (self.loop_current or self.previous or self.is_seeking)
         # Will take more time to regenerate the stream,
         # But the user is more likely to not play this track again
@@ -587,8 +604,6 @@ class ServerSession:
         await self.start_playing(ctx)
 
     def clean_ffmpeg_sources(self) -> None:
-        f = len(self.ffmpeg_sources)
-
         if (
             not self.voice_client
             or not self.voice_client.is_connected()
@@ -599,7 +614,7 @@ class ServerSession:
                 source.cleanup()
 
         elif self.voice_client.is_playing():
-            while f > 1:
+            while len(self.ffmpeg_sources) > 1:
                 source = self.ffmpeg_sources.popleft()
                 source.cleanup()
 
@@ -680,10 +695,13 @@ class ServerSession:
             await self.voice_client.disconnect()
             self.voice_client.cleanup()
 
-        if self.cleanup_task and not self.cleanup_task.done():
-            self.cleanup_task.cancel()
-        if self.connect_task and not self.connect_task.done():
-            self.connect_task.cancel()
+        for task in (self.cleanup_task, self.connect_task, self.dummy_load):
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    ...
 
         self.session_manager.server_sessions.pop(self.guild_id)
 

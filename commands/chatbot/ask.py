@@ -47,7 +47,7 @@ class Ask(commands.Cog):
         if not id_:
             await ctx.respond(
                 "This channel or server is not allowed to use that command.",
-                ephemeral=True
+                ephemeral=True,
             )
             return
 
@@ -69,7 +69,7 @@ class Ask(commands.Cog):
         try:
             chatbot_message: ChatbotMessage = await chat.send_message(*params)
         except APIError as e:
-            defer_task.cancel()
+            await defer_task
             await ctx.respond("*filtered*", ephemeral=ephemeral)
             logging.error(f"Response blocked by Gemini in {chat.id_}: {e.message}")
             return
@@ -81,7 +81,7 @@ class Ask(commands.Cog):
         tasks = []
         tasks.append(ctx.respond(chunked_reply[0], ephemeral=ephemeral))
         tasks.append(chat.memory.store(chat.history))
-        defer_task.cancel()
+        await defer_task
         await asyncio.gather(*tasks, return_exceptions=True)
 
 
