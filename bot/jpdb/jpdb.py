@@ -354,7 +354,7 @@ class Jpdb:
         sentences = await word_api.generate_example_sentence(word, card["meanings"])
         embed = self.create_front_embed(card, sentences)
         view = self.get_front_view(card, sentences)
-        await self.init_message.edit(embed=embed, view=view)
+        await self.init_message.edit(content="", embed=embed, view=view)
 
     @staticmethod
     def get_day_delta(timestamp: int) -> int:
