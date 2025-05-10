@@ -93,7 +93,7 @@ class nowPlayingView(discord.ui.View):
         skip.disabled = len(s.queue) == 0
         if len(self.children) >= 7:
             shuffle = self.children[6]
-            shuffle.disabled = len(s.queue) <= 2
+            shuffle.disabled = len(s.queue) <= 2 and not s.shuffle
 
         # Edit the view
         if edit and s.now_playing_message:
