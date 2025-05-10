@@ -357,7 +357,7 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
     try:
         tokens = re.findall(token_pattern, text, flags=re.MULTILINE)
     except Exception as e:
-        print(f"Regex error during tokenization: {e}")
+        logging.error(f"Regex error during tokenization: {e}")
         tokens = text.split()
         if not tokens:
             return []
@@ -386,7 +386,7 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
 
         if chunk_str:
             if len(chunk_str) > max_length and len(tokens_to_add) > 1:
-                # print("Warning: Fence addition exceeded max_length, adjusting chunk.")
+                logging.warning("Fence addition exceeded max_length, adjusting chunk.")
                 last_token = tokens_to_add.pop()
                 build_and_add_chunk(tokens_to_add, add_closing_fence)
                 current_chunk_tokens = [last_token]
@@ -424,8 +424,8 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
                     current_chunk_tokens.append(code_block_opening_fence)
                     current_chunk_len += len(code_block_opening_fence)
                 else:
-                    print(
-                        f"Warning: Code block fence '{code_block_opening_fence.strip()}' alone exceeds max_length={max_length}."
+                    logging.warning(
+                        f"Code block fence '{code_block_opening_fence.strip()}' alone exceeds max_length={max_length}."
                     )
                     current_chunk_tokens.append(code_block_opening_fence)
                     current_chunk_len += len(code_block_opening_fence)

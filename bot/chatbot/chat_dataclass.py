@@ -54,7 +54,8 @@ class ChatbotMessage:
                 f'"{self.referenced_content}"'
             )
 
-        message = f"[{', '.join(infos)}, **{self.author} talks to you**] {self.content}"
+        infos.append(f"**{self.author} talks to you**")
+        message = f"[{', '.join(infos)}] {self.content}"
 
         return message
 
@@ -79,6 +80,8 @@ class ChatbotHistory:
         return str(self)
 
     def add(self, chatbot_message: ChatbotMessage) -> None:
+        """If OpenAI features are enabled, this method should be used after
+        the `store_recall` one, to save recalls in the OpenAI input."""
         msg = chatbot_message
         if not isinstance(msg, ChatbotMessage):
             raise TypeError("Not a ChatbotMessage class")
@@ -86,7 +89,10 @@ class ChatbotHistory:
         self.pinecone_history.append(msg)
 
         if OPENAI_ENABLED:
-            new_prompt = f"[{msg.author} talks to you]: {msg.content}"
+            recall = msg.format_recall_vectors()
+            infos = [f"memory: {recall}"] if recall else []
+            infos.append(f"**{msg.author} talks to you**")
+            new_prompt = f"[{', '.join(infos)}]: {msg.content}"
             self.openai_input = self.create_openai_input(new_prompt, msg.urls)
 
         for h in self.messages, self.pinecone_history, self.openai_input:

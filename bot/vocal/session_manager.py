@@ -61,7 +61,6 @@ class SessionManager:
             # Define the voice client when it's done
             asyncio.create_task(session.wait_for_connect_task())
 
-        print(ctx)
         self.server_sessions[guild_id].last_context = ctx
         return self.server_sessions[guild_id]
 

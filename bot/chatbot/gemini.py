@@ -271,8 +271,8 @@ class Gembot:
         )
 
         # Add to (custom) history if successful
-        self.history.add(message)
         self.history.store_recall(recall_vectors)
+        self.history.add(message)
         if api == "openai":
             self.history.add_openai_assistant_response(message.response)
             # Add to Gemini history as well
