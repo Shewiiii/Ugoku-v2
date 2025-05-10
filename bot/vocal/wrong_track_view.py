@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from bot.vocal.server_session import ServerSession
-
+    from commands.vocal.search import Search
+    from commands.vocal.skip import Skip
 
 class WrongTrackView(View):
     def __init__(
@@ -16,6 +17,7 @@ class WrongTrackView(View):
         session: "ServerSession",
         original_message: str,
         user_query: Optional[str] = None,
+        play_next: bool = False
     ) -> None:
         super().__init__()
         self.ctx: discord.ApplicationContext = ctx
@@ -23,6 +25,7 @@ class WrongTrackView(View):
         self.original_message = original_message
         self.display_name: str = display_name
         self.user_query: Optional[str] = user_query
+        self.play_next = play_next
 
     @discord.ui.button(label="Wrong track ?", style=discord.ButtonStyle.secondary)
     async def wrong_button_callback(
@@ -31,8 +34,8 @@ class WrongTrackView(View):
         if interaction.user.id != self.ctx.user.id:
             return
 
-        skip_cog = self.session.bot.get_cog("Skip")
-        search_cog = self.session.bot.get_cog("Search")
+        skip_cog: "Skip" = self.session.bot.get_cog("Skip")
+        search_cog: "Search" = self.session.bot.get_cog("Search")
         asyncio.create_task(
             interaction.response.edit_message(content=self.original_message, view=None)
         )
@@ -58,6 +61,7 @@ class WrongTrackView(View):
                 query=self.user_query if self.user_query else self.display_name,
                 interaction=interaction,
                 close_view=True,
+                play_next=self.play_next
             )
         )
 

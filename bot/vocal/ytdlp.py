@@ -73,7 +73,7 @@ class PpeManager:
         self.ppe: Optional[ProcessPoolExecutor] = None
         self.loop = asyncio.get_event_loop()
         self.futures: set[asyncio.Future] = set()
-        self.shudown_task = asyncio.create_task(self.check_ppe())
+        self.shutdown_task = asyncio.create_task(self.check_ppe())
 
     def add_task(self, func: Callable) -> asyncio.Future:
         if not self.ppe:

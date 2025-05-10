@@ -419,7 +419,12 @@ class ServerSession:
 
         if c == 1 and show_wrong_track_embed:
             view = WrongTrackView(
-                ctx, str(tracks[0]), self, content, user_query=user_query
+                ctx,
+                str(tracks[0]),
+                self,
+                content,
+                user_query=user_query,
+                play_next=play_next,
             )
             self.wrong_track_views.append(view)
         else:
