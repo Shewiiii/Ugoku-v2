@@ -123,7 +123,26 @@ class Ytdlp:
         with yt_dlp.YoutubeDL(ytdlp_options(file_path, ext)) as ytdl:
             if file_path:
                 ytdl.add_post_processor(SetCurrentMTimePP(ytdl))
-            return ytdl.sanitize_info(ytdl.extract_info(url, download=download))
+
+            raw_info = ytdl.extract_info(url, download=download)
+            sanitized_info = ytdl.sanitize_info(raw_info)
+
+            final_info = sanitized_info
+            if "entries" in sanitized_info and sanitized_info.get("entries"):
+                final_info = sanitized_info["entries"][0]
+
+            data = {
+                "id": final_info.get("id", 0),
+                "title": final_info.get("title", "?"),
+                "uploader": final_info.get("uploader", "?"),
+                "uploader_url": final_info.get("uploader_url"),
+                "thumbnail": final_info.get("thumbnail"),
+                "duration": final_info.get("duration", "?"),
+                "url": final_info.get("url"),
+                "webpage_url": final_info.get("webpage_url", url),
+                "acodec": final_info.get("acodec", "opus"),
+            }
+            return data
 
     async def get_metadata(self, url: str, file_path: Optional[Path] = None) -> dict:
         """Scrap metadata from Yt-dlp"""
@@ -218,13 +237,10 @@ class Ytdlp:
 
         # Extract the metadata
         metadata = await self.get_metadata(url, file_path)
-        if "entries" in metadata:
-            metadata = metadata["entries"][0]
-
-        artist = metadata.get("uploader", "?")
-        artist_url = metadata.get("uploader_url")
-        cover_url = metadata.get("thumbnail")
-        codec: str = metadata.get("acodec", "opus")
+        artist = metadata["uploader"]
+        artist_url = metadata["uploader_url"]
+        cover_url = metadata["thumbnail"]
+        codec: str = metadata["acodec"]
 
         if cover_url:
             dominant_rgb = await get_dominant_rgb_from_url(cover_url)
@@ -233,12 +249,12 @@ class Ytdlp:
 
         track = Track(
             service="ytdlp",
-            id=metadata.get("id", 0),
-            title=metadata.get("title", "?"),
+            id=metadata["id"],
+            title=metadata["title"],
             album=urlparse(url).netloc.split(".")[-2].capitalize(),
             cover_url=cover_url,
-            duration=metadata.get("duration", "?"),
-            stream_source=file_path if download else metadata.get("url"),
+            duration=metadata["duration"],
+            stream_source=file_path if download else metadata["url"],
             source_url=url,
             dominant_rgb=dominant_rgb,
             file_extension=codec.lower(),
