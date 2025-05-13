@@ -20,7 +20,6 @@ from bot.vocal.youtube_api import get_playlist_video_ids, get_videos_info
 from config import (
     COOKIES_PATH,
     CACHE_EXPIRY,
-    YTDLP_DOMAINS,
     MAX_DUMMY_LOAD_INDEX,
     MAX_PROCESS_POOL_WORKERS,
 )
@@ -187,11 +186,8 @@ class Ytdlp:
         download: bool = False,
         offset: int = 0,
     ) -> list[Optional[Track]]:
-        url = await self.validate_url(query)
-        if not url:
-            return
-
         dummy_tracks = []
+        url = await self.validate_url(query)
         search = playlist_grabber.search(query)
         should_check_playlist = (
             YOUTUBE_API_KEY
@@ -204,6 +200,7 @@ class Ytdlp:
             and "list=" in query
         )
 
+        # YOUTUBE PLAYLISTS
         if should_check_playlist:
             # URL of a playlist (!= Video URL in a playlist)
             playlist_url = is_url(
@@ -264,18 +261,10 @@ class Ytdlp:
         return [track] + dummy_tracks
 
     async def validate_url(self, query: str) -> Optional[str]:
-        """Verify that the url is valid and remove extra params."""
-        if is_url(query, from_=YTDLP_DOMAINS):
+        """If the query is not an url, search a video on Youtube."""
+        if is_url(query):
             url = clean_url(query)
-            async with CachedSession(
-                follow_redirects=True,
-                cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-            ) as session:
-                async with session.get(url) as response:
-                    if response.status != 200:
-                        return
-
-        # If not a valid URL, search the video and get the first result
+            return url
         else:
             # Base URLs
             search = "https://www.youtube.com/results?search_query="

@@ -27,11 +27,17 @@ def get_error_message(e: Exception) -> str:
         return "No onsei has been found !"
     if isinstance(e, SpotifyException) and e.http_status == 404:
         # For Spotify
-        return "Content not found! Perhaps you are trying to play a private playlist?"
+        return "Content not found! Perhaps you are trying to play a private playlist ?"
     if isinstance(e, (InvalidUrlClientError, ValueError)):
         return "Invalid URL !"
 
-    return f"An error occurred.\n-# {repr(e)}"  # Should not happen
+    error_string = (
+        "An error occurred. Please Check the URL or query again. "
+        "Perhaps you are trying to play a direct URL ? "
+        f'In that case, use the "custom" service.\n-# {repr(e)}'
+    )
+
+    return error_string
 
 
 async def play_spotify(

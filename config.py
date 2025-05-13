@@ -36,21 +36,14 @@ GEMINI_MODEL_DISPLAY_NAME = 'Gemini 2.5 Flash'
 OPENAI_MODEL_DISPLAY_NAME = "GPT-4.1 mini"
 
 #  ===SETTINGS===
-# Ytdlp settings
-COOKIES_PATH = './cookies.txt' # Parse cookies to ytdl to help with bot detection. Learn more: https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies
-YTDLP_DOMAINS = [
-    "youtube.com",
-    "youtu.be",
-    "soundcloud.com"
-] # small letters
-
 # Paths
+COOKIES_PATH = './cookies.txt' # Parse cookies to ytdl to help with bot detection. Learn more: https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies
 COMMANDS_FOLDER = Path('./commands')
 TEMP_FOLDER = Path('.') / 'temp'
 PREMIUM_CHANNEL_ID = None # Upload files too big to a channel in a boosted server instead
 
 # Cache control & preloading
-AGRESSIVE_CACHING = True # Download Spotify streams on disk before and when playing. Can be useful if Spotify often closes the connection with Librespot.
+AGRESSIVE_CACHING = True # Download Spotify and ytdlp streams on disk before and when playing. Can be useful if Spotify often closes the connection with Librespot.
 MAX_DUMMY_LOAD_INDEX = 6
 MAX_PROCESS_POOL_WORKERS = 2 # Max number of simultaneous ytdlp fetching. None defaults to the number of processors
 CACHE_SIZE = 100  # Cache size limit (in number of files)
@@ -62,7 +55,7 @@ DEEZER_REFRESH_INTERVAL = 3600 # How often should the bot refresh the Deezer ses
 SPOTIFY_REFRESH_INTERVAL = 180 # How often should the bot check and refresh the Spotify session
 SPOTIFY_TOP_COUNTRY = 'JP' # Used to establish an artist's top tracks, can be changed to any country you want
 DEFAULT_EMBED_COLOR = (237, 205, 85) # If the Now playing song doesn't have a cover
-DEFAULT_AUDIO_VOLUME = 15 # Linear scale! The recommended value is around 15.
+DEFAULT_AUDIO_VOLUME = 20 # Linear scale! The recommended value is around 20.
 DEFAULT_ONSEI_VOLUME = 100 # Audio works are generally quieter for a higher dynamic range
 DEFAULT_AUDIO_BITRATE = 510 # From 6 to 510 kbps (opus output)
 IMPULSE_RESPONSE_PARAMS = {

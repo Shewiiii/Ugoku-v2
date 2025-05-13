@@ -20,7 +20,6 @@ from config import (
     DEEZER_ENABLED,
     SPOTIFY_API_ENABLED,
     IMPULSE_RESPONSE_PARAMS,
-    YTDLP_DOMAINS,
 )
 
 
@@ -109,18 +108,14 @@ class Play(commands.Cog):
             await error("I don't have access to that message !")
             return
 
-        custom = url and not is_url(query, from_=["open.spotify.com"] + YTDLP_DOMAINS)
-        youtube = is_url(query, from_=YTDLP_DOMAINS)
+        ytdlp = is_url(query) and not is_url(query, from_=["open.spotify.com"])
         onsei = is_onsei(query)
 
         # Choose the right service
         if service == "onsei" or onsei:
             await play_onsei(ctx, query, session, play_next, defer_task)
 
-        elif service == "custom" or custom:
-            await play_custom(ctx, query, session, play_next, defer_task)
-
-        elif service == "ytdlp" or youtube:
+        elif service == "ytdlp" or ytdlp:
             await play_ytdlp(
                 ctx, query, session, interaction, offset, play_next, defer_task
             )
@@ -140,6 +135,10 @@ class Play(commands.Cog):
                 play_next,
                 defer_task,
             )
+
+        elif service == "custom":  # Prioritize Yt-dlp tracks over custom
+            await play_custom(ctx, query, session, play_next, defer_task)
+
         else:
             await respond(content="wut duh")
 
