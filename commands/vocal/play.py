@@ -108,19 +108,32 @@ class Play(commands.Cog):
             await error("I don't have access to that message !")
             return
 
-        ytdlp = is_url(query) and not is_url(query, from_=["open.spotify.com"])
-        onsei = is_onsei(query)
+        # Match the right service
+        custom = service == "custom" or is_url(
+            query, from_=["media.discordapp.net", "cdn.discordapp.com"]
+        )
+        print(custom, query)
+        onsei = is_onsei(query) or service == "onsei"
+        spotify_deezer = service == "spotify/deezer"
+        ytdlp = service == "ytdlp" or (
+            is_url(query)
+            and not is_url(query, from_=["open.spotify.com"])
+            and not custom
+        )
 
         # Choose the right service
-        if service == "onsei" or onsei:
+        if onsei:
             await play_onsei(ctx, query, session, play_next, defer_task)
 
-        elif service == "ytdlp" or ytdlp:
+        elif custom:  # Prioritize Yt-dlp tracks over custom
+            await play_custom(ctx, query, session, play_next, defer_task)
+
+        elif ytdlp:
             await play_ytdlp(
                 ctx, query, session, interaction, offset, play_next, defer_task
             )
 
-        elif service == "spotify/deezer":
+        elif spotify_deezer:
             if not (SPOTIFY_API_ENABLED and (SPOTIFY_ENABLED or DEEZER_ENABLED)):
                 await error("Spotify API or no music streaming service is enabled.")
                 return
@@ -135,9 +148,6 @@ class Play(commands.Cog):
                 play_next,
                 defer_task,
             )
-
-        elif service == "custom":  # Prioritize Yt-dlp tracks over custom
-            await play_custom(ctx, query, session, play_next, defer_task)
 
         else:
             await respond(content="wut duh")
