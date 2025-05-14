@@ -28,7 +28,11 @@ class Summarize(commands.Cog):
             str, description="The text or Youtube URL you want to summarize"
         ),  # type: ignore
         language: discord.Option(
-            str, choices=LANGUAGES, required=True, default="English"
+            str,
+            choices=LANGUAGES,
+            required=True,
+            default="English",
+            description="The language to use.",
         ),  # type: ignore
     ) -> None:
         if not Gembot.get_chat_id(ctx, gemini_command=True):

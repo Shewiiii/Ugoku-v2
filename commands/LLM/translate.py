@@ -22,19 +22,24 @@ class Translate(commands.Cog):
     async def translate(
         self,
         ctx: discord.ApplicationContext,
-        query: str,
+        query: discord.Option(str, description="The message to translate"),  # type: ignore
         language: discord.Option(
-            str, choices=LANGUAGES, required=True, default="English"
+            str,
+            choices=LANGUAGES,
+            required=True,
+            default="English",
+            description="The language to use",
         ),  # type: ignore
         nuance: discord.Option(
             str,
             choices=["Neutral", "Casual", "Formal"],
             required=True,
             default="Neutral",
+            description="The style of the translation",
         ),  # type: ignore
         ephemeral: bool = True,
     ) -> None:
-        asyncio.create_task(ctx.defer())
+        asyncio.create_task(ctx.defer(ephemeral=ephemeral))
         await ctx.respond(
             content=await Gembot.translate(query, language=language, nuance=nuance),
             ephemeral=ephemeral,

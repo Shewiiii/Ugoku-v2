@@ -114,10 +114,9 @@ class Ytdlp:
     def get_info(url, file_path: Optional[Path] = None):
         # No need to download if the file already exists
         download = bool(file_path) and not file_path.is_file()
+
         # Tl;dr: opus at 64kbps is not as good as mp3 128 kbps, so we force the latter
-        ext = (
-            "mp3" if download and is_url(url, from_=["soundcloud.com"]) else "bestaudio"
-        )
+        ext = "mp3" if is_url(url, from_=["soundcloud.com"]) else "bestaudio"
 
         with yt_dlp.YoutubeDL(ytdlp_options(file_path, ext)) as ytdl:
             if file_path:
@@ -130,18 +129,26 @@ class Ytdlp:
             if "entries" in sanitized_info and sanitized_info.get("entries"):
                 final_info = sanitized_info["entries"][0]
 
-            data = {
-                "id": final_info.get("id", 0),
-                "title": final_info.get("title", "?"),
-                "uploader": final_info.get("uploader", "?"),
-                "uploader_url": final_info.get("uploader_url"),
-                "thumbnail": final_info.get("thumbnail"),
-                "duration": final_info.get("duration", "?"),
-                "url": final_info.get("url"),
-                "webpage_url": final_info.get("webpage_url", url),
-                "acodec": final_info.get("acodec", "opus"),
-            }
-            return data
+        # For Youtube urls, use the audio codec as the extension instead of the container
+        # So the file can be played in Discord
+        if is_url(url, from_=["youtube.com", "youtu.be"]):
+            audio_ext = "opus"
+        else:
+            audio_ext = final_info.get("audio_ext")
+
+        data = {
+            "id": final_info.get("id", 0),
+            "title": final_info.get("title", "?"),
+            "uploader": final_info.get("uploader", "?"),
+            "uploader_url": final_info.get("uploader_url"),
+            "thumbnail": final_info.get("thumbnail"),
+            "duration": final_info.get("duration", "?"),
+            "url": final_info.get("url"),
+            "webpage_url": final_info.get("webpage_url", url),
+            "audio_ext": audio_ext,
+        }
+
+        return data
 
     async def get_metadata(self, url: str, file_path: Optional[Path] = None) -> dict:
         """Scrap metadata from Yt-dlp"""
@@ -198,6 +205,7 @@ class Ytdlp:
                 include_last_part=True,
             )
             and "list=" in query
+            and not download
         )
 
         # YOUTUBE PLAYLISTS
@@ -237,7 +245,7 @@ class Ytdlp:
         artist = metadata["uploader"]
         artist_url = metadata["uploader_url"]
         cover_url = metadata["thumbnail"]
-        codec: str = metadata["acodec"]
+        audio_ext: str = metadata["audio_ext"]
 
         if cover_url:
             dominant_rgb = await get_dominant_rgb_from_url(cover_url)
@@ -254,7 +262,7 @@ class Ytdlp:
             stream_source=file_path if download else metadata["url"],
             source_url=url,
             dominant_rgb=dominant_rgb,
-            file_extension=codec.lower(),
+            file_extension=audio_ext,
         )
         track.set_artist(artist)
         track.create_embed(artist_urls=[artist_url])

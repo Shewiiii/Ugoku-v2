@@ -34,11 +34,18 @@ class YtdlpDownload(commands.Cog):
             return
 
         # Get the tracks, pick the first one
-        tracks = await ctx.bot.ytdlp.get_tracks(query=query, download=True)
-        if not tracks:
-            await ctx.edit(content="No track has been found!")
+        try:
+            tracks = await ctx.bot.ytdlp.get_tracks(query=query, download=True)
+            if not tracks:
+                await ctx.edit(content="No track has been found!")
+                return
+            track: Track = tracks[0]
+        except Exception as e:
+            await ctx.edit(
+                content="Oops, it didn't work ! "
+                f"Please check the URL again or contact the developper.\n-# {repr(e)}"
+            )
             return
-        track: Track = tracks[0]
 
         # stream_source is a Path in this case
         file_path = track.stream_source
