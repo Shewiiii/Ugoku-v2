@@ -326,7 +326,7 @@ class ServerSession:
         volume = (self.volume if service != "onsei" else self.onsei_volume) / 100
 
         # Stream options
-        stream_options = "-fflags +discardcorrupt "
+        stream_options = "-thread_queue_size 4 -fflags +discardcorrupt "
         if service == "ytdlp":
             stream_options += (
                 "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
