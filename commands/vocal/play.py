@@ -112,7 +112,6 @@ class Play(commands.Cog):
         custom = service == "custom" or is_url(
             query, from_=["media.discordapp.net", "cdn.discordapp.com"]
         )
-        print(custom, query)
         onsei = is_onsei(query) or service == "onsei"
         spotify_deezer = service == "spotify/deezer"
         ytdlp = service == "ytdlp" or (
@@ -125,7 +124,7 @@ class Play(commands.Cog):
         if onsei:
             await play_onsei(ctx, query, session, play_next, defer_task)
 
-        elif custom:  # Prioritize Yt-dlp tracks over custom
+        elif custom:
             await play_custom(ctx, query, session, play_next, defer_task)
 
         elif ytdlp:
@@ -150,7 +149,7 @@ class Play(commands.Cog):
             )
 
         else:
-            await respond(content="wut duh")
+            await respond(ctx, content="wut duh")
 
     @commands.slash_command(name="play", description="Select a song to play.")
     async def play(

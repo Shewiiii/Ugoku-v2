@@ -10,7 +10,7 @@ import sys
 SPOTIFY_API_ENABLED = True
 SPOTIFY_ENABLED = False
 DEEZER_ENABLED = False
-DEFAULT_STREAMING_SERVICE = 'youtube' # spotify/deezer, youtube.
+DEFAULT_STREAMING_SERVICE = 'ytdlp' # spotify/deezer, ytdlp.
 GEMINI_ENABLED = True # Don't forget to whitelist servers for the chatbot ! Scroll down to "CHATBOT_WHITELIST"
 PINECONE_ENABLED = True
 ALLOW_CHATBOT_IN_DMS = False # Allow everyone to use the bot in dms. Can increase the token usage.
