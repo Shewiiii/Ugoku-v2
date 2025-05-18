@@ -7,9 +7,12 @@ import logging
 import os
 from pathlib import Path
 import re
+import time
 from urllib.parse import urlparse
 import yt_dlp
 from yt_dlp.postprocessor.common import PostProcessor
+import sqlite3
+import json
 
 from typing import Optional, Callable
 
@@ -22,6 +25,7 @@ from config import (
     CACHE_EXPIRY,
     MAX_DUMMY_LOAD_INDEX,
     MAX_PROCESS_POOL_WORKERS,
+    AGRESSIVE_CACHING,
 )
 
 # Yt-dlp config
@@ -39,24 +43,23 @@ class SetCurrentMTimePP(PostProcessor):  # Change the file date to now
         return [], info
 
 
-def ytdlp_options(file_path: Optional[Path] = None, ext: Optional[str] = None) -> dict:
-    if ext is None:  # Should not be necessary but just in case
-        ext = "bestaudio"
+def ytdlp_options(file_path: Optional[Path] = None, ext: str = "bestaudio") -> dict:
     ytdlp_options = {
         "cookiefile": COOKIES_PATH,
         "format": ext,
         "restrictfilenames": True,
-        "no-playlist": True,
+        "no_playlist": True,
         "nocheckcertificate": True,
         "ignoreerrors": False,
         "logtostderr": False,
-        "geo-bypass": True,
+        "geo_bypass": True,
         "quiet": True,
         "no_warnings": True,
         "default_search": "auto",
         "no_color": True,
         "age_limit": 100,
         "live_from_start": True,
+        "playlist_items": "1",
     }
     if file_path:
         ytdlp_options["outtmpl"] = str(file_path)
@@ -109,14 +112,25 @@ class Ytdlp:
     def __init__(self):
         self.loop = asyncio.get_running_loop()
         self.ppe_manager = PpeManager()
+        self.db_conn = sqlite3.connect("ytdlp_cache.sqlite")
+        self.db_cursor = self.db_conn.cursor()
+        self.db_cursor.execute(
+            "CREATE TABLE IF NOT EXISTS metadata_cache (query TEXT PRIMARY KEY, metadata TEXT)"
+        )
+        self.db_conn.commit()
+
+    @staticmethod
+    def get_ext(url: str) -> str:
+        # Tl;dr: opus at 64kbps is not as good as mp3 128 kbps, so we force the latter
+        ext = "mp3" if is_url(url, from_=["soundcloud.com"]) else "bestaudio"
+        ...
+        return ext
 
     @staticmethod
     def get_info(url, file_path: Optional[Path] = None):
         # No need to download if the file already exists
         download = bool(file_path) and not file_path.is_file()
-
-        # Tl;dr: opus at 64kbps is not as good as mp3 128 kbps, so we force the latter
-        ext = "mp3" if is_url(url, from_=["soundcloud.com"]) else "bestaudio"
+        ext = Ytdlp.get_ext(url)
 
         with yt_dlp.YoutubeDL(ytdlp_options(file_path, ext)) as ytdl:
             if file_path:
@@ -132,23 +146,11 @@ class Ytdlp:
         # For Youtube urls, use the audio codec as the extension instead of the container
         # So the file can be played in Discord
         if is_url(url, from_=["youtube.com", "youtu.be"]):
-            audio_ext = "opus"
+            final_info["audio_ext"] = "opus"
         else:
-            audio_ext = final_info.get("audio_ext")
+            final_info["audio_ext"] = final_info.get("audio_ext")
 
-        data = {
-            "id": final_info.get("id", 0),
-            "title": final_info.get("title", "?"),
-            "uploader": final_info.get("uploader", "?"),
-            "uploader_url": final_info.get("uploader_url"),
-            "thumbnail": final_info.get("thumbnail"),
-            "duration": final_info.get("duration", "?"),
-            "url": final_info.get("url"),
-            "webpage_url": final_info.get("webpage_url", url),
-            "audio_ext": audio_ext,
-        }
-
-        return data
+        return final_info
 
     async def get_metadata(self, url: str, file_path: Optional[Path] = None) -> dict:
         """Scrap metadata from Yt-dlp"""
@@ -178,7 +180,7 @@ class Ytdlp:
                 title=metadata["snippet"]["title"],
                 album="Youtube",
                 source_url=url,
-                stream_generator=lambda url=url: self.get_tracks(url),
+                stream_generator=lambda url=url: self.get_tracks(url, from_dummy=True),
             )
 
             track.set_artist(metadata["snippet"]["channelTitle"])
@@ -192,9 +194,14 @@ class Ytdlp:
         load_dummies: bool = True,
         download: bool = False,
         offset: int = 0,
+        from_dummy: bool = False,
     ) -> list[Optional[Track]]:
+        """If download is None, Only content with a duration of less than 10 minutes will be downloaded."""
         dummy_tracks = []
         url = await self.validate_url(query)
+        print(url)
+        if not url:
+            return []
         search = playlist_grabber.search(query)
         should_check_playlist = (
             YOUTUBE_API_KEY
@@ -207,6 +214,18 @@ class Ytdlp:
             and "list=" in query
             and not download
         )
+
+        metadata = None
+        # Check cache if not a playlist and query is present
+        if url:
+            # url is the validated and cleaned query or a search result
+            self.db_cursor.execute(
+                "SELECT metadata FROM metadata_cache WHERE query = ?", (url,)
+            )
+            row = self.db_cursor.fetchone()
+            if row:
+                logging.info(f"Cache hit for {url}")
+                metadata = json.loads(row[0])
 
         # YOUTUBE PLAYLISTS
         if should_check_playlist:
@@ -237,15 +256,29 @@ class Ytdlp:
                 tasks = [t.load_stream() for t in dummy_tracks[:MAX_DUMMY_LOAD_INDEX]]
                 asyncio.create_task(gather(tasks))
 
-        # Ytdlp processing with the 1st video/audio
-        file_path = get_cache_path(url) if download else None
+        file_path = get_cache_path(url)
+        cached = file_path.is_file()
+        # If not found in cache, get metadata
+        if not metadata or ("url" not in metadata and not cached):
+            # Extract the metadata
+            metadata = await self.get_metadata(url, file_path if download else None)
+            # Store in cache if not a playlist and if the vid is less than 20 mins
+            if "duration" in metadata and metadata["duration"] <= 1200:
+                db_metadata = metadata.copy()
+                del db_metadata["url"]  # No URLs as they expire
+                self.db_cursor.execute(
+                    "INSERT OR REPLACE INTO metadata_cache (query, metadata) VALUES (?, ?)",
+                    (url, json.dumps(db_metadata)),
+                )
+                self.db_conn.commit()
+                logging.info(f"Cached metadata for {url}")
 
-        # Extract the metadata
-        metadata = await self.get_metadata(url, file_path)
-        artist = metadata["uploader"]
-        artist_url = metadata["uploader_url"]
-        cover_url = metadata["thumbnail"]
-        audio_ext: str = metadata["audio_ext"]
+        title = metadata.get("title", "?")
+        artist = metadata.get("uploader", "?")
+        artist_url = metadata.get("uploader_url", "")
+        cover_url = metadata.get("thumbnail", "")
+        audio_ext: str = metadata.get("audio_ext", "webm")
+        duration = round(metadata.get("duration", 114514))
 
         if cover_url:
             dominant_rgb = await get_dominant_rgb_from_url(cover_url)
@@ -255,18 +288,51 @@ class Ytdlp:
         track = Track(
             service="ytdlp",
             id=metadata["id"],
-            title=metadata["title"],
-            album=urlparse(url).netloc.split(".")[-2].capitalize(),
+            title=title,
+            album=urlparse(url).netloc.split(".")[-2].capitalize()
+            if url
+            else "Unknown",
             cover_url=cover_url,
-            duration=metadata["duration"],
-            stream_source=file_path if download else metadata["url"],
+            duration=duration,
+            stream_source=file_path if download or cached else metadata["url"],
             source_url=url,
             dominant_rgb=dominant_rgb,
             file_extension=audio_ext,
         )
         track.set_artist(artist)
-        track.create_embed(artist_urls=[artist_url])
+        track.create_embed(artist_urls=[artist_url] if artist_url else None)
+
+        # Cache !
+        if (
+            not from_dummy
+            and not download
+            and AGRESSIVE_CACHING
+            and duration <= 1200
+            and not cached
+        ):
+            cache_future = self.ppe_manager.add_task(
+                functools.partial(self.cache_task, file_path, url, metadata)
+            )
+            cache_future.add_done_callback(
+                lambda fut: setattr(track, "stream_source", file_path)
+                if fut.result()
+                else None
+            )
+
         return [track] + dummy_tracks
+
+    @staticmethod
+    def cache_task(file_path: Path, url: str, metadata: dict) -> bool:
+        try:
+            with yt_dlp.YoutubeDL(ytdlp_options(file_path, Ytdlp.get_ext(url))) as ytdl:
+                ytdl.process_ie_result(ie_result=metadata)
+                os.utime(file_path, (time.time(), time.time()))
+        except Exception as e:
+            logging.error(f"Error caching a ytdlp source: {e}")
+            return False
+
+        logging.info(f"Cached {url}")
+        return True
 
     async def validate_url(self, query: str) -> Optional[str]:
         """If the query is not an url, search a video on Youtube."""

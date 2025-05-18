@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import gc
 import itertools
 import logging
+from pathlib import Path
 import random
 from time import perf_counter, time
 from typing import Optional, List, Union
@@ -279,7 +280,9 @@ class ServerSession:
                 track.stream_source, (AbsChunkedInputStream, DeezerChunkedInputStream)
             ),
             bitrate=self.bitrate,
-            **self.get_ffmpeg_options(track.service, start_position),
+            **self.get_ffmpeg_options(
+                track.stream_source, track.service, start_position
+            ),
         )
         self.ffmpeg_sources.append(source)
         self.voice_client.play(
@@ -321,13 +324,15 @@ class ServerSession:
         self.is_seeking = False
         self.previous = False
 
-    def get_ffmpeg_options(self, service: str, start_position: int) -> dict[str, str]:
+    def get_ffmpeg_options(
+        self, stream_source, service: str, start_position: int
+    ) -> dict[str, str]:
         # Volume
         volume = (self.volume if service != "onsei" else self.onsei_volume) / 100
 
         # Stream options
         stream_options = "-thread_queue_size 4 -fflags +discardcorrupt "
-        if service == "ytdlp":
+        if service == "ytdlp" and not isinstance(stream_source, (str, Path)):
             stream_options += (
                 "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
             )

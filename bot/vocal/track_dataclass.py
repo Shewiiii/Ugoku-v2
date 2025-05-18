@@ -116,12 +116,13 @@ class Track:
                 for artist, url in zip(self.artists, artist_urls)
             )
 
+        rgb = self.dominant_rgb if self.dominant_rgb else DEFAULT_EMBED_COLOR
         self.embed = (
             discord.Embed(
                 title=self.title,
                 url=self.source_url,
                 description=f"By {embed_artists}",
-                color=discord.Colour.from_rgb(*self.dominant_rgb),
+                color=discord.Colour.from_rgb(*rgb),
             )
             .add_field(name="Part of the album", value=embed_album, inline=True)
             .add_field(name="Remaining", value="", inline=True)  # fields index: 1
