@@ -696,15 +696,57 @@ def clean_url(url: str) -> str:
         "utm_source",
         "utm_medium",
         "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "utm_id",
         "rco",
         "in_system_playlist",
+        "ref",
+        "feature",
+        "src",
+        "fbclid",
+        "gclid",
+        "msclkid",
+        "sc_ichannel",
+        "partner",
+        "p",
+        "referrer",
+        "tt_medium",
+        "tt_content",
+        "igshid",
+        "ig_rid",
+        "ig_mid",
+        "from_messages",
+        "s",
+        "cxt",
+        "_openstat",
+        "yclid",
+        "gbraid",
+        "wbraid",
+        "context",
+        "spm_id_from",
+        "from_source",
+        "msource",
+        "bsource",
+        "seid",
+        "from",
+        "refer_page",
+        "watch_refer",
+        "ref_member",
+        "ref_video",
+        "nrc",
+        "share_source",
+        "share_medium",
+        "share_campaign",
+        "share_id",
+        "action_type",
     ]
 
     for param in params_blacklist:
         query_params.pop(param, None)
     new_query = urlencode(query_params)
     new_url = re.sub(r"&.*", "", urlunparse(parsed_url._replace(query=new_query)))
-    new_url.replace("youtu.be", "youtube.com")
+    new_url = new_url.replace("youtu.be/", "www.youtube.com/watch?v=")
     return new_url
 
 
