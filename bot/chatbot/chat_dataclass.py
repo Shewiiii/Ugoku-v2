@@ -50,7 +50,7 @@ class ChatbotMessage:
 
         if self.referenced_author and self.referenced_content:
             infos.append(
-                f"Message referencing {self.referenced_author}: "
+                f"Message replying to *{self.referenced_author}*: "
                 f'"{self.referenced_content}"'
             )
 

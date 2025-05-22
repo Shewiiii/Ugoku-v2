@@ -8,3 +8,7 @@ cookies.json
 logs.log
 .cache
 temp
+cache.sqlite
+web
+config.sqlite
+ytdlp_cache.sqlite

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from google import genai
 import logging
 import os
+from typing import Optional
 
 from config import GEMINI_ENABLED, GEMINI_UTILS_MODELS
 
@@ -41,6 +42,15 @@ class UtilsModelsManager:
         self.down_set.add(model)
 
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_ENABLED else None
+def _create_client(env_var: str) -> Optional[genai.Client]:
+    api_key = os.getenv(env_var)
+    return genai.Client(api_key=api_key) if api_key else None
+
+
+if GEMINI_ENABLED:
+    client: genai.Client = _create_client("GEMINI_API_KEY")
+    premium_client: genai.Client = _create_client("PREMIUM_GEMINI_API_KEY")
+else:
+    client = premium_client = None
+
 utils_models_manager = UtilsModelsManager()

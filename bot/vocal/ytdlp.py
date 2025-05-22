@@ -199,7 +199,6 @@ class Ytdlp:
         """If download is None, Only content with a duration of less than 10 minutes will be downloaded."""
         dummy_tracks = []
         url = await self.validate_url(query)
-        print(url)
         if not url:
             return []
         search = playlist_grabber.search(query)

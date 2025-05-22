@@ -10,6 +10,7 @@ if GEMINI_ENABLED:
     from bot.chatbot.chat_dataclass import ChatbotMessage
     from bot.chatbot.gemini import Gembot, active_chats
     from bot.utils import split_into_chunks
+    from bot.config.sqlite_config_manager import get_whitelist
 
     class Chatbot(commands.Cog):
         def __init__(self, bot) -> None:
@@ -28,10 +29,10 @@ if GEMINI_ENABLED:
         )
         async def reset_chatbot(self, ctx: discord.ApplicationContext) -> None:
             id_ = Gembot.get_chat_id(ctx)
-            if not id_:
-                await ctx.respond("Invalid chat")
+            if not id_ or id_ not in active_chats:
+                await ctx.respond("Invalid or inactive chat !")
                 return
-            Gembot(id_, ugoku_chat=True)
+            del active_chats[id_]
             await ctx.respond("Success !")
 
         @commands.Cog.listener()
@@ -44,9 +45,19 @@ if GEMINI_ENABLED:
             if not id_:
                 return
 
+            # Variables relative to response generation
+            dm = isinstance(message.channel, discord.DMChannel)
+            premium_chat = (
+                message.author.id in get_whitelist("premium_gemini_user_id") and dm
+            )
+
             # Create/Use a chat
             if id_ not in active_chats:
-                chat = Gembot(id_, ugoku_chat=True)
+                chat = Gembot(
+                    id_,
+                    ugoku_chat=True,
+                    premium_chat=premium_chat,
+                )
             chat: Gembot = active_chats.get(id_)
 
             # Neko arius
@@ -56,7 +67,6 @@ if GEMINI_ENABLED:
                 await message.channel.send("Arius")
                 return
 
-            dm = isinstance(message.channel, discord.DMChannel)
             if not (
                 await chat.interact(message, message.content, self.bot.user.id) or dm
             ):

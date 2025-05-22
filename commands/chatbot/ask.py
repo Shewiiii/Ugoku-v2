@@ -63,8 +63,8 @@ class Ask(commands.Cog):
             chat.status = 2
 
         # Create response
-        await chat.interact(ctx, query, self.bot.user.id, ask_command=True)
         params = await chat.get_params(ctx, query, api=api)
+        await chat.interact(ctx, query, self.bot.user.id, ask_command=True)
 
         try:
             chatbot_message: ChatbotMessage = await chat.send_message(*params)

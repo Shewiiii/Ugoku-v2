@@ -13,7 +13,8 @@ from bot.utils import get_metadata, extract_cover_art, extract_number, respond, 
 from bot.search import is_url
 from bot.vocal.session_manager import onsei
 from bot.vocal.track_dataclass import Track
-from config import DEFAULT_EMBED_COLOR, ONSEI_SERVER_WHITELIST
+from config import DEFAULT_EMBED_COLOR
+from bot.config.sqlite_config_manager import get_whitelist
 
 
 def get_error_message(e: Exception) -> str:
@@ -164,7 +165,7 @@ async def play_onsei(
     work_id = extract_number(query)
 
     try:
-        can_stream_nsfw = ctx.guild.id in ONSEI_SERVER_WHITELIST
+        can_stream_nsfw = ctx.guild.id in get_whitelist("onsei_server")
         tracks: list[Track] = await onsei.get_all_tracks(work_id, can_stream_nsfw)
     except Exception as e:
         response_params[1] = get_error_message(e)
