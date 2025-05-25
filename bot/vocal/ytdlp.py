@@ -302,13 +302,15 @@ class Ytdlp:
         track.create_embed(artist_urls=[artist_url] if artist_url else None)
 
         # Cache !
-        if (
+        should_cache = (
             not from_dummy
             and not download
             and AGRESSIVE_CACHING
             and duration <= 1200
             and not cached
-        ):
+        )
+        
+        if should_cache:
             cache_future = self.ppe_manager.add_task(
                 functools.partial(self.cache_task, file_path, url, metadata)
             )
