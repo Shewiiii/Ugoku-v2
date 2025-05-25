@@ -131,11 +131,11 @@ class DatabaseSettingsCog(commands.Cog):
                 list_name, list_name.replace("_", " ").title()
             )
             await ctx.respond(
-                f"Server ID {id} added to {display_list_name} in the database.",
+                f"ID {id} added to {display_list_name} in the database.",
                 ephemeral=True,
             )
         except ValueError:
-            await ctx.respond("The server ID must be an integer !")
+            await ctx.respond("The ID must be an integer !")
         except Exception as e:
             logging.error(f"Error in add_to_whitelist command: {e}", exc_info=True)
             await ctx.respond(
@@ -144,7 +144,7 @@ class DatabaseSettingsCog(commands.Cog):
 
     @database_cmds.command(
         name="remove_from_whitelist",
-        description="Remove a server ID from a whitelist in the database (Owner only).",
+        description="Remove an ID from a whitelist in the database (Owner only).",
         integration_types={
             discord.IntegrationType.guild_install,
             discord.IntegrationType.user_install,
@@ -159,30 +159,30 @@ class DatabaseSettingsCog(commands.Cog):
             description="The whitelist to modify.",
             choices=whitelist_choice,
         ),  # type: ignore
-        server_id: discord.Option(
+        id: discord.Option(
             str,  # str here because integers can't be too long
-            description="The server ID to remove.",
+            description="The ID to remove.",
         ),  # type: ignore
     ):
         try:
-            server_id = int(server_id)
+            id = int(id)
             display_list_name = WHITELIST_DISPLAY_NAMES.get(
                 list_name, list_name.replace("_", " ").title()
             )
             if sqlite_config_manager.remove_from_whitelist(
-                list_name, server_id
+                list_name, id
             ):  # list_name is a string
                 await ctx.respond(
-                    f"Server ID {server_id} removed from {display_list_name} in the database.",
+                    f"ID {id} removed from {display_list_name} in the database.",
                     ephemeral=True,
                 )
             else:
                 await ctx.respond(
-                    f"Server ID {server_id} not found in {display_list_name} in the database.",
+                    f"ID {id} not found in {display_list_name} in the database.",
                     ephemeral=True,
                 )
         except ValueError:
-            await ctx.respond("The server ID must be an integer !")
+            await ctx.respond("The ID must be an integer !")
         except Exception as e:
             logging.error(f"Error in remove_from_whitelist command: {e}", exc_info=True)
             await ctx.respond(
