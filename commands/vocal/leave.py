@@ -1,7 +1,6 @@
 import asyncio
 import discord
 from discord.ext import commands
-import gc
 
 from bot.vocal.session_manager import session_manager as sm
 from bot.vocal.server_session import ServerSession
@@ -25,7 +24,6 @@ class Leave(commands.Cog):
             respond = ctx.send if send else ctx.respond
             asyncio.create_task(respond("Baibai~"))
             await session.clean_session()
-            await asyncio.to_thread(gc.collect)
 
     @commands.slash_command(name="leave", description="Nooooo （＞人＜；）")
     async def leave(self, ctx: discord.ApplicationContext) -> None:

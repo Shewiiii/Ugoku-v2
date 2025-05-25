@@ -1,7 +1,6 @@
 import asyncio
 from collections import deque
 from datetime import datetime, timedelta
-import gc
 import itertools
 import logging
 from pathlib import Path
@@ -76,7 +75,7 @@ class ServerSession:
         self.original_queue: List[Track] = []
         self.deezer_blacklist: set[Union[str, int]] = set()
         self.previous: bool = False
-        self.stack_previous: deque = deque([])
+        self.stack_previous: deque[Track] = deque([])
         self.is_seeking: bool = False
         self.now_playing_view: Optional[nowPlayingView] = None
         self.now_playing_message: Optional[discord.Message] = None
@@ -653,7 +652,6 @@ class ServerSession:
                         if channel:
                             await channel.send("Baibai~")
                     await self.clean_session()
-                    await asyncio.to_thread(gc.collect)
                     break
 
             # Ffmpeg garbage cleaner

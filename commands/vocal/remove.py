@@ -1,12 +1,11 @@
 import asyncio
-from typing import Optional
-
 import discord
 from discord.ext import commands
 
-from bot.vocal.server_session import ServerSession
 from bot.utils import vocal_action_check
 from bot.vocal.session_manager import session_manager as sm
+from bot.vocal.server_session import ServerSession
+from bot.vocal.track_dataclass import Track
 
 
 async def autocomplete(ctx: discord.AutocompleteContext) -> list:
@@ -48,13 +47,13 @@ class RemoveSong(commands.Cog):
             default=None,
         ),  # type: ignore
     ) -> None:
+        asyncio.create_task(ctx.defer())
         guild_id = ctx.guild.id
         session: ServerSession = sm.server_sessions.get(guild_id)
         if not vocal_action_check(session, ctx, ctx.respond):
             return
 
         removed_tracks = []
-        embed_updated = False
         queue = session.queue
         # If a song is specified, find its index in the queue
         if song:
@@ -67,22 +66,35 @@ class RemoveSong(commands.Cog):
         if index is None or not -1 <= index < len(queue):
             await ctx.respond("No song has been removed !")
             return
-        elif mode == "Single":
-            removed_tracks: list[Optional[dict]] = [session.queue.pop(index)]
-            if index == 0:
-                # Track currently playing
-                skip_cog = session.bot.get_cog("Skip")
-                asyncio.create_task(skip_cog.execute_skip(ctx, silent=True))
-                embed_updated = True
+
+        if mode == "Single" and not index == 0:
+            removed_tracks: list[Track] = [session.queue.pop(index)]
+
         elif mode == "Before (included)":
-            if index <= 0:  # -1 is not appropriate here
-                removed_tracks = []
-            else:
-                removed_tracks = queue[1 : index + 1]
+            if not index <= 0:  # -1 is not appropriate here
+                removed_tracks.extend(queue[1 : index + 1])
             session.queue = [queue[0]] + queue[index + 1 :]
+
         elif mode == "After (included)":
-            index = max(min(index, len(queue)), 1)
-            removed_tracks, session.queue = queue[index:], queue[:index]
+            index = max(min(index, len(queue)), 1)  # Don't kill the playing song
+            removed_tracks.extend(queue[index:])
+            session.queue = queue[:index]
+
+        # Clear old tracks and preload the following ones
+        tasks = []
+        for track in removed_tracks:
+            tasks.append(track.close())
+        # Important to be before the skip
+        tasks.append(session.load_next_tracks())
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Skip if the track is currently playing
+        if index == 0:
+            removed_tracks.append(queue[0])
+            skip_cog = session.bot.get_cog("Skip")
+            asyncio.create_task(skip_cog.execute_skip(ctx, silent=True))
+        else:
+            asyncio.create_task(session.update_now_playing(ctx))
 
         # Send message
         c = len(removed_tracks)
@@ -91,8 +103,6 @@ class RemoveSong(commands.Cog):
             f"Removed: {titles}{' !' if c <= 3 else f', and {c - 3} more songs !'}"
         )
         asyncio.create_task(ctx.respond(message))
-        if not embed_updated:
-            asyncio.create_task(session.update_now_playing(ctx))
 
 
 def setup(bot):
