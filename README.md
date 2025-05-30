@@ -1,8 +1,8 @@
 <div align="center">
-  <a href="https://twitter.com/shironappa_">
-      <img src="https://i.imgur.com/gj3SRcY.png" alt="Illustration by Shironappa">
+  <a href="https://www.pixiv.net/en/artworks/130821036">
+      <img src="https://i.imgur.com/WvyRtdu.png" alt="Illustration by Arren">
   </a>
-  <p>Art by Shironappa</p>
+  <p>Art by Arren !</p>
   <h1>Ugoku-v2 Discord Bot</h1>
 </div>
 
