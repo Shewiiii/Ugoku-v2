@@ -29,7 +29,7 @@ from config import (
 )
 
 # Yt-dlp config
-yt_dlp.utils.bug_reports_message = lambda: ""  # disable yt_dlp bug report
+yt_dlp.utils.bug_reports_message = lambda *args, **kwargs: ""  # disable yt_dlp bug report
 playlist_grabber = re.compile(r"list=([a-zA-Z0-9_-]+)")
 video_grabber = re.compile(r"v=([a-zA-Z0-9_-]+)")
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")

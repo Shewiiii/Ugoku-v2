@@ -3,14 +3,13 @@ spotipy>=2.11.0
 git+https://github.com/Shewiiii/librespot-python
 requests
 python-dotenv
-yt-dlp
+yt-dlp[default] --pre
 bs4
 imageio
 PyNaCl
 mutagen
 typing-extensions
 youtube-transcript-api
-yt-dlp[default] --pre
 google-genai
 pytz
 pinecone[grpc]
