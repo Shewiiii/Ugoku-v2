@@ -233,14 +233,14 @@ class Gembot:
         if not GEMINI_ENABLED:
             return
 
-        # Fetch whitelists from DB
-        chatbot_server_whitelist = get_whitelist("chatbot_server")
-        gemini_server_whitelist = get_whitelist("gemini_server")
-
         if isinstance(message.channel, discord.DMChannel) and ALLOW_CHATBOT_IN_DMS:
             # Id = channel (dm) id if in DMs
             id_ = message.channel.id
         elif message.guild:
+            # Fetch whitelists from DB
+            chatbot_server_whitelist = get_whitelist("chatbot_server")
+            gemini_server_whitelist = get_whitelist("gemini_server")
+
             # Id = server id if the server is globally whitelisted
             if (
                 message.guild.id in chatbot_server_whitelist
