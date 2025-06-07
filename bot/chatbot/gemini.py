@@ -134,6 +134,7 @@ class Gembot:
             )
 
             # Which client and models to use
+
             # Premium
             if premium_chat:
                 chat_client = premium_client

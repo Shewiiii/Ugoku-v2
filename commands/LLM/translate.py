@@ -37,7 +37,7 @@ class Translate(commands.Cog):
             default="Neutral",
             description="The style of the translation",
         ),  # type: ignore
-        ephemeral: bool = True,
+        ephemeral: bool = False,
     ) -> None:
         asyncio.create_task(ctx.defer(ephemeral=ephemeral))
         await ctx.respond(
