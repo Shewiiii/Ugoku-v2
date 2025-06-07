@@ -95,7 +95,7 @@ class ChatbotHistory:
             new_prompt = f"[{', '.join(infos)}]: {msg.content}"
             self.openai_input = self.create_openai_input(new_prompt, msg.urls)
 
-        for h in self.messages, self.pinecone_history, self.openai_input:
+        for h in self.messages, self.pinecone_history:
             while len(h) > CHATBOT_HISTORY_SIZE:
                 h.pop(0)
 
