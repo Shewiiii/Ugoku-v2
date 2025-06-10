@@ -97,7 +97,8 @@ async def get_cover_data_from_file(filename: str) -> dict[str, discord.Colour]:
 
 
 async def fetch_audio_stream(url: Optional[str] = None) -> Path:
-    """Fetch an audio file from a URL and cache it locally."""
+    """Fetch an audio file from a URL and cache it locally.
+    Returns the file path."""
     async with CachedSession(
         follow_redirects=True,
         cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
@@ -107,6 +108,7 @@ async def fetch_audio_stream(url: Optional[str] = None) -> Path:
                 raise Exception(f"Failed to fetch audio: {response.status}")
             audio_data = await response.read()
             cd_header = response.headers.get("Content-Disposition", "")
+            content_length = response.headers.get("Content-Length", 0)
             _, params = cgi.parse_header(cd_header)
 
             # Get the file name from headers
@@ -116,7 +118,7 @@ async def fetch_audio_stream(url: Optional[str] = None) -> Path:
                 filename = get_display_name_from_query(url)
 
     # Write the fetched audio to the cache file
-    cache_path = Path(f"{TEMP_FOLDER}/{filename}")
+    cache_path = Path(f"{TEMP_FOLDER}/{filename}.{content_length}")
     if not cache_path.is_file():
         async with aiofiles.open(cache_path, "wb") as cache_file:
             await cache_file.write(audio_data)

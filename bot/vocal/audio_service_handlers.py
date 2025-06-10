@@ -136,7 +136,7 @@ async def play_custom(
 
     track = Track(
         service="custom",
-        title=titles[0] if titles[0] != "?" else audio_path.name,
+        title=titles[0] if titles[0] != "?" else audio_path.stem,
         album=albums[0],
         source_url=query,
         stream_source=audio_path,
