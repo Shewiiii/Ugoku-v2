@@ -107,15 +107,15 @@ class Download:
         query: str,
         tracks_format: Literal["MP3_128", "MP3_320", "FLAC"] = "FLAC",
         track_id: bool = False,
-    ) -> tuple[Path, dict]:
+    ) -> Optional[tuple[Path, dict]]:
         if track_id:
             track_data = await self.api.get_track(query)
             if not track_data:
-                return
+                return None, None
         else:
             search_data = (await self.api.search(query))["TRACK"]["data"]
             if not search_data:
-                return
+                return None, None
             choices = [f"{t['ART_NAME']} {t['SNG_TITLE']}" for t in search_data]
             track_data = search_data[get_closest_string(query, choices)]
 
