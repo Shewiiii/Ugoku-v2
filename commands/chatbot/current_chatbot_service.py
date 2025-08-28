@@ -19,20 +19,16 @@ class CurrentChatbotService(commands.Cog):
             discord.IntegrationType.user_install,
         },
     )
-    async def switch_model(self, ctx: discord.ApplicationContext) -> None:
+    async def current_model(self, ctx: discord.ApplicationContext) -> None:
         if not GEMINI_ENABLED:
             await ctx.respond("Chatbot features are not enabled.")
-            return
-
-        if not OPENAI_ENABLED:
-            await ctx.respond("The chatbot is only using Gemini.")
             return
 
         id_ = Gembot.get_chat_id(ctx, gemini_command=True)
         if not id_:
             await ctx.respond(
                 "This channel or server is not allowed to use that command.",
-                ephemeral=True
+                ephemeral=True,
             )
             return
 
