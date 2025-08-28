@@ -1,13 +1,11 @@
 import os
 import asyncio
-from typing import Optional
 import logging
 import uuid
 from datetime import datetime
 import json
 
 from google.genai import types, errors
-from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone import ServerlessSpec
 import pytz
@@ -146,7 +144,7 @@ but nothing otherwise.\n
 
     async def get_vectors(
         self, text: str, id: int, top_k=999
-    ) -> list[Optional[ScoredVector]]:
+    ) -> list:
         if not self.active:
             raise RuntimeError("Pinecone class not active")
         try:

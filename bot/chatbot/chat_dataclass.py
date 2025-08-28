@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime
-from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 import pytz
 from typing import Optional, List
 
@@ -15,7 +14,7 @@ class ChatbotMessage:
     guild_id: int
     author: str
     content: str
-    recall_vectors: list[Optional[ScoredVector]] = field(default_factory=list)
+    recall_vectors: list = field(default_factory=list)
     referenced_author: Optional[str] = None
     referenced_content: Optional[str] = None
     response: str = "*filtered*"
@@ -140,6 +139,6 @@ class ChatbotHistory:
             if self.pinecone_history:
                 self.pinecone_history.pop()
 
-    def store_recall(self, vectors: list[ScoredVector]) -> None:
+    def store_recall(self, vectors: list) -> None:
         for vector in vectors:
             self.recalled_vector_ids.add(vector["id"])

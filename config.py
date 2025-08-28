@@ -10,8 +10,8 @@ import sys
 SPOTIFY_API_ENABLED = True
 SPOTIFY_ENABLED = False
 DEEZER_ENABLED = False
-DEFAULT_STREAMING_SERVICE = 'ytdlp' # spotify/deezer, ytdlp.
-GEMINI_ENABLED = True # Don't forget to whitelist servers for the chatbot ! Scroll down to "CHATBOT_WHITELIST"
+DEFAULT_STREAMING_SERVICE = 'ytdlp.' # spotify/deezer, ytdlp.
+GEMINI_ENABLED = True # Don't forget to whitelist servers for the chatbot ! Scroll down to "CHATBOT_SERVER_WHITELIST"
 PINECONE_ENABLED = True
 ALLOW_CHATBOT_IN_DMS = False # Allow everyone to use the bot in dms. Can increase the token usage.
 
@@ -122,8 +122,12 @@ IMPULSE_RESPONSE_PARAMS = {
 # Onsei filters
 ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a folder name containing one of these words will be chosen
 ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blacklisted
+ONSEI_SERVER_WHITELIST= {} # All servers ids allowed to stream nsfw onsei
 
 # Chatbot settings
+CHATBOT_SERVER_WHITELIST = {} # All server ids allowed to use the chatbot and /ask
+GEMINI_SERVER_WHITELIST = {} # All server ids allow to use gemini features (except the chatbot)
+CHATBOT_CHANNEL_WHITELIST = {} # All channel/thread ids allowed to use the chatbot
 CHATBOT_PREFIX = '!' # Prefix to trigger the chatbot
 GEMINI_PREFIX = '-' # If OpenAI is enabled, CHATBOT_PREFIX+GEMINI_PREFIX will force to use Gemini instead
 CHATBOT_TIMEOUT = 300 # Time before disabling continuous chat (in seconds, enabled with double prefix)

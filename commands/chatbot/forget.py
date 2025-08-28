@@ -7,7 +7,6 @@ from bot.chatbot.vector_recall import memory
 from bot.chatbot.gemini import Gembot
 from bot.utils import split_into_chunks
 from config import DEFAULT_EMBED_COLOR
-from pinecone.core.openapi.db_data.model.scored_vector import ScoredVector
 
 
 class ForgetView(discord.ui.View):
@@ -15,7 +14,7 @@ class ForgetView(discord.ui.View):
         self,
         id_: int,
         embed: discord.Embed,
-        vectors: list[ScoredVector],
+        vectors: list,
         channel: discord.TextChannel,
     ):
         super().__init__(timeout=None)
@@ -23,7 +22,7 @@ class ForgetView(discord.ui.View):
         self.page = 1
         self.max_per_page = 10
         self.embed: discord.Embed = embed
-        self.vectors: list[ScoredVector] = vectors
+        self.vectors: list = vectors
         self.update()
         self.channel: discord.TextChannel = channel
         self.webhook_msg: Optional[discord.WebhookMessage] = None
@@ -56,7 +55,7 @@ class ForgetView(discord.ui.View):
     )
     async def select_callback(self, select, interaction: discord.Interaction) -> None:
         asyncio.create_task(interaction.response.defer())
-        removed_vector_ids: list[ScoredVector] = select.values
+        removed_vector_ids: list = select.values
         self.vectors = [
             vector for vector in self.vectors if vector["id"] not in removed_vector_ids
         ]
