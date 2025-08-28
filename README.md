@@ -7,7 +7,7 @@
 </div>
 
 **A work in progress rework of [Ugoku !](https://github.com/Shewiiii/Ugoku-bot)**, completely refactored and feature complete !  
-Learn more about the bot here: https://ugoku.moe/.
+Learn more about the bot here: https://ugoku.app/.
 
 <h2>Features/To do</h2>
 
