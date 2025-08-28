@@ -18,7 +18,7 @@ class Help(commands.Cog):
         embed = discord.Embed(
             title="Help Menu",
             description=(
-                "Get the list of commands on Ugoku's website [Ugoku.moe](https://ugoku.moe/commands) !\n"
+                "Get the list of commands on Ugoku's website [Ugoku.app](https://ugoku.app/commands) !\n"
                 "Not sure where to start ? Try `/quickstart` !"
             ),
             color=discord.Color.blurple(),
