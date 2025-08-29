@@ -202,8 +202,7 @@ class ServerSession:
             logging.error(repr(e))
 
     async def seek(self, position: int, quiet: bool = False) -> None:
-        """Seeks to a specific position in the current track.
-        Returns True if successful."""
+        """Seeks to a specific position in the current track."""
         # No audio is playing
         if not (self.voice_client and self.queue):
             return
