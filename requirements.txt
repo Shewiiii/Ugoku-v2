@@ -1,6 +1,6 @@
 git+https://github.com/Pycord-Development/pycord
 spotipy>=2.11.0
-git+https://github.com/Shewiiii/librespot-spotizerr
+git+https://github.com/kokarare1212/librespot-python
 requests
 python-dotenv
 yt-dlp[default] --pre
