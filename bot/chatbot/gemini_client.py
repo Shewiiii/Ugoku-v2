@@ -49,8 +49,7 @@ def _create_client(env_var: str) -> Optional[genai.Client]:
 
 if GEMINI_ENABLED:
     client: genai.Client = _create_client("GEMINI_API_KEY")
-    premium_client: genai.Client = _create_client("PREMIUM_GEMINI_API_KEY")
 else:
-    client = premium_client = None
+    client = None
 
 utils_models_manager = UtilsModelsManager()

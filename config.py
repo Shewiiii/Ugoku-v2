@@ -18,13 +18,12 @@ ALLOW_CHATBOT_IN_DMS = False # Allow everyone to use the bot in dms. Can increas
 # IN DEVELOPMENT: Used for compatibility purposes
 # Make sure to create an OpenAI API key here https://platform.openai.com/api-keys
 # If enabled, the OpenAI model will be used only for the chatbot for now
-OPENAI_ENABLED = True
+OPENAI_ENABLED = False
 
 # ===CHATBOT MODELS===
-GEMINI_MODEL = 'gemini-2.5-flash-preview-05-20'
-PREMIUM_GEMINI_MODEL = 'gemini-2.5-pro-preview-05-06'
+GEMINI_MODEL = 'gemini-2.5-flash'
 GEMINI_UTILS_MODELS = [
-    'gemini-2.0-flash', 
+    'gemini-2.0-flash',
     'gemini-2.0-flash-lite', 
     'gemini-1.5-flash',
     'gemini-1.5-flash-8b',
@@ -33,7 +32,6 @@ GEMINI_UTILS_MODELS = [
 OPENAI_MODEL = 'gpt-4.1-mini-2025-04-14'
 
 # Display names
-PREMIUM_GEMINI_MODEL_DISPLAY_NAME = 'Gemini 2.5 Pro'
 GEMINI_MODEL_DISPLAY_NAME = 'Gemini 2.5 Flash'
 OPENAI_MODEL_DISPLAY_NAME = "GPT-4.1 mini"
 
@@ -43,6 +41,7 @@ COOKIES_PATH = './cookies.txt' # Parse cookies to ytdl to help with bot detectio
 COMMANDS_FOLDER = Path('./commands')
 TEMP_FOLDER = Path('.') / 'temp'
 PREMIUM_CHANNEL_ID = None # Upload files too big to a channel in a boosted server instead
+DB_PATH = Path("config.sqlite")
 
 # Cache control & preloading
 AGRESSIVE_CACHING = True # Download Spotify and ytdlp streams on disk before and when playing. Can be useful if Spotify often closes the connection with Librespot.
@@ -122,11 +121,8 @@ IMPULSE_RESPONSE_PARAMS = {
 # Onsei filters
 ONSEI_WHITELIST = ['mp3'] # Onsei tracks with one of these extensions and in a folder name containing one of these words will be chosen
 ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blacklisted
-ONSEI_SERVER_WHITELIST= {} # All servers ids allowed to stream nsfw onsei
 
 # Chatbot settings
-CHATBOT_SERVER_WHITELIST = {} # All server ids allowed to use the chatbot and /ask
-GEMINI_SERVER_WHITELIST = {} # All server ids allow to use gemini features (except the chatbot)
 CHATBOT_CHANNEL_WHITELIST = {} # All channel/thread ids allowed to use the chatbot
 CHATBOT_PREFIX = '!' # Prefix to trigger the chatbot
 GEMINI_PREFIX = '-' # If OpenAI is enabled, CHATBOT_PREFIX+GEMINI_PREFIX will force to use Gemini instead

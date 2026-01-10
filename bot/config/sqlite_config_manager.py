@@ -1,26 +1,15 @@
 import sqlite3
-from pathlib import Path
 import logging
 from typing import Set, Dict, Literal, Optional
 
-# Database path - in the root folder
-DB_PATH = Path(__file__).resolve().parent.parent.parent / "config.sqlite"
+from config import DB_PATH
 
 DATABASE_TABLE_SCHEMAS = {
     "chatbot_emotes": " (name TEXT PRIMARY KEY, emote_value TEXT NOT NULL)",
-    "onsei_server_whitelist": " (server_id INTEGER PRIMARY KEY)",
-    "chatbot_server_whitelist": " (server_id INTEGER PRIMARY KEY)",
-    "gemini_server_whitelist": " (server_id INTEGER PRIMARY KEY)",
-    "premium_gemini_user_id_whitelist": " (server_id INTEGER PRIMARY KEY)",
+    "onsei_servers": " (server_id INTEGER PRIMARY KEY)",
+    "chatbot_ids": " (server_id INTEGER PRIMARY KEY)",
+    "gemini_servers": " (server_id INTEGER PRIMARY KEY)",
 }
-
-
-def _get_whitelist_table_name(
-    list_type: Literal[
-        "onsei_server", "chatbot_server", "gemini_server", "premium_gemini_user_id"
-    ],
-) -> str:
-    return f"{list_type}_whitelist"
 
 
 def initialize_database():
@@ -104,13 +93,15 @@ def get_all_chatbot_emotes() -> Dict[str, str]:
 
 
 # --- WHITELISTS (Sets of IDs) ---
+tables = Literal[
+    "onsei_servers", "chatbot_ids", "gemini_server"
+]
+
+
 def add_to_whitelist(
-    list_type: Literal[
-        "onsei_server", "chatbot_server", "gemini_server", "premium_gemini_user_id"
-    ],
+    table_name: tables,
     server_id: int,
 ) -> None:
-    table_name = _get_whitelist_table_name(list_type)
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
@@ -128,12 +119,9 @@ def add_to_whitelist(
 
 
 def remove_from_whitelist(
-    list_type: Literal[
-        "onsei_server", "chatbot_server", "gemini_server", "premium_gemini_user_id"
-    ],
+    table_name: tables,
     server_id: int,
 ) -> bool:
-    table_name = _get_whitelist_table_name(list_type)
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
@@ -152,22 +140,18 @@ def remove_from_whitelist(
 
 
 def get_whitelist(
-    list_type: Literal[
-        "onsei_server", "chatbot_server", "gemini_server", "premium_gemini_user_id"
-    ],
+    table_name: tables,
 ) -> Set[int]:
     ids: Set[int] = set()
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT server_id FROM {_get_whitelist_table_name(list_type)}"
-            )
+            cursor.execute(f"SELECT server_id FROM {table_name}")
             for row in cursor.fetchall():
                 ids.add(row[0])
     except sqlite3.Error as e:
         logging.error(
-            f"SQLite error getting whitelist {_get_whitelist_table_name(list_type)}: {e}",
+            f"SQLite error getting whitelist {table_name}: {e}",
             exc_info=True,
         )
         # Return what we have, or an empty set on error

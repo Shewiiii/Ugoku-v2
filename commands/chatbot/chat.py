@@ -10,7 +10,6 @@ if GEMINI_ENABLED:
     from bot.chatbot.chat_dataclass import ChatbotMessage
     from bot.chatbot.gemini import Gembot, active_chats
     from bot.utils import split_into_chunks
-    from bot.config.sqlite_config_manager import get_whitelist
 
     class Chatbot(commands.Cog):
         def __init__(self, bot) -> None:
@@ -47,16 +46,12 @@ if GEMINI_ENABLED:
 
             # Variables relative to response generation
             dm = isinstance(message.channel, discord.DMChannel)
-            premium_chat = (
-                message.author.id in get_whitelist("premium_gemini_user_id") and dm
-            )
 
             # Create/Use a chat
             if id_ not in active_chats:
                 chat = Gembot(
                     id_,
                     ugoku_chat=True,
-                    premium_chat=premium_chat,
                 )
             chat: Gembot = active_chats.get(id_)
 

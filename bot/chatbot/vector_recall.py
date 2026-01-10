@@ -56,7 +56,10 @@ but nothing otherwise.\n
         if not PINECONE_ENABLED:
             return
         if not PINECONE_API_KEY:
-            logging.warning("No valid Pinecone API key has been provided")
+            logging.warning(
+                "No valid Pinecone API key has been provided. "
+                "Disable Pinecone from the config file if you do not plan to use it."
+            )
             return
 
         logging.info("Initialization of Pinecone..")
@@ -142,9 +145,7 @@ but nothing otherwise.\n
         logging.info(f"Added to Pinecone: {metadata['text']}")
         return True
 
-    async def get_vectors(
-        self, text: str, id: int, top_k=999
-    ) -> list:
+    async def get_vectors(self, text: str, id: int, top_k=999) -> list:
         if not self.active:
             raise RuntimeError("Pinecone class not active")
         try:

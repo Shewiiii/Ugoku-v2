@@ -8,7 +8,6 @@ from config import (
     DEEZER_ENABLED,
     GEMINI_ENABLED,
     ALLOW_CHATBOT_IN_DMS,
-    CHATBOT_SERVER_WHITELIST,
     PINECONE_ENABLED,
     AUTO_LEAVE_DURATION,
     DEFAULT_AUDIO_BITRATE,
@@ -58,7 +57,6 @@ class ConfigCommand(commands.Cog):
                 f"{e[GEMINI_ENABLED]} **Gemini features**",
                 f"{e[OPENAI_ENABLED]} OpenAI features (chatbot only)",
                 f"{e[ALLOW_CHATBOT_IN_DMS]} Chatbot enabled in DMs",
-                f"{e[ctx.guild_id in CHATBOT_SERVER_WHITELIST]} Chatbot enabled in this server",
                 f"""{e[PINECONE_ENABLED]} Pinecone features (the chatbot's "memory")""",
             ]
         )
@@ -77,7 +75,6 @@ class ConfigCommand(commands.Cog):
                 f"{e['misc']} Chatbot Gemini model: {GEMINI_MODEL}",
                 f"{e['misc']} Chatbot OpenAI model: {OPENAI_MODEL}",
                 f"{e['misc']} Chatbot temperature: {CHATBOT_TEMPERATURE}",
-                # f"{e[bool(CHATBOT_EMOTES)]} Chatbot emotes: {len(CHATBOT_EMOTES)}",
                 f"{e['misc']} Chatbot emote frequency: {CHATBOT_EMOTE_FREQUENCY:.1f}",
                 f"{e['misc']} Chatbot history size: {CHATBOT_HISTORY_SIZE}",
                 f"{e['misc']} Chatbot timezone: {CHATBOT_TIMEZONE}",

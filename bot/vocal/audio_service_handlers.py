@@ -165,7 +165,7 @@ async def play_onsei(
     work_id = extract_number(query)
 
     try:
-        can_stream_nsfw = ctx.guild.id in get_whitelist("onsei_server")
+        can_stream_nsfw = ctx.guild.id in get_whitelist("onsei_servers")
         tracks: list[Track] = await onsei.get_all_tracks(work_id, can_stream_nsfw)
     except Exception as e:
         response_params[1] = get_error_message(e)

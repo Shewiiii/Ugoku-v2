@@ -8,18 +8,16 @@ from bot.utils import split_into_chunks
 
 
 whitelist_choice = [
-    "onsei_server",
-    "chatbot_server",
-    "gemini_server",
-    "premium_gemini_user_id",
+    "onsei_servers",
+    "chatbot_ids",
+    "gemini_servers",
 ]
 
 # Dictionary for user-friendly display names
 WHITELIST_DISPLAY_NAMES = {
-    "onsei_server": "Onsei Server Whitelist",
-    "chatbot_server": "Chatbot Server Whitelist",
-    "gemini_server": "Gemini Server Whitelist",
-    "premium_gemini_user_id": "Gemini premium user IDs",
+    "onsei_servers": "Onsei Server Whitelist",
+    "chatbot_ids": "Chatbot Server and Channel Whitelist",
+    "gemini_servers": "Gemini Server Whitelist",
 }
 
 

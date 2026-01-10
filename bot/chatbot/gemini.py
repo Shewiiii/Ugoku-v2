@@ -10,7 +10,6 @@ from typing import Optional, List, Union, Literal
 from datetime import datetime, timedelta
 from config import (
     GEMINI_MODEL,
-    PREMIUM_GEMINI_MODEL,
     GEMINI_SAFETY_SETTINGS,
     CHATBOT_HISTORY_SIZE,
     GEMINI_ENABLED,
@@ -28,8 +27,8 @@ from config import (
     OPENAI_MODEL,
     PINECONE_INDEX_NAME,
     GEMINI_MODEL_DISPLAY_NAME,
-    PREMIUM_GEMINI_MODEL_DISPLAY_NAME,
     OPENAI_MODEL_DISPLAY_NAME,
+    PINECONE_ENABLED,
 )
 import urllib3
 
@@ -38,7 +37,7 @@ from google.genai import types, errors
 from google.genai.types import Tool, GoogleSearch
 
 from bot.chatbot.chat_dataclass import ChatbotMessage, ChatbotHistory
-from bot.chatbot.gemini_client import client, premium_client, utils_models_manager
+from bot.chatbot.gemini_client import client, utils_models_manager
 from bot.chatbot.prompts import Prompts
 from bot.chatbot.vector_recall import memory
 from bot.config.sqlite_config_manager import get_all_chatbot_emotes, get_whitelist
@@ -56,7 +55,6 @@ class Gembot:
         id_,
         gemini_model=GEMINI_MODEL,
         ugoku_chat: bool = False,
-        premium_chat: bool = False,
     ) -> None:
         self.id_: int = id_
         self.last_prompt = datetime.now()
@@ -69,27 +67,14 @@ class Gembot:
                 Prompts.system, bot_emotes=current_bot_emotes
             )
 
-            # Which client and models to use
-
-            # Premium
-            if premium_chat:
-                chat_client = premium_client
-                chat_model = PREMIUM_GEMINI_MODEL
-                logging.info(f"Using the premium client for {id_}")
-                self.current_model_dn = PREMIUM_GEMINI_MODEL_DISPLAY_NAME
-                self.default_api = "gemini"
-                self.premium_chat = True
-            # Standard
-            else:
-                chat_client = client
-                chat_model = gemini_model
-                self.current_model_dn = (
-                    OPENAI_MODEL_DISPLAY_NAME
-                    if OPENAI_ENABLED
-                    else GEMINI_MODEL_DISPLAY_NAME
-                )
-                self.default_api = "openai" if OPENAI_ENABLED else "gemini"
-                self.premium_chat = False
+            chat_client = client
+            chat_model = gemini_model
+            self.current_model_dn = (
+                OPENAI_MODEL_DISPLAY_NAME
+                if OPENAI_ENABLED
+                else GEMINI_MODEL_DISPLAY_NAME
+            )
+            self.default_api = "openai" if OPENAI_ENABLED else "gemini"
 
             # Create the chat
             self.chat = chat_client.aio.chats.create(
@@ -169,28 +154,29 @@ class Gembot:
         if not GEMINI_ENABLED:
             return
 
-        if isinstance(message.channel, discord.DMChannel) and ALLOW_CHATBOT_IN_DMS:
+        chatbot_ids = get_whitelist("chatbot_ids")
+
+        if (
+            isinstance(message.channel, discord.DMChannel)
+            and ALLOW_CHATBOT_IN_DMS
+            or message.channel.id in chatbot_ids
+        ):
             # Id = channel (dm) id if in DMs
-            id_ = message.channel.id
+            return message.channel.id
+
         elif message.guild:
-            # Fetch whitelists from DB
-            chatbot_server_whitelist = get_whitelist("chatbot_server")
-            gemini_server_whitelist = get_whitelist("gemini_server")
-
             # Id = server id if the server is globally whitelisted
-            if (
-                message.guild.id in chatbot_server_whitelist
-                or gemini_command
-                and message.guild.id in gemini_server_whitelist
-            ):
-                id_ = message.guild.id
-            else:
-                return
-        else:
-            # Don't trigger the chatbot otherwise~
-            return
+            # Fetch whitelists from DB
 
-        return id_
+            gemini_servers = get_whitelist("gemini_servers")
+            should_respond = (
+                message.guild.id in chatbot_ids
+                or gemini_command
+                and message.guild.id in gemini_servers
+            )
+
+            if should_respond:
+                return message.guild.id
 
     async def send_message(
         self,
@@ -208,22 +194,22 @@ class Gembot:
         self.message_count += 1
 
         # Recall from memory
-        try:
-            results: list = await self.memory.get_vectors(
-                f"{author}: {user_query}", id=self.id_, top_k=PINECONE_RECALL_WINDOW
-            )
-            # Remove already prompted vectors
-            recall_vectors = []
-            for v in results:
-                if v["id"] not in self.history.recalled_vector_ids:
-                    recall_vectors.append(v)
-        except urllib3.exceptions.ProtocolError:
-            logging.error(
-                "Pinecone: An existing connection was forcibly closed by the remote host. "
-                "Restarting Pinecone..."
-            )
-            await memory.init_pinecone(PINECONE_INDEX_NAME)
-            recall_vectors = []
+        # Remove already prompted vectors + default value
+        recall_vectors = []
+        if PINECONE_ENABLED:
+            try:
+                results: list = await self.memory.get_vectors(
+                    f"{author}: {user_query}", id=self.id_, top_k=PINECONE_RECALL_WINDOW
+                )
+                for v in results:
+                    if v["id"] not in self.history.recalled_vector_ids:
+                        recall_vectors.append(v)
+            except urllib3.exceptions.ProtocolError:
+                logging.error(
+                    "Pinecone: An existing connection was forcibly closed by the remote host. "
+                    "Restarting Pinecone..."
+                )
+                await memory.init_pinecone(PINECONE_INDEX_NAME)
 
         # Create message
         message = ChatbotMessage(
@@ -293,8 +279,13 @@ class Gembot:
             )
 
             # Sources at the end of message
+            # The checks needed are so stupid
             sources = []
-            if response.candidates[0].grounding_metadata.grounding_chunks:
+            if (
+                response.candidates
+                and response.candidates[0].grounding_metadata
+                and response.candidates[0].grounding_metadata.grounding_chunks
+            ):
                 sources = [
                     f"[{chunk.web.title}](<{chunk.web.uri}>)"
                     for chunk in response.candidates[
@@ -446,11 +437,7 @@ class Gembot:
                 and not self.default_api == "gemini"
             )
             selected_model_dn = (
-                OPENAI_MODEL_DISPLAY_NAME
-                if use_openai
-                else GEMINI_MODEL_DISPLAY_NAME
-                if not self.premium_chat
-                else PREMIUM_GEMINI_MODEL_DISPLAY_NAME
+                OPENAI_MODEL_DISPLAY_NAME if use_openai else GEMINI_MODEL_DISPLAY_NAME
             )
 
             # If the model has changed or there is no history, notify what model is used
