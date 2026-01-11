@@ -12,6 +12,7 @@ from io import BytesIO
 from pathlib import Path
 from time import time
 from urllib.parse import urlparse, parse_qs, unquote, urlencode, urlunparse, parse_qsl
+from bs4 import BeautifulSoup
 
 import mutagen
 from PIL import Image
@@ -776,3 +777,19 @@ async def process_song_query(
             query = str(tracks[0])
 
     return query
+
+
+async def tenor_view_url_to_direct_url(url: str) -> str:
+    try:
+        async with CachedSession(
+            follow_redirects=True,
+            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
+        ) as session:
+            response = await session.get(url)
+            content = await response.read()
+            raw = BeautifulSoup(content, features="html.parser")
+            direct_url = raw.find("div", {"class": "Gif"}).find("img")["src"]
+            return direct_url
+    except Exception as e:
+        logging.error(f"Failed to parse GIF from Tenor with URL {url}: {e}")
+        return ""

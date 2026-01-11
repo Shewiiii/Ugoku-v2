@@ -3,6 +3,7 @@ from aiohttp import ClientResponseError
 import asyncio
 import os
 import re
+import io
 import logging
 from openai import AsyncOpenAI, BadRequestError
 from random import random
@@ -31,6 +32,7 @@ from config import (
     PINECONE_ENABLED,
 )
 import urllib3
+from PIL import Image
 
 import discord
 from google.genai import types, errors
@@ -41,7 +43,7 @@ from bot.chatbot.gemini_client import client, utils_models_manager
 from bot.chatbot.prompts import Prompts
 from bot.chatbot.vector_recall import memory
 from bot.config.sqlite_config_manager import get_all_chatbot_emotes, get_whitelist
-from bot.utils import link_grabber, parse_message_url
+from bot.utils import link_grabber, parse_message_url, tenor_view_url_to_direct_url
 
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -167,7 +169,7 @@ class Gembot:
             if for_pinecone:
                 return message.channel.id
             else:
-            # Id = channel (dm) id if in DMs
+                # Id = channel (dm) id if in DMs
                 return message.guild.id
 
         elif message.guild:
@@ -346,11 +348,27 @@ class Gembot:
                     response.raise_for_status()
                     mime_type = response.headers.get("content-type", "")
                     # E.g: audio, text..
-                    content_type = mime_type.split("/")[0]
+                    splitted_mime = mime_type.split("/")
+                    content_type = splitted_mime[0]
+                    ext = splitted_mime[1]
                     max_size = CHATBOT_MAX_CONTENT_SIZE.get(content_type, 0)
 
                     if content_type in ["image", "audio", "application"]:
                         content = await response.read()
+
+                        # For GIFs: convert to png and take the frame at the middle
+                        if ext == "gif":
+                            with Image.open(io.BytesIO(content)) as img:
+                                num_frames = getattr(img, "n_frames", 1)
+                                img.seek(num_frames // 2)
+                                img = img.convert("RGB")
+
+                                output_buffer = io.BytesIO()
+                                img.save(output_buffer, format="PNG")
+                                content = output_buffer.getvalue()
+                                mime_type = "image/png"
+                                content_type = "image"
+                                ext = "png"
 
                     else:
                         self.status = -1
@@ -359,7 +377,7 @@ class Gembot:
                         )
                         return
 
-                # Size check
+                # Size checkw
                 if len(content) > max_size:
                     self.status = -2
                     logging.warning(f"{url} has not been processed: File too big")
@@ -527,9 +545,27 @@ class Gembot:
         r_contents = []
 
         # Parse message url(s) if any
-        def add_context_from_referred_msg(
-            r_message: discord.Message, via_url: bool = False
-        ):
+        async def parse_urls_in_msg_content(message_content: str) -> None:
+            urls_in_content = link_grabber.findall(message_content)
+            for url_tuple in urls_in_content:
+                url = url_tuple[0]
+                if "discord.com/channels" in url:
+                    try:
+                        nested_message = await parse_message_url(bot, url)
+                        await add_context_from_referred_msg(nested_message)
+                    except discord.errors.Forbidden:
+                        r_authors.append(None)
+                        r_contents.append(None)
+
+                if "tenor.com/view" in url:
+                    direct_url = await tenor_view_url_to_direct_url(url)
+                    if direct_url:
+                        urls.append(direct_url)
+
+                if "cdn.discordapp.com/attachments" in url:
+                    urls.append(url)
+
+        async def add_context_from_referred_msg(r_message: discord.Message) -> None:
             r_authors.append(r_message.author)
             r_contents.append(r_message.content)
             urls.extend(
@@ -540,22 +576,10 @@ class Gembot:
                 ]
             )
 
-        urls_in_content = link_grabber.findall(mc)
-        discord_urls_count = 0
-        for url_tuple in urls_in_content:
-            url = url_tuple[0]
-            discord_urls_count += 1
+            # Recursively parse discord message URLs in the referred message
+            await parse_urls_in_msg_content(r_message.content)
 
-            if "discord.com/channels" in url:
-                try:
-                    r_message = await parse_message_url(bot, url)
-                    add_context_from_referred_msg(r_message, via_url=True)
-                    mc = mc.replace(url, f"[Message URL from {r_message.author}]")
-
-                except discord.errors.Forbidden:
-                    r_authors.append(None)
-                    r_contents.append(None)
-                    mc = mc.replace(url, "[Message URL in unknown channel]")
+        await parse_urls_in_msg_content(mc)
 
         # Process custom emojis
         match = re.search(r"<:(?P<name>[^:]+):(?P<snowflake>\d+)>", mc)
@@ -588,7 +612,7 @@ class Gembot:
             if context.reference and context.reference.message_id:
                 rid = context.reference.message_id
                 r_message = await context.channel.fetch_message(rid)
-                add_context_from_referred_msg(r_message)
+                await add_context_from_referred_msg(r_message)
 
         else:  # Application context
             id = context.interaction.id

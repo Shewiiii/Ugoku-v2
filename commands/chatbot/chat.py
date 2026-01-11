@@ -74,7 +74,7 @@ if GEMINI_ENABLED:
                 except APIError as e:
                     await message.channel.send("*filtered*")
                     logging.error(
-                        f"Response blocked by Gemini in {chat.id_}:{e.message}"
+                        f"Response blocked by Gemini in {chat.id_}: {e.message}"
                     )
                     return
 
