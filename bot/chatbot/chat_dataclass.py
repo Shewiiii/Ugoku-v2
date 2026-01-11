@@ -15,8 +15,8 @@ class ChatbotMessage:
     author: str
     content: str
     recall_vectors: list = field(default_factory=list)
-    referenced_author: Optional[str] = None
-    referenced_content: Optional[str] = None
+    referenced_authors: Optional[list[str]] = None
+    referenced_contents: Optional[list[str]] = None
     response: str = "*filtered*"
     date_: datetime = datetime.now()
     timezone = pytz.timezone(CHATBOT_TIMEZONE)
@@ -42,19 +42,24 @@ class ChatbotMessage:
 
     def prompt(self) -> str:
         """Return the formatted prompt of the message to generate a response."""
-        infos = [datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M")]
+        infos = [
+            datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M:%S"),
+            f"**{self.author} sent a message.**",
+        ]
 
         if recall_text := self.format_recall_vectors():
             infos.append(f"memory: {recall_text}")
 
-        if self.referenced_author and self.referenced_content:
-            infos.append(
-                f"Message replying to *{self.referenced_author}*: "
-                f'"{self.referenced_content}"'
-            )
+        if self.referenced_authors and self.referenced_contents:
+            for i in range(len(self.referenced_authors)):
+                if self.referenced_authors[i] is not None:
+                    infos.append(
+                        "This message refers to a **VISIBLE** message (reply or URL) "
+                        f"from *{self.referenced_authors[i]}*: "
+                        f'"{self.referenced_contents[i]}"'
+                    )
 
-        infos.append(f"**{self.author} talks to you**")
-        message = f"[{', '.join(infos)}] {self.content}"
+        message = f'[{', '.join(infos)}]: "{self.content}"'
 
         return message
 

@@ -41,6 +41,7 @@ from bot.chatbot.gemini_client import client, utils_models_manager
 from bot.chatbot.prompts import Prompts
 from bot.chatbot.vector_recall import memory
 from bot.config.sqlite_config_manager import get_all_chatbot_emotes, get_whitelist
+from bot.utils import link_grabber, parse_message_url
 
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -184,8 +185,8 @@ class Gembot:
         author: str,
         guild_id: int,
         urls: Optional[List[str]] = None,
-        r_author: Optional[str] = None,
-        r_content: Optional[str] = None,
+        r_authors: Optional[list] = None,
+        r_contents: Optional[list] = None,
         message_id: Optional[int] = None,
         api: str = "openai" if OPENAI_ENABLED else "gemini",
     ) -> Optional[ChatbotMessage]:
@@ -218,8 +219,8 @@ class Gembot:
             author,
             user_query,
             recall_vectors,
-            r_author,
-            r_content,
+            r_authors,
+            r_contents,
             urls=urls,
         )
 
@@ -491,6 +492,7 @@ class Gembot:
         self,
         context: Union[discord.Message, discord.ApplicationContext],
         message_content: str,
+        bot: discord.Bot,
         api: Optional[Literal["gemini", "openai"]] = None,
     ) -> tuple:
         """Get Gemini message params from a discord.Message."""
@@ -516,7 +518,39 @@ class Gembot:
 
         # Extra message content
         urls = []
-        rauthor = rcontent = None
+        r_authors = []
+        r_contents = []
+
+        # Parse message url(s) if any
+        def add_context_from_referred_msg(
+            r_message: discord.Message, via_url: bool = False
+        ):
+            r_authors.append(r_message.author)
+            r_contents.append(r_message.content)
+            urls.extend(
+                [
+                    attachment.url
+                    for attachment in r_message.attachments
+                    if attachment.url
+                ]
+            )
+
+        urls_in_content = link_grabber.findall(mc)
+        discord_urls_count = 0
+        for url_tuple in urls_in_content:
+            url = url_tuple[0]
+            discord_urls_count += 1
+
+            if "discord.com/channels" in url:
+                try:
+                    r_message = await parse_message_url(bot, url)
+                    add_context_from_referred_msg(r_message, via_url=True)
+                    mc = mc.replace(url, f"[Message URL from {r_message.author}]")
+
+                except discord.errors.Forbidden:
+                    r_authors.append(None)
+                    r_contents.append(None)
+                    mc = mc.replace(url, "[Message URL in unknown channel]")
 
         # Process custom emojis
         match = re.search(r"<:(?P<name>[^:]+):(?P<snowflake>\d+)>", mc)
@@ -548,15 +582,8 @@ class Gembot:
             # Process message reference (if any)
             if context.reference and context.reference.message_id:
                 rid = context.reference.message_id
-                rmessage = await context.channel.fetch_message(rid)
-                rauthor = rmessage.author.global_name or rmessage.author.name
-                rcontent = rmessage.content
-                urls = [
-                    attachment.url
-                    for attachment in rmessage.attachments
-                    if attachment.url
-                ]
-                urls.extend(urls)
+                r_message = await context.channel.fetch_message(rid)
+                add_context_from_referred_msg(r_message)
 
         else:  # Application context
             id = context.interaction.id
@@ -567,8 +594,8 @@ class Gembot:
             context.author.global_name,
             context.guild.id if context.guild else context.channel.id,
             urls,
-            rauthor,
-            rcontent,
+            r_authors,
+            r_contents,
             id,
             api,
         )

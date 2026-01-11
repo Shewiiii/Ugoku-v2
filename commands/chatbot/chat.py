@@ -68,7 +68,7 @@ if GEMINI_ENABLED:
                 return
 
             async with message.channel.typing():
-                params = await chat.get_params(message, message.content)
+                params = await chat.get_params(message, message.content, self.bot)
                 try:
                     chatbot_message: ChatbotMessage = await chat.send_message(*params)
                 except APIError as e:

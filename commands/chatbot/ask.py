@@ -63,7 +63,7 @@ class Ask(commands.Cog):
             chat.status = 2
 
         # Create response
-        params = await chat.get_params(ctx, query, api=api)
+        params = await chat.get_params(ctx, query, ctx.bot, api=api)
         await chat.interact(ctx, query, self.bot.user.id, ask_command=True)
 
         try:

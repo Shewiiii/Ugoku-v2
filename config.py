@@ -21,7 +21,7 @@ ALLOW_CHATBOT_IN_DMS = False # Allow everyone to use the bot in dms. Can increas
 OPENAI_ENABLED = False
 
 # ===CHATBOT MODELS===
-GEMINI_MODEL = 'gemini-2.5-flash'
+GEMINI_MODEL = 'gemini-3-flash-preview'
 GEMINI_UTILS_MODELS = [
     'gemini-2.0-flash',
     'gemini-2.0-flash-lite', 
@@ -32,7 +32,7 @@ GEMINI_UTILS_MODELS = [
 OPENAI_MODEL = 'gpt-4.1-mini-2025-04-14'
 
 # Display names
-GEMINI_MODEL_DISPLAY_NAME = 'Gemini 2.5 Flash'
+GEMINI_MODEL_DISPLAY_NAME = 'Gemini 3 Flash'
 OPENAI_MODEL_DISPLAY_NAME = "GPT-4.1 mini"
 
 #  ===SETTINGS===
