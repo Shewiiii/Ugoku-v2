@@ -150,6 +150,7 @@ class Gembot:
     def get_chat_id(
         message: Union[discord.ApplicationContext, discord.Message],
         gemini_command: bool = False,
+        for_pinecone: bool = False,
     ) -> Optional[int]:
         """Get the chat id to use for the chatbot. Return `None` if it should not be used for this message."""
         if not GEMINI_ENABLED:
@@ -162,8 +163,12 @@ class Gembot:
             and ALLOW_CHATBOT_IN_DMS
             or message.channel.id in chatbot_ids
         ):
+            # Saving memory server wise
+            if for_pinecone:
+                return message.channel.id
+            else:
             # Id = channel (dm) id if in DMs
-            return message.channel.id
+                return message.guild.id
 
         elif message.guild:
             # Id = server id if the server is globally whitelisted
