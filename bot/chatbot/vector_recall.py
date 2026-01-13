@@ -130,9 +130,9 @@ but nothing otherwise.\n
 
         if metadata["query_type"] in {"info", "question", "other"}:
             return False
-        else:
-            # Important carac: remove the messages from the Pinecone history
-            history.pinecone_remove_last_three()
+
+        # Important carac: remove the messages from the Pinecone history
+        history.pinecone_remove_last_three()
 
         # Create the embeddings/vectors
         vector_values = await self.generate_embeddings(metadata["text"])

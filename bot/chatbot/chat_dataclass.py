@@ -59,7 +59,7 @@ class ChatbotMessage:
                         f'"{self.referenced_contents[i]}"'
                     )
 
-        message = f'[{', '.join(infos)}]: "{self.content}"'
+        message = f'[{", ".join(infos)}]: "{self.content}"'
 
         return message
 
@@ -76,6 +76,8 @@ class ChatbotHistory:
     # - pinecone_history is used to analyse the messages, put new vectors in the Pinecone index, then
     # messages used to generate it are removed from pinecone_history, to avoid superfluous vectors
     recalled_vector_ids: set[str] = field(default_factory=set)
+    reset_i = 0
+    # Every {CHATBOT_HISTORY_SIZE} messages (from user), reset the id set of recalled vectors
 
     def __format__(self, format_spec):
         if format_spec == "pinecone_last_3":
@@ -105,6 +107,10 @@ class ChatbotHistory:
 
         while len(self.openai_input) > CHATBOT_HISTORY_SIZE * 2:  # Including Q&A
             self.openai_input.pop(0)
+
+        self.reset_i = (self.reset_i + 1) % CHATBOT_HISTORY_SIZE
+        if self.reset_i == 0:
+            self.reset_recalled_vector_ids_set()
 
     def create_openai_input(
         self, new_prompt: str, urls: Optional[list[str]] = None
@@ -147,3 +153,8 @@ class ChatbotHistory:
     def store_recall(self, vectors: list) -> None:
         for vector in vectors:
             self.recalled_vector_ids.add(vector["id"])
+
+    def reset_recalled_vector_ids_set(self) -> None:
+        # Very dirty implementation so a recalled vector doesn't vanish forever
+        # A recalled vector just before reset may be recalled twice in a row
+        self.recalled_vector_ids = set()
