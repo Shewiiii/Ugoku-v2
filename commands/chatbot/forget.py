@@ -61,22 +61,12 @@ class ForgetView(discord.ui.View):
         ]
 
         await asyncio.to_thread(memory.index.delete, removed_vector_ids)
-        await self.channel.send(
-            f"Removed {len(removed_vector_ids)} vector{'s' if len(removed_vector_ids) > 1 else ''} !"
-        )
         self.update()
-        await self.webhook_msg.edit(embed=self.embed, view=self)
-
-    @discord.ui.button(
-        label="Close",
-        style=discord.ButtonStyle.secondary,
-    )
-    async def close_button_callback(
-        self, button: discord.ui.Button, interaction: discord.Interaction
-    ) -> None:
-        await interaction.message.delete()
-        self.clear_items()
-        self.ctx = self.bot = None
+        await self.webhook_msg.edit(
+            content=f"Removed {len(removed_vector_ids)} vector{'s' if len(removed_vector_ids) > 1 else ''} !",
+            embed=self.embed,
+            view=self,
+        )
 
     def update(self) -> None:
         # Vector list
@@ -134,12 +124,12 @@ class Forget(commands.Cog):
         query: discord.Option(str, "Search the entry you want to delete.", default=""),  # type: ignore
     ) -> None:
         # I await afterward to gain a few ms
-        defer_task = asyncio.create_task(ctx.defer())
+        defer_task = asyncio.create_task(ctx.defer(ephemeral=True))
         id_ = Gembot.get_chat_id(ctx, gemini_command=True)
-        if not id_:
+        if not id_ or not memory.active:
             await defer_task
             await ctx.respond(
-                "Invalid location ! Try again in another channel or server."
+                "Invalid location ! Try again in another channel or server.",
             )
             return
         vectors = await memory.get_vectors(query, id_)

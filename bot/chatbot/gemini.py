@@ -159,7 +159,7 @@ class Gembot:
             return
 
         chatbot_ids = get_whitelist("chatbot_ids")
-
+        
         if (
             isinstance(message.channel, discord.DMChannel)
             and ALLOW_CHATBOT_IN_DMS
@@ -167,10 +167,10 @@ class Gembot:
         ):
             # Saving memory server wise
             if for_pinecone:
-                return message.channel.id
+                return message.guild.id
             else:
                 # Id = channel (dm) id if in DMs
-                return message.guild.id
+                return message.channel.id
 
         elif message.guild:
             # Id = server id if the server is globally whitelisted
