@@ -51,7 +51,7 @@ class Timer:
 
 @dataclass()
 class Track:
-    service: Literal["spotify/deezer", "ytdlp", "onsei", "custom"]
+    service: Literal["spotify/deezer", "onsei", "custom"]
     id: Union[str, int] = 0
     title: str = "?"
     artist: str = "?"
@@ -72,10 +72,6 @@ class Track:
     dominant_rgb: tuple = DEFAULT_EMBED_COLOR
     timer: Timer = Timer()
     stream_generator: Optional[Callable] = None
-    loading_event: Optional[asyncio.Event] = None
-    # "Loading event" is only used for ytdlp sources for now,
-    # Spotify and deezer streams need to be reloaded
-    # (paths are out of the equation because of the early return above)
     file_extension: Optional[str] = None  # Needed for Yt-dlp
     cache_event: Optional[asyncio.Event] = None
 
@@ -277,27 +273,6 @@ class Track:
 
         return True
 
-    async def load_youtube(self) -> bool:
-        if not self.stream_generator:
-            return False
-        new_track: Track = (await self.stream_generator())[0]
-        relevant_fields = {
-            "title",
-            "artist",
-            "artists",
-            "album",
-            "source_url",
-            "embed",
-            "stream_source",
-            "cover_url",
-            "duration",
-        }
-        for f in fields(new_track):
-            if f.name in relevant_fields:
-                setattr(self, f.name, getattr(new_track, f.name))
-        logging.info(f"Loaded Youtube stream of {self}")
-        return True
-
     async def load_stream(
         self, session: Optional["ServerSession"] = None
     ) -> Optional[Union[AbsChunkedInputStream, DeezerChunkedInputStream]]:
@@ -318,20 +293,6 @@ class Track:
                 # Load from Deezer first if possible
                 if not await self.load_deezer_stream(session):
                     await self.load_spotify_stream(session)
-
-            case "ytdlp":
-                # You probably dont wanna reload yt-dlp streams
-                if self.loading_event:
-                    try:
-                        await asyncio.wait_for(self.loading_event.wait(), 10.0)
-                    except TimeoutError:
-                        ...
-                else:
-                    self.loading_event = asyncio.Event()
-                    try:
-                        await self.load_youtube()
-                    finally:
-                        self.loading_event.set()
 
         return self.stream_source
 

@@ -22,7 +22,6 @@ Learn more about the bot here: https://ugoku.app/.
   - [x] Amazing audio quality: bypass the channel's audio bitrate.
   - [x] Stream songs from Spotify, Deezer or Soundcloud*.
   - [x] Inject lossless streams to Spotify songs (when available on Deezer).
-  - [x] Stream videos from Youtube.
   - [x] Stream audio works (音声作品) in a voice channel.
   - [x] Play songs from a URL (custom source).
   - [x] Apply audio effects (bass boost, reverb, etc), with high quality [Raum](https://www.native-instruments.com/en/products/komplete/effects/raum/) effects built-in !
@@ -62,9 +61,8 @@ Chatbot features are disabled, but you can still play with the bot !
 Music bot:
 
 - A Spotify app (get one [here](https://developer.spotify.com/)).
-- A Deezer Premium or Spotify Premium account (Youtube is supported, but the bot is not optimized for it).
+- A Deezer Premium or Spotify Premium account.
 - (Optional) An Imgur API key (get one [here](https://imgur.com/account/settings/apps)), to display the cover art for songs from custom sources.
-- (Optional) A Youtube API key (get one [here](https://console.cloud.google.com/)), to enable Youtube playlist URL support.
 
 Chatbot:
 
@@ -143,8 +141,6 @@ You can now restart your instance.
   <p>Spotify song download</p>
   <img src="img/lyrics.jpg" alt="lyrics"/>
   <p>Lyrics</p>
-  <img src="img/youtube_summary.jpg" alt="lyrics"/>
-  <p>Youtube & text summary</p>
   <img src="img/help_command.jpg" alt="help command"/>
   <p>Help command</p>
   <img src="img/danbooru.jpg" alt="danbooru"/>

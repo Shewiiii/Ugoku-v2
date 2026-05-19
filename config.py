@@ -10,10 +10,10 @@ import sys
 SPOTIFY_API_ENABLED = True
 SPOTIFY_ENABLED = False
 DEEZER_ENABLED = False
-DEFAULT_STREAMING_SERVICE = 'ytdlp.' # spotify/deezer, ytdlp.
-GEMINI_ENABLED = True # Don't forget to whitelist servers for the chatbot ! Scroll down to "CHATBOT_SERVER_WHITELIST"
+DEFAULT_STREAMING_SERVICE = 'spotify/deezer'
+GEMINI_ENABLED = True # Don't forget to whitelist servers for the chatbot via /database commands !
 PINECONE_ENABLED = True
-ALLOW_CHATBOT_IN_DMS = False # Allow everyone to use the bot in dms. Can increase the token usage.
+ALLOW_CHATBOT_IN_DMS = False # Allow everyone to use the bot in dms.
 
 # IN DEVELOPMENT: Used for compatibility purposes
 # Make sure to create an OpenAI API key here https://platform.openai.com/api-keys
@@ -28,7 +28,7 @@ GEMINI_UTILS_MODELS = [
     'gemini-1.5-flash',
     'gemini-1.5-flash-8b',
     'gemma-3-27b-it' # Very slow
-] # Used for summaries, lyrics, example sentences and memory management
+] # Used lyrics, example sentences and memory management
 OPENAI_MODEL = 'gpt-4.1-mini-2025-04-14'
 
 # Display names
@@ -37,16 +37,14 @@ OPENAI_MODEL_DISPLAY_NAME = "GPT-4.1 mini"
 
 #  ===SETTINGS===
 # Paths
-COOKIES_PATH = './cookies.txt' # Parse cookies to ytdl to help with bot detection. Learn more: https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies
 COMMANDS_FOLDER = Path('./commands')
 TEMP_FOLDER = Path('.') / 'temp'
 PREMIUM_CHANNEL_ID = None # Upload files too big to a channel in a boosted server instead
 DB_PATH = Path("config.sqlite")
 
 # Cache control & preloading
-AGRESSIVE_CACHING = True # Download Spotify and ytdlp streams on disk before and when playing. Can be useful if Spotify often closes the connection with Librespot.
+AGRESSIVE_CACHING = True # Download Spotify streams on disk before and when playing. Can be useful if Spotify often closes the connection with Librespot.
 MAX_DUMMY_LOAD_INDEX = 6
-MAX_PROCESS_POOL_WORKERS = 2 # Max number of simultaneous ytdlp fetching. None defaults to the number of processors
 CACHE_SIZE = 100  # Cache size limit (in number of files)
 CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds). Default is one month
 

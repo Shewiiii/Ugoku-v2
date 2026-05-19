@@ -31,7 +31,7 @@ class QuickstartView(View):
             "value": "- First, hop in a voice channel and try to play a song with `/play` !"
             " You can also play your song files with `/play-custom` :musical_note: \n"
             '- With the "Now playing" view, control the queue has never been easier :sparkles:\n'
-            "- You can also paste Spotify, Youtube or Soundcloud URLs for convenience.\n"
+            "- You can also paste Spotify URLs for convenience.\n"
             '- If you explicitely want to play a song from a particular source, you can use the "Service" option.\n'
             "- The effect button applies the `Raum size 100%, decay 2s` effect using convolution, for an immersive sound :ringed_planet:\n"
             "- See the full command list in the music category (/help).\n"
@@ -51,7 +51,7 @@ class QuickstartView(View):
             "name": "Misc features",
             "value": (
                 "I also have random features, here are some of them:\n"
-                "- You can download songs from Deezer, Spotify or Youtube with the commands \n`/dzdl`, `/spdl`, `/ytdlp`\n"
+                "- You can download songs from Deezer or Spotify with the commands \n`/dzdl`, `/spdl`\n"
                 "- Get random images from Danbooru tags using \n`/danbooru` \n(be careful, I filter NSFW results, but the site does not !)\n"
                 "- Get the direct URL of stickers or emotes your friends have sent using \n`/get-emotes`\n"
                 "- Download stickers from LINE with \n`/get-stickers`"

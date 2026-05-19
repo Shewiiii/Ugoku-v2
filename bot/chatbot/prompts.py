@@ -59,7 +59,3 @@ You don't remember your past, but you love making friends, and sharing little mo
 - IF YOU SEE [Message URL from ...], THE CONTENT IS IN THE SYSTEM PROMPT  
 
 """
-    summarize = """
-make a complete summary of the following, in less than 1800 caracters.
-Try to be concise:
-"""

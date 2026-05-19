@@ -11,7 +11,7 @@ class nowPlayingView(discord.ui.View):
     def __init__(
         self,
         bot: discord.bot,
-        voice_client: discord.voice_client,
+        voice_client: discord.VoiceClient,
         server_session: "ServerSession",
     ) -> None:
         super().__init__(timeout=None)

@@ -11,7 +11,7 @@ from collections import Counter
 from io import BytesIO
 from pathlib import Path
 from time import time
-from urllib.parse import urlparse, parse_qs, unquote, urlencode, urlunparse, parse_qsl
+from urllib.parse import urlparse, unquote, urlencode, urlunparse, parse_qsl
 from bs4 import BeautifulSoup
 
 import mutagen
@@ -475,33 +475,6 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
 
     return chunks
 
-
-def extract_video_id(url):
-    """
-    Extracts the YouTube video ID from a given URL.
-
-    Args:
-        url (str): The YouTube URL.
-
-    Returns:
-        str or None: The extracted video ID if found; otherwise, None.
-    """
-    parsed_url = urlparse(url)
-    if "youtube" in parsed_url.hostname:
-        # For URLs like https://www.youtube.com/watch?v=VIDEO_ID
-        if parsed_url.path == "/watch":
-            query_params = parse_qs(parsed_url.query)
-            return query_params.get("v", [None])[0]
-        # For URLs like https://www.youtube.com/embed/VIDEO_ID
-        elif "/embed/" in parsed_url.path:
-            return parsed_url.path.split("/embed/")[1]
-    elif "youtu.be" in parsed_url.hostname:
-        # For URLs like https://youtu.be/VIDEO_ID
-        return parsed_url.path.lstrip("/")
-    else:
-        return None
-
-
 def send_response(
     respond: Callable[[str], discord.Message],
     message: str,
@@ -686,70 +659,6 @@ def get_display_name_from_query(query: str) -> str:
     """Extracts a display name from the query URL if no title is found."""
     match = re.search(r"(?:.+/)([^#?]+)", query)
     return unquote(match.group(1)) if match else "Custom track"
-
-
-def clean_url(url: str) -> str:
-    """Clean Youtube and Souncloud urls."""
-    parsed_url = urlparse(url)
-    query_params = dict(parse_qsl(parsed_url.query))
-    params_blacklist = [
-        "si",
-        "t",
-        "utm_source",
-        "utm_medium",
-        "utm_campaign",
-        "utm_term",
-        "utm_content",
-        "utm_id",
-        "rco",
-        "in_system_playlist",
-        "ref",
-        "feature",
-        "src",
-        "fbclid",
-        "gclid",
-        "msclkid",
-        "sc_ichannel",
-        "partner",
-        "p",
-        "referrer",
-        "tt_medium",
-        "tt_content",
-        "igshid",
-        "ig_rid",
-        "ig_mid",
-        "from_messages",
-        "s",
-        "cxt",
-        "_openstat",
-        "yclid",
-        "gbraid",
-        "wbraid",
-        "context",
-        "spm_id_from",
-        "from_source",
-        "msource",
-        "bsource",
-        "seid",
-        "from",
-        "refer_page",
-        "watch_refer",
-        "ref_member",
-        "ref_video",
-        "nrc",
-        "share_source",
-        "share_medium",
-        "share_campaign",
-        "share_id",
-        "action_type",
-    ]
-
-    for param in params_blacklist:
-        query_params.pop(param, None)
-    new_query = urlencode(query_params)
-    new_url = re.sub(r"&.*", "", urlunparse(parsed_url._replace(query=new_query)))
-    new_url = new_url.replace("youtu.be/", "www.youtube.com/watch?v=")
-    return new_url
 
 
 async def process_song_query(

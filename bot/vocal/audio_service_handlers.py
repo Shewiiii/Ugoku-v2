@@ -5,7 +5,6 @@ from typing import Optional
 from aiohttp.client_exceptions import ClientResponseError, InvalidUrlClientError
 import discord
 from spotipy.exceptions import SpotifyException
-from yt_dlp.utils import DownloadError
 
 from bot.vocal.custom import fetch_audio_stream, upload_cover
 from bot.vocal.server_session import ServerSession
@@ -18,11 +17,6 @@ from bot.config.sqlite_config_manager import get_whitelist
 
 
 def get_error_message(e: Exception) -> str:
-    if isinstance(e, DownloadError):
-        return "Download failed: Ugoku has been detected as a bot."
-    if isinstance(e, ValueError):
-        if str(e) == "No Youtube API key provided":
-            return "Youtube playlist URLs are not supported !"
     if isinstance(e, ClientResponseError) and e.status == 404:
         # For onsei
         return "No onsei has been found !"
@@ -33,7 +27,7 @@ def get_error_message(e: Exception) -> str:
         return "Invalid URL !"
 
     error_string = (
-        "An error occurred. Please Check the URL or query again. "
+        "An error occurred. Please Check the URL or query, or contact the developper. "
         "Perhaps you are trying to play a direct URL ? "
         f'In that case, use the "custom" service.\n-# {repr(e)}'
     )
@@ -177,28 +171,3 @@ async def play_onsei(
         return
 
     await session.add_to_queue(ctx, tracks, play_next=play_next)
-
-
-async def play_ytdlp(
-    ctx: discord.ApplicationContext,
-    query: str,
-    session: ServerSession,
-    interaction: Optional[discord.Interaction] = None,
-    offset: int = 0,
-    play_next: bool = False,
-    defer_task: Optional[asyncio.Task] = None,
-) -> None:
-    response_params = [ctx, "", interaction, defer_task]
-    try:
-        tracks: list[Track] = await ctx.bot.ytdlp.get_tracks(query, offset=offset)
-    except Exception as e:
-        response_params[1] = get_error_message(e)
-        await respond(*response_params)
-        return
-
-    if not tracks:
-        response_params[1] = "No content has been found !"
-        await respond(*response_params)
-        return
-
-    await session.add_to_queue(ctx, tracks, play_next=play_next, load_dummies=False)

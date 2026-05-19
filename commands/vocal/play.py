@@ -10,7 +10,6 @@ from bot.vocal.audio_service_handlers import (
     play_spotify,
     play_custom,
     play_onsei,
-    play_ytdlp,
 )
 from bot.utils import is_onsei, process_song_query, vocal_connect_check, respond
 from bot.search import is_url
@@ -114,11 +113,6 @@ class Play(commands.Cog):
         )
         onsei = is_onsei(query) or service == "onsei"
         spotify_deezer = service == "spotify/deezer"
-        ytdlp = service == "ytdlp" or (
-            is_url(query)
-            and not is_url(query, from_=["open.spotify.com"])
-            and not custom
-        )
 
         # Choose the right service
         if onsei:
@@ -126,11 +120,6 @@ class Play(commands.Cog):
 
         elif custom:
             await play_custom(ctx, query, session, play_next, defer_task)
-
-        elif ytdlp:
-            await play_ytdlp(
-                ctx, query, session, interaction, offset, play_next, defer_task
-            )
 
         elif spotify_deezer:
             if not (SPOTIFY_API_ENABLED and (SPOTIFY_ENABLED or DEEZER_ENABLED)):
@@ -161,7 +150,7 @@ class Play(commands.Cog):
         service: discord.Option(
             str,
             description="The streaming service you want to use.",
-            choices=["Spotify/Deezer", "Ytdlp", "Custom", "Onsei"],
+            choices=["Spotify/Deezer", "Custom", "Onsei"],
             default=DEFAULT_STREAMING_SERVICE,
         ),  # type: ignore
         play_next: discord.Option(

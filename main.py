@@ -10,7 +10,6 @@ if __name__ == "__main__":  # Anti ProcessPoolExecutor shield
     from bot.misc.quickstart_view import QuickstartView  # noqa: E402
     from bot.utils import cleanup_cache  # noqa: E402
     from bot.vocal.spotify import SpotifySessions, Spotify  # noqa: E402
-    from bot.vocal.ytdlp import Ytdlp  # noqa: E402
     from config import (  # noqa: E402
         COMMANDS_FOLDER,
         SPOTIFY_API_ENABLED,
@@ -56,7 +55,6 @@ if __name__ == "__main__":  # Anti ProcessPoolExecutor shield
                 bot.deezer = Deezer()
                 tasks.append(bot.deezer.setup(create_refresh_task=True))
 
-        bot.ytdlp = Ytdlp()
         if GEMINI_ENABLED:
             tasks.append(memory.init_pinecone(PINECONE_INDEX_NAME))
         await asyncio.gather(*tasks, return_exceptions=True)

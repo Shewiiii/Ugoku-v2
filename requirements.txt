@@ -1,15 +1,13 @@
-py-cord[voice]
+py-cord[voice]<3.0.0
 spotipy>=2.11.0
-git+https://github.com/kokarare1212/librespot-python
+git+https://github.com/Shewiiii/librespot-python
 requests
 python-dotenv
-yt-dlp[default] --pre
 bs4
 imageio
 PyNaCl
 mutagen
 typing-extensions
-youtube-transcript-api==1.0.3
 google-genai
 pytz
 pinecone[grpc]
@@ -20,6 +18,3 @@ aiohttp-client-cache[all]
 legacy-cgi
 googlesearch-python
 openai
-# Pinecone things
-grpcio
-protoc-gen-openapiv2

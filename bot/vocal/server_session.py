@@ -3,7 +3,6 @@ from collections import deque
 from datetime import datetime, timedelta
 import itertools
 import logging
-from pathlib import Path
 import random
 from time import perf_counter, time
 from typing import Optional, List, Union
@@ -330,10 +329,6 @@ class ServerSession:
 
         # Stream options
         stream_options = "-thread_queue_size 4 -fflags +discardcorrupt "
-        if service == "ytdlp" and not isinstance(stream_source, (str, Path)):
-            stream_options += (
-                "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
-            )
 
         # Audio effects
         ae = self.audio_effect
@@ -372,7 +367,7 @@ class ServerSession:
 
     async def load_next_tracks(self, max_index: int = MAX_DUMMY_LOAD_INDEX) -> None:
         """Load next the next Tracks and embeds.
-        Preload the next stream if from Spotify/Deezer, check until the max index if from Ytdlp."""
+        Preload the next stream if from Spotify/Deezer."""
         sp = self.bot.spotify.sessions.sp if SPOTIFY_API_ENABLED else None
         tasks = []
 
@@ -382,7 +377,7 @@ class ServerSession:
 
         # In queue
         for i, track in enumerate(self.queue[1:max_index], start=1):
-            if i == 1 or track.service == "ytdlp":
+            if i == 1:
                 tasks.append(track.load_stream(self))
             if track.unloaded_embed:  # Spotify/Deezer
                 tasks.append(track.generate_embed(sp))
