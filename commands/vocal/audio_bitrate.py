@@ -13,7 +13,7 @@ class AudioBitrate(commands.Cog):
 
     @commands.slash_command(
         name="audio-bitrate",
-        description="Change the bitrate of the audio session, from 1 to 510 kbps.",
+        description="Change the bitrate of the audio session, from 1 to 510 kbps. (Default: 320)",
         integration_types={discord.IntegrationType.guild_install},
     )
     async def bitrate(self, ctx: discord.ApplicationContext, bitrate: int) -> None:
