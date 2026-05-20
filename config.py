@@ -24,18 +24,17 @@ ALLOW_CHATBOT_IN_DMS = False # Allow everyone to use the bot in dms.
 OPENAI_ENABLED = False
 
 # ===CHATBOT MODELS===
-GEMINI_MODEL = 'gemini-3-flash-preview'
+GEMINI_MODEL = 'gemini-3.5-flash'
 GEMINI_UTILS_MODELS = [
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
     'gemini-2.0-flash',
-    'gemini-2.0-flash-lite', 
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemma-3-27b-it' # Very slow
 ] # Used lyrics, example sentences and memory management
 OPENAI_MODEL = 'gpt-4.1-mini-2025-04-14'
 
 # Display names
-GEMINI_MODEL_DISPLAY_NAME = 'Gemini 3 Flash'
+GEMINI_MODEL_DISPLAY_NAME = 'Gemini 3.5 Flash'
 OPENAI_MODEL_DISPLAY_NAME = "GPT-4.1 mini"
 
 #  ===SETTINGS===
@@ -127,6 +126,7 @@ ONSEI_BLACKLIST = ['なし'] # Tracks containing one of these words will be blac
 CHATBOT_CHANNEL_WHITELIST = {} # All channel/thread ids allowed to use the chatbot
 CHATBOT_PREFIX = '!' # Prefix to trigger the chatbot
 GEMINI_PREFIX = '-' # If OpenAI is enabled, CHATBOT_PREFIX+GEMINI_PREFIX will force to use Gemini instead
+GEMINI_THINKING_LEVEL = "minimal" # minimal (except on 3.1 Pro), low, medium or high
 CHATBOT_TIMEOUT = 300 # Time before disabling continuous chat (in seconds, enabled with double prefix)
 CHATBOT_TIMEZONE = 'Asia/Tokyo'
 CHATBOT_TEMPERATURE = 1.0 # From 0.0 to 2.0. Specifies the randomness/creativity of the chatbot

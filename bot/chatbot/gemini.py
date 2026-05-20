@@ -28,6 +28,7 @@ from config import (
     GEMINI_MODEL_DISPLAY_NAME,
     OPENAI_MODEL_DISPLAY_NAME,
     PINECONE_ENABLED,
+    GEMINI_THINKING_LEVEL,
 )
 import urllib3
 from PIL import Image
@@ -91,7 +92,10 @@ class Gembot:
                         disable=True
                     ),
                     tools=[google_search_tool] if ugoku_chat else [],
-                    thinking_config=types.ThinkingConfig(include_thoughts=False),
+                    thinking_config=types.ThinkingConfig(
+                        include_thoughts=False, thinking_level=GEMINI_THINKING_LEVEL
+                    ),
+                    service_tier="priority",
                 ),
             )
             self.status = 0

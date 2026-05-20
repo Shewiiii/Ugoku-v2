@@ -29,6 +29,7 @@ from config import (
     ONSEI_WHITELIST,
     ONSEI_BLACKLIST,
     LANGUAGES,
+    GEMINI_THINKING_LEVEL
 )
 
 
@@ -69,6 +70,7 @@ class ConfigCommand(commands.Cog):
         chatbot_settings = "\n".join(
             [
                 f"{e['misc']} Chatbot Gemini model: {GEMINI_MODEL}",
+                f"{e['misc']} Gemini thinking level: {GEMINI_THINKING_LEVEL}",
                 f"{e['misc']} Chatbot OpenAI model: {OPENAI_MODEL}",
                 f"{e['misc']} Chatbot temperature: {CHATBOT_TEMPERATURE}",
                 f"{e['misc']} Chatbot emote frequency: {CHATBOT_EMOTE_FREQUENCY:.1f}",
