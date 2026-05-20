@@ -405,10 +405,26 @@ class ServerSession:
 
         # Shuffle if enabled
         if self.shuffle:
-            self.original_queue[
-                (i := 1 if play_next else len(self.original_queue)) : i
-            ] = tracks
-            random.shuffle(self.queue[1:])
+            if play_next and self.queue:
+                try:
+                    current_index = self.original_queue.index(self.queue[0])
+                    insert_index_orig = current_index + 1
+                except (ValueError, IndexError):
+                    # If first track or original queue not synced
+                    insert_index_orig = len(self.original_queue)
+            else:
+                insert_index_orig = len(self.original_queue)
+            
+            self.original_queue[insert_index_orig:insert_index_orig] = tracks
+
+            if play_next:
+                shuffled_part = self.queue[1 + len(tracks):]
+                random.shuffle(shuffled_part)
+                self.queue[1 + len(tracks):] = shuffled_part
+            else:
+                shuffled_part = self.queue[1:]
+                random.shuffle(shuffled_part)
+                self.queue[1:] = shuffled_part
 
         # Tell the user what has been added
         c = len(tracks)

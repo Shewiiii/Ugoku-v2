@@ -1,6 +1,7 @@
+import os
 import asyncio
 import aiofiles
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 import logging
 from pathlib import Path
 from math import floor
@@ -276,23 +277,30 @@ class Track:
     async def load_stream(
         self, session: Optional["ServerSession"] = None
     ) -> Optional[Union[AbsChunkedInputStream, DeezerChunkedInputStream]]:
-        if isinstance(self.stream_source, (Path, str)):
+        if (
+            isinstance(self.stream_source, (Path, str))
+            or self.service != "spotify/deezer"
+        ):
             return
 
-        match self.service:
-            case "spotify/deezer":
-                if not session:
-                    raise ValueError("Session param missing")
+        if not session:
+            raise ValueError("Session param missing")
 
-                # Cached ?
-                cache_path = get_cache_path(f"spotify{self.id}")
-                if cache_path.with_suffix(".valid").is_file():
-                    self.stream_source = cache_path
-                    return
+        # Cached ?
+        cache_path = get_cache_path(f"spotify{self.id}")
+        valid_flag_path = cache_path.with_suffix(".valid")
+        if valid_flag_path.is_file():
+            # Ghost .valid file
+            if not cache_path.is_file():
+                await asyncio.to_thread(os.remove, valid_flag_path)
+                logging.info(f"Removed ghost valid flag: {valid_flag_path}")
+            else:
+                self.stream_source = cache_path
+                return
 
-                # Load from Deezer first if possible
-                if not await self.load_deezer_stream(session):
-                    await self.load_spotify_stream(session)
+        # Load from Deezer first if possible
+        if not await self.load_deezer_stream(session):
+            await self.load_spotify_stream(session)
 
         return self.stream_source
 
