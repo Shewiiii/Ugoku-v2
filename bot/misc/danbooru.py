@@ -1,10 +1,9 @@
 import asyncio
-from aiohttp_client_cache import CachedSession, SQLiteBackend
 from bs4 import BeautifulSoup
 from typing import TYPE_CHECKING
 
 import discord
-from config import CACHE_EXPIRY
+from bot import http_client
 
 
 if TYPE_CHECKING:
@@ -33,27 +32,27 @@ class Danbooru:
     async def autocomplete(self, ctx: discord.AutocompleteContext) -> list:
         search = ctx.options["tag"].replace(" ", "_")
         params = {"search[query]": search, "search[type]": "tag_query", "limit": 10}
-        async with CachedSession(
-            follow_redirects=True,
-            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-        ) as session:
-            response = await session.get(
-                "https://danbooru.donmai.us/autocomplete", params=params
-            )
+
+        async with http_client.session.get(
+            "https://danbooru.donmai.us/autocomplete", params=params
+        ) as response:
             response.raise_for_status()
-        raw = BeautifulSoup(await response.text(), features="html.parser")
+            raw = BeautifulSoup(await response.text(), features="html.parser")
+
         suggestions = [
             li.get("data-autocomplete-value")
             for li in raw.find_all("li", class_="ui-menu-item")
         ]
         return suggestions
 
-    async def get_posts(self, tag: str, limit: int = 10, random: bool = True) -> list[dict]:
+    async def get_posts(
+        self, tag: str, limit: int = 10, random: bool = True
+    ) -> list[dict]:
         """Get Danboru posts from a tag."""
         params = {"limit": limit, "tags": tag, "random": str(random)}
-        async with CachedSession(follow_redirects=True) as session:
-            response = await session.get(self.base_url, params=params)
+        
+        async with http_client.session.get(self.base_url, params=params) as response:
             response.raise_for_status()
-        posts = await response.json()
+            posts = await response.json()
 
         return posts

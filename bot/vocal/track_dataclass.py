@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from math import floor
 from time import time
-from typing import Literal, Union, Optional, Self, Callable, TYPE_CHECKING
+from typing import Literal, Union, Optional, Callable, TYPE_CHECKING
 
 import discord
 from deezer_decryption.chunked_input_stream import DeezerChunkedInputStream
@@ -88,12 +88,12 @@ class Track:
         else:
             return str(self)
 
-    def set_artist(self, artist: str) -> Self:
+    def set_artist(self, artist: str):
         self.artist = artist
         self.artists = [artist]
         return self
 
-    def set_artists(self, artists: list) -> Self:
+    def set_artists(self, artists: list):
         if artists:
             self.artists = artists
             self.artist = ", ".join(artists)
@@ -253,20 +253,39 @@ class Track:
 
         return True
 
+    @staticmethod
+    def _sync_download(
+        stream, path: Path, loop: asyncio.AbstractEventLoop, cache_event: Optional[asyncio.Event]
+    ):
+        """Cache Spotify stream"""
+        with open(path, "wb") as file:
+            first_data = stream.read(4096)
+            if first_data:
+                file.write(first_data)
+                file.flush()
+
+                # Unblock event loop early for quicker play while caching the rest
+                if cache_event:
+                    loop.call_soon_threadsafe(cache_event.set)
+
+            while True:
+                data = stream.read(65536)
+                if not data:
+                    break
+                file.write(data)
+
+        with open(path.with_suffix(".valid"), "w"):
+            ...
+
     async def store_spotify_stream(self, file_path: Path) -> bool:
         if not SPOTIFY_ENABLED:
             return False
 
         # Download
-        stream = self.stream_source
-        async with aiofiles.open(file_path, "wb") as file:
-            while True:
-                data = await asyncio.to_thread(stream.read, 4096)
-                if not data:
-                    break
-                await file.write(data)
-                if self.cache_event:
-                    self.cache_event.set()
+        loop = asyncio.get_running_loop()
+        await asyncio.to_thread(
+            Track._sync_download, self.stream_source, file_path, loop, self.cache_event
+        )
 
         # If the download is sucessful, create a "valid" marker
         async with aiofiles.open(file_path.with_suffix(".valid"), "w"):

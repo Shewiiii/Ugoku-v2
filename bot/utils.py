@@ -1,5 +1,4 @@
 import asyncio
-from aiohttp_client_cache import CachedSession, SQLiteBackend
 from typing import Dict, Optional, Tuple, List, Union, Callable, TYPE_CHECKING
 import discord
 import base64
@@ -11,7 +10,7 @@ from collections import Counter
 from io import BytesIO
 from pathlib import Path
 from time import time
-from urllib.parse import urlparse, unquote, urlencode, urlunparse, parse_qsl
+from urllib.parse import urlparse, unquote
 from bs4 import BeautifulSoup
 
 import mutagen
@@ -27,7 +26,8 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.wave import WAVE
 
 from config import TEMP_FOLDER, CACHE_EXPIRY, CACHE_SIZE, PREMIUM_CHANNEL_ID
-from bot.search import link_grabber, is_url
+from bot.search import url_grabber, is_url
+from bot import http_client
 
 if TYPE_CHECKING:
     from bot.vocal.spotify import Spotify
@@ -162,11 +162,7 @@ def get_accent_color(image_bytes: bytes, threshold: int = 50) -> Tuple[int, int,
 
 async def get_dominant_rgb_from_url(image_url: str) -> Tuple[int, int, int]:
     """Fetch an image from a URL and extract its accent color."""
-    async with CachedSession(
-        follow_redirects=True,
-        cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-    ) as session:
-        response = await session.get(image_url)
+    async with http_client.session.get(image_url) as response:
         response.raise_for_status()
         cover_bytes = await response.read()
         dominant_rgb = get_accent_color(cover_bytes)
@@ -333,13 +329,9 @@ async def tag_ogg_file(
 
     # Fetch the album cover
     if album_cover_url:
-        async with CachedSession(
-            follow_redirects=True,
-            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-        ) as session:
-            async with session.get(album_cover_url) as response:
-                response.raise_for_status()
-                cover_bytes = await response.read()
+        async with http_client.session.get(album_cover_url) as response:
+            response.raise_for_status()
+            cover_bytes = await response.read()
         picture.data = cover_bytes
         # Encode the picture data in base64
         picture_encoded = base64.b64encode(picture.write()).decode("ascii")
@@ -474,6 +466,7 @@ def split_into_chunks(text: str, max_length: int = 1024) -> list:
     build_and_add_chunk(current_chunk_tokens, add_closing_fence=inside_code_block)
 
     return chunks
+
 
 def send_response(
     respond: Callable[[str], discord.Message],
@@ -644,7 +637,7 @@ async def get_url_from_message(
         if not (bot and message_url):
             raise ValueError("Bot or message url not provided")
         message = await parse_message_url(bot, message_url)
-    match = link_grabber.findall(message.content)
+    match = url_grabber.findall(message.content)
     if match:
         url = match[0][0]
 
@@ -690,11 +683,7 @@ async def process_song_query(
 
 async def tenor_view_url_to_direct_url(url: str) -> str:
     try:
-        async with CachedSession(
-            follow_redirects=True,
-            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-        ) as session:
-            response = await session.get(url)
+        async with http_client.session.get(url) as response:
             content = await response.read()
             raw = BeautifulSoup(content, features="html.parser")
             direct_url = raw.find("div", {"class": "Gif"}).find("img")["src"]

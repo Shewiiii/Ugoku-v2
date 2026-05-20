@@ -1,5 +1,4 @@
 import aiofiles
-from aiohttp_client_cache import CachedSession, SQLiteBackend
 import cgi
 import discord
 from dotenv import load_dotenv
@@ -12,7 +11,8 @@ from typing import Optional
 from urllib.parse import unquote
 
 from bot.utils import get_accent_color, get_display_name_from_query
-from config import CACHE_EXPIRY, TEMP_FOLDER, DEFAULT_EMBED_COLOR
+from config import TEMP_FOLDER, DEFAULT_EMBED_COLOR
+from bot import http_client
 
 
 logger = logging.getLogger(__name__)
@@ -44,33 +44,29 @@ async def upload_cover(cover_bytes: bytes) -> dict:
     url = "https://api.imgur.com/3/upload"
     headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
 
-    async with CachedSession(
-        follow_redirects=True,
-        cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-    ) as session:
-        data = {
-            "image": cover_bytes,
-            "type": "file",  # Imgur expects the file type
+    data = {
+        "image": cover_bytes,
+        "type": "file",  # Imgur expects the file type
+    }
+    async with http_client.session.post(url, headers=headers, data=data) as response:
+        if response.status != 200:
+            logging.error(f"Upload failed with status {response.status}")
+            return
+
+        json_response = await response.json()
+        image_url = json_response["data"]["link"]
+
+        # Step 5: Cache the uploaded image URL and
+        # the dominant RGB. Prevent additional future requests
+        dominant_rgb = get_accent_color(cover_bytes)
+        with open(cache_file_path, "w") as cache_file:
+            json.dump({"url": image_url, "dominant_rgb": dominant_rgb}, cache_file)
+
+        return {
+            "url": image_url,
+            "cover_hash": cover_hash,
+            "dominant_rgb": dominant_rgb,
         }
-        async with session.post(url, headers=headers, data=data) as response:
-            if response.status != 200:
-                logging.error(f"Upload failed with status {response.status}")
-                return
-
-            json_response = await response.json()
-            image_url = json_response["data"]["link"]
-
-            # Step 5: Cache the uploaded image URL and
-            # the dominant RGB. Prevent additional future requests
-            dominant_rgb = get_accent_color(cover_bytes)
-            with open(cache_file_path, "w") as cache_file:
-                json.dump({"url": image_url, "dominant_rgb": dominant_rgb}, cache_file)
-
-            return {
-                "url": image_url,
-                "cover_hash": cover_hash,
-                "dominant_rgb": dominant_rgb,
-            }
 
 
 async def get_cover_data_from_file(filename: str) -> dict[str, discord.Colour]:
@@ -99,23 +95,19 @@ async def get_cover_data_from_file(filename: str) -> dict[str, discord.Colour]:
 async def fetch_audio_stream(url: Optional[str] = None) -> Path:
     """Fetch an audio file from a URL and cache it locally.
     Returns the file path."""
-    async with CachedSession(
-        follow_redirects=True,
-        cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-    ) as session:
-        async with session.get(url) as response:
-            if response.status != 200:
-                raise Exception(f"Failed to fetch audio: {response.status}")
-            audio_data = await response.read()
-            cd_header = response.headers.get("Content-Disposition", "")
-            content_length = response.headers.get("Content-Length", 0)
-            _, params = cgi.parse_header(cd_header)
+    async with http_client.session.get(url) as response:
+        if response.status != 200:
+            raise Exception(f"Failed to fetch audio: {response.status}")
+        audio_data = await response.read()
+        cd_header = response.headers.get("Content-Disposition", "")
+        content_length = response.headers.get("Content-Length", 0)
+        _, params = cgi.parse_header(cd_header)
 
-            # Get the file name from headers
-            if f := (params.get("filename*") or params.get("filename")):
-                filename = unquote(f).replace("UTF-8''", "")
-            else:
-                filename = get_display_name_from_query(url)
+    # Get the file name from headers
+    if f := (params.get("filename*") or params.get("filename")):
+        filename = unquote(f).replace("UTF-8''", "")
+    else:
+        filename = get_display_name_from_query(url)
 
     # Write the fetched audio to the cache file
     cache_path = Path(f"{TEMP_FOLDER}/{filename}.{content_length}")

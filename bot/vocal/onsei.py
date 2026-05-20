@@ -1,13 +1,13 @@
 import asyncio
-from aiohttp_client_cache import CachedSession, SQLiteBackend
 import json
 import os
 from typing import Literal, Union, Optional
 import logging
 from pathlib import Path
 from bot.vocal.track_dataclass import Track
+from bot import http_client
 from bot.utils import get_dominant_rgb_from_url
-from config import ONSEI_BLACKLIST, ONSEI_WHITELIST, DEFAULT_EMBED_COLOR, CACHE_EXPIRY
+from config import ONSEI_BLACKLIST, ONSEI_WHITELIST, DEFAULT_EMBED_COLOR
 
 
 class Onsei:
@@ -25,13 +25,10 @@ class Onsei:
         url = f"https://api.asmr.one/api/{api}/{work_id}"
         logging.info(f"Requesting URL: {url}")
 
-        async with CachedSession(
-            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-        ) as session:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                content = await response.text()
-                return json.loads(content)
+        async with http_client.session.get(url) as response:
+            response.raise_for_status()
+            content = await response.text()
+            return json.loads(content)
 
     async def get_tracks_api(self, work_id: str) -> dict:
         return await self.request(work_id, "tracks")

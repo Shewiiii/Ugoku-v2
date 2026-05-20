@@ -1,4 +1,3 @@
-from aiohttp_client_cache import CachedSession, SQLiteBackend
 import aiofiles
 from pathlib import Path
 from PIL import Image
@@ -11,13 +10,14 @@ from discord import ApplicationContext
 from bs4 import BeautifulSoup
 import imageio.v3
 
-from bot.search import link_grabber, is_url
+from bot.search import url_grabber, is_url
 from bot.utils import sanitize_filename
-from config import TEMP_FOLDER, CACHE_EXPIRY
+from config import TEMP_FOLDER
+from bot import http_client
 
 
-def get_link(string: str) -> str:
-    return link_grabber.findall(string)[-1][0]
+def get_url(string: str) -> str:
+    return url_grabber.findall(string)[-1][0]
 
 
 async def convert_to_gif(sticker_count: int, path: Path, loop: int = 0) -> None:
@@ -41,10 +41,8 @@ async def convert_to_gif(sticker_count: int, path: Path, loop: int = 0) -> None:
         os.remove(png_file)
 
 
-async def fetch_sticker_image(
-    session: CachedSession, link: str, file_path: Path
-) -> None:
-    async with session.get(link) as response:
+async def fetch_sticker_image(url: str, file_path: Path) -> None:
+    async with http_client.session.get(url) as response:
         response.raise_for_status()
         sticker_image = await response.read()
         async with aiofiles.open(file_path, "wb") as png_file:
@@ -52,22 +50,19 @@ async def fetch_sticker_image(
 
 
 async def get_stickerpack(
-    link: str, ctx: ApplicationContext | None = None, loop: int = 0
+    url: str, ctx: ApplicationContext | None = None, loop: int = 0
 ) -> str:
-    if not is_url(link, "store.line.me"):
+    if not is_url(url, "store.line.me"):
         raise ValueError("Not a Line Store url")
     try:
-        async with CachedSession(
-            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-        ) as session:
-            async with session.get(link) as response:
-                response.raise_for_status()
-                raw = BeautifulSoup(await response.text(), features="html.parser")
-                # Pack name
-                pack_name = (
-                    raw.find("p", {"data-test": "sticker-name-title"})
-                    or raw.find("p", {"data-test": "emoji-name-title"})
-                ).get_text(strip=True)
+        async with http_client.session.get(url) as response:
+            response.raise_for_status()
+            raw = BeautifulSoup(await response.text(), features="html.parser")
+
+        pack_name = (
+            raw.find("p", {"data-test": "sticker-name-title"})
+            or raw.find("p", {"data-test": "emoji-name-title"})
+        ).get_text(strip=True)
 
     except Exception as e:
         logging.error(f"Error fetching or parsing the page: {e}")
@@ -98,16 +93,13 @@ async def get_stickerpack(
     if ctx:
         await ctx.edit(content="Saving the stickers...")
 
-    async with CachedSession(
-        cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-    ) as session:
-        tasks = []
-        for i, sticker in enumerate(stickers):
-            preview_link = get_link(sticker["data-preview"])
-            file_path = folder_path / f"{i + 1}.png"
-            tasks.append(fetch_sticker_image(session, preview_link, file_path))
+    tasks = []
+    for i, sticker in enumerate(stickers):
+        preview_url = get_url(sticker["data-preview"])
+        file_path = folder_path / f"{i + 1}.png"
+        tasks.append(fetch_sticker_image(preview_url, file_path))
 
-        await asyncio.gather(*tasks, return_exceptions=True)
+    await asyncio.gather(*tasks, return_exceptions=True)
 
     # Convert APNGs to GIFs if needed
     if sticker_type in {"animation-sticker", "popup-sticker"}:

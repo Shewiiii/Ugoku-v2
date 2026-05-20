@@ -1,4 +1,3 @@
-from aiohttp_client_cache import CachedSession, SQLiteBackend
 import aiofiles
 import asyncio
 from deezer_decryption.api import Deezer
@@ -13,7 +12,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from bot.utils import get_cache_path
-from config import CACHE_EXPIRY
+from bot import http_client
 
 
 class Download:
@@ -132,13 +131,9 @@ class Download:
         picture.desc = "Cover"
         album_cover_url = native_track_api["album"]["cover_xl"]
         if native_track_api["album"].get("cover_xl"):
-            async with CachedSession(
-                follow_redirects=True,
-                cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-            ) as session:
-                async with session.get(album_cover_url) as response:
-                    response.raise_for_status()
-                    cover_bytes = await response.read()
+            async with http_client.session.get(album_cover_url) as response:
+                response.raise_for_status()
+                cover_bytes = await response.read()
             picture.data = cover_bytes
 
         audio["title"] = native_track_api["title"]

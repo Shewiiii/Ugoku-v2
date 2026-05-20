@@ -2,6 +2,9 @@ from google.genai.types import SafetySetting, HarmCategory, HarmBlockThreshold
 from pathlib import Path
 import logging
 import sys
+from dotenv import load_dotenv
+
+load_dotenv()
 
 #  ===FEATURES===
 # I strongly recommend enabling the Spotify API to ensure the music bot functions properly.
@@ -44,7 +47,7 @@ DB_PATH = Path("config.sqlite")
 
 # Cache control & preloading
 AGRESSIVE_CACHING = True # Download Spotify streams on disk before and when playing. Can be useful if Spotify often closes the connection with Librespot.
-MAX_DUMMY_LOAD_INDEX = 6
+PRELOAD_TRACKS = 1 # Number of tracks to preload
 CACHE_SIZE = 100  # Cache size limit (in number of files)
 CACHE_EXPIRY = 2592000  # Cache expiry time (in seconds). Default is one month
 

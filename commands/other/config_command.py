@@ -76,14 +76,15 @@ class ConfigCommand(commands.Cog):
                 f"{e['misc']} Chatbot timezone: {CHATBOT_TIMEZONE}",
                 f"{e['misc']} Max output token per message: {CHATBOT_MAX_OUTPUT_TOKEN}",
                 f"{e['misc']} Max number of recalled messages per response: {PINECONE_RECALL_WINDOW}",
-                f"{e['misc']} Max chatbot file size (if supported): \n- {
-                    '\n- '.join(
+                (
+                    f"{e['misc']} Max chatbot file size (if supported): \n- "
+                    + "\n- ".join(
                         [
-                            f'{type}: {size_ / 10**6:.1f}MB'
+                            f"{type}: {size_ / 10**6:.1f}MB"
                             for type, size_ in CHATBOT_MAX_CONTENT_SIZE.items()
                         ]
                     )
-                }",
+                ),
             ]
         )
         other = "\n".join(

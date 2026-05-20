@@ -1,4 +1,3 @@
-from aiohttp_client_cache import CachedSession, SQLiteBackend
 from aiohttp import ClientResponseError
 import asyncio
 import os
@@ -22,7 +21,6 @@ from config import (
     CHATBOT_MAX_CONTENT_SIZE,
     CHATBOT_EMOTE_FREQUENCY,
     ALLOW_CHATBOT_IN_DMS,
-    CACHE_EXPIRY,
     PINECONE_RECALL_WINDOW,
     OPENAI_ENABLED,
     OPENAI_MODEL,
@@ -43,7 +41,8 @@ from bot.chatbot.gemini_client import client, utils_models_manager
 from bot.chatbot.prompts import Prompts
 from bot.chatbot.vector_recall import memory
 from bot.config.sqlite_config_manager import get_all_chatbot_emotes, get_whitelist
-from bot.utils import link_grabber, parse_message_url, tenor_view_url_to_direct_url
+from bot.utils import url_grabber, parse_message_url, tenor_view_url_to_direct_url
+from bot import http_client
 
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -130,9 +129,7 @@ class Gembot:
                 )
             )
             logging.info(
-                f"Gemini API call, simple prompt: {
-                    response.usage_metadata.total_token_count
-                } tokens"
+                f"Gemini API call, simple prompt: {response.usage_metadata.total_token_count} tokens"
             )
         except errors.APIError as e:
             if e.code == 429:
@@ -335,51 +332,47 @@ class Gembot:
     async def get_part_from_url(self, url: str) -> Optional[types.Part]:
         """Returns a dict containing the base64 bytes data and the mime_type from an URL."""
         try:
-            async with CachedSession(
-                follow_redirects=True,
-                cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-            ) as session:
-                async with session.get(url) as response:
-                    response.raise_for_status()
-                    mime_type = response.headers.get("content-type", "")
-                    # E.g: audio, text..
-                    splitted_mime = mime_type.split("/")
-                    content_type = splitted_mime[0]
-                    ext = splitted_mime[1]
-                    max_size = CHATBOT_MAX_CONTENT_SIZE.get(content_type, 0)
+            async with http_client.session.get(url) as response:
+                response.raise_for_status()
+                mime_type = response.headers.get("content-type", "")
+                # E.g: audio, text..
+                splitted_mime = mime_type.split("/")
+                content_type = splitted_mime[0]
+                ext = splitted_mime[1]
+                max_size = CHATBOT_MAX_CONTENT_SIZE.get(content_type, 0)
 
-                    if content_type in ["image", "audio", "application"]:
-                        content = await response.read()
+                if content_type in ["image", "audio", "application"]:
+                    content = await response.read()
 
-                        # For GIFs: convert to png and take the frame at the middle
-                        if ext == "gif":
-                            with Image.open(io.BytesIO(content)) as img:
-                                num_frames = getattr(img, "n_frames", 1)
-                                img.seek(num_frames // 2)
-                                img = img.convert("RGB")
+                    # For GIFs: convert to png and take the frame at the middle
+                    if ext == "gif":
+                        with Image.open(io.BytesIO(content)) as img:
+                            num_frames = getattr(img, "n_frames", 1)
+                            img.seek(num_frames // 2)
+                            img = img.convert("RGB")
 
-                                output_buffer = io.BytesIO()
-                                img.save(output_buffer, format="PNG")
-                                content = output_buffer.getvalue()
-                                mime_type = "image/png"
-                                content_type = "image"
-                                ext = "png"
+                            output_buffer = io.BytesIO()
+                            img.save(output_buffer, format="PNG")
+                            content = output_buffer.getvalue()
+                            mime_type = "image/png"
+                            content_type = "image"
+                            ext = "png"
 
-                    else:
-                        self.status = -1
-                        logging.warning(
-                            f"{url} has not been processed: mime_type not allowed"
-                        )
-                        return
-
-                # Size checkw
-                if len(content) > max_size:
-                    self.status = -2
-                    logging.warning(f"{url} has not been processed: File too big")
+                else:
+                    self.status = -1
+                    logging.warning(
+                        f"{url} has not been processed: mime_type not allowed"
+                    )
                     return
 
-                part = types.Part.from_bytes(data=content, mime_type=mime_type)
-                return part
+            # Size checkw
+            if len(content) > max_size:
+                self.status = -2
+                logging.warning(f"{url} has not been processed: File too big")
+                return
+
+            part = types.Part.from_bytes(data=content, mime_type=mime_type)
+            return part
 
         except (ClientResponseError, asyncio.TimeoutError):
             self.status = -3
@@ -541,7 +534,7 @@ class Gembot:
 
         # Parse message url(s) if any
         async def parse_urls_in_msg_content(message_content: str) -> None:
-            urls_in_content = link_grabber.findall(message_content)
+            urls_in_content = url_grabber.findall(message_content)
             for url_tuple in urls_in_content:
                 url = url_tuple[0]
                 if "discord.com/channels" in url:

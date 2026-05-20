@@ -1,4 +1,3 @@
-from aiohttp_client_cache import CachedSession, SQLiteBackend
 from bs4 import BeautifulSoup
 import json
 import re
@@ -7,9 +6,9 @@ from typing import Optional
 
 from google.genai import types
 
-
 from bot.chatbot.gemini_client import client, utils_models_manager
-from config import GEMINI_ENABLED, CACHE_EXPIRY, GEMINI_SAFETY_SETTINGS
+from config import GEMINI_ENABLED, GEMINI_SAFETY_SETTINGS
+from bot import http_client
 
 response_schema = {
     "type": "object",
@@ -82,13 +81,9 @@ class JpdbWordApi:
 
     async def get(self, word: str) -> Optional[dict]:
         base_url = "https://jpdb.io/search?q="
-        async with CachedSession(
-            follow_redirects=True,
-            cache=SQLiteBackend("cache", expire_after=CACHE_EXPIRY),
-        ) as session:
-            request = await session.get(f"{base_url}{word}")
-            request.raise_for_status()
-            raw = BeautifulSoup(await request.text(), features="html.parser")
+        async with http_client.session.get(f"{base_url}{word}") as response:
+            response.raise_for_status()
+            raw = BeautifulSoup(await response.text(), features="html.parser")
         first_result = raw.find(attrs={"class": "vbox"})
         if not first_result:
             return

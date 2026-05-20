@@ -23,7 +23,7 @@ from config import (
     DEEZER_ENABLED,
     SPOTIFY_API_ENABLED,
     DEFAULT_AUDIO_BITRATE,
-    MAX_DUMMY_LOAD_INDEX,
+    PRELOAD_TRACKS,
 )
 from deezer_decryption.chunked_input_stream import DeezerChunkedInputStream
 from deezer_decryption.download import Download
@@ -365,7 +365,7 @@ class ServerSession:
             }
         return ffmpeg_options
 
-    async def load_next_tracks(self, max_index: int = MAX_DUMMY_LOAD_INDEX) -> None:
+    async def load_next_tracks(self, preload_tracks: int = PRELOAD_TRACKS) -> None:
         """Load next the next Tracks and embeds.
         Preload the next stream if from Spotify/Deezer."""
         sp = self.bot.spotify.sessions.sp if SPOTIFY_API_ENABLED else None
@@ -376,7 +376,7 @@ class ServerSession:
             track: Track = self.to_loop[0]
 
         # In queue
-        for i, track in enumerate(self.queue[1:max_index], start=1):
+        for i, track in enumerate(self.queue[1 : preload_tracks + 1], start=1):
             if i == 1:
                 tasks.append(track.load_stream(self))
             if track.unloaded_embed:  # Spotify/Deezer
@@ -414,13 +414,13 @@ class ServerSession:
                     insert_index_orig = len(self.original_queue)
             else:
                 insert_index_orig = len(self.original_queue)
-            
+
             self.original_queue[insert_index_orig:insert_index_orig] = tracks
 
             if play_next:
-                shuffled_part = self.queue[1 + len(tracks):]
+                shuffled_part = self.queue[1 + len(tracks) :]
                 random.shuffle(shuffled_part)
-                self.queue[1 + len(tracks):] = shuffled_part
+                self.queue[1 + len(tracks) :] = shuffled_part
             else:
                 shuffled_part = self.queue[1:]
                 random.shuffle(shuffled_part)

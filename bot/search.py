@@ -4,7 +4,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 # string from https://www.geeksforgeeks.org/python-check-url-string/
-link_grabber = re.compile(
+url_grabber = re.compile(
     r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2"
     r",4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+("
     r"?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\""
@@ -18,7 +18,7 @@ def is_url(
     parts: Optional[list] = None,
     include_last_part: bool = False
 ) -> bool:
-    search = link_grabber.match(string)
+    search = url_grabber.match(string)
     if not search:
         return False
 
