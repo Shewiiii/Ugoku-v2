@@ -9,48 +9,6 @@
 **A work in progress rework of [Ugoku !](https://github.com/Shewiiii/Ugoku-bot)**, completely refactored and feature complete !  
 Learn more about the bot here: https://ugoku.app/.
 
-<h2>Features/To do</h2>
-
-- [x] Ping.
-- [x] Echo messages (make the bot say any message).
-- [x] Download stickers from LINE.
-- [x] Download songs from Spotify.
-- [x] Download lossless songs from Deezer.
-- [x] Play songs in a voice channel.
-  - [x] Skip, Show queue, Autodetect and add songs/albums, or playlists.
-  - [x] Loop song, Loop queue, pause, resume...
-  - [x] Amazing audio quality: bypass the channel's audio bitrate.
-  - [x] Stream songs from Spotify, Deezer or Soundcloud*.
-  - [x] Inject lossless streams to Spotify songs (when available on Deezer).
-  - [x] Stream audio works (音声作品) in a voice channel.
-  - [x] Play songs from a URL (custom source).
-  - [x] Apply audio effects (bass boost, reverb, etc), with high quality [Raum](https://www.native-instruments.com/en/products/komplete/effects/raum/) effects built-in !
-  - [x] Cache audio from custom sources.
-  - [x] Embed info messages with metadata.
-  - [x] Show the lyrics of a song using the Musixmatch API
-  - [ ] ~~(outdated) Control the bot using [this amazing UI](https://github.com/ChinHongTan/Ugoku-frontend) !~~
-- [x] Chat using Gemini 2.0 flash. (WIP)
-  - [ ] Optimize token usage.
-  - [x] Make its messages more human-like.
-  - [x] Have a permanent memory!
-- [x] Review jpdb cards in Discord (sentences generated with Gemini).
-- [x] Search any word in Japanese.
-- [x] Get a random image from Danbooru (SFW only).
-- [ ] And maybe more in the future~  
-
-*Song search is not available with Soundcloud, URL only. 
-
-<h2>Public playground bot</h2>
-
-Chatbot features are disabled, but you can still play with the bot !
-[Invite link](https://discord.com/oauth2/authorize?client_id=1260656795974897695)
-
-<h2>Known bugs to fix</h2>
-
-- Example sentences not always well chosen when reviewing jpdb cards (cause: Gemini's randomness in its response).
-- The song in vc may stop randomly with Spotify (cause: Librespot session's connection closing).
-- Audio may lag at the beginning of a song, when changing the audio effect or when seeking forward (causes: Discord client, slow Deezer/Spotify chunked input stream reading).
-- /seek may seek to the wrong location (cause: bad seek table provided by Deezer)
 
 <h2>Requirements</h2>
 
@@ -122,31 +80,3 @@ You can now restart your instance.
 
 > [!TIP]
 > \*This action will create a `credentials.json` file in the root folder. If you are having trouble creating it on a remote machine, try creating it on your local machine and exporting it.
-
-<h2>Special Thanks</h2>
-
-- Chinono 智乃乃, for helping me with this project and inspiring me
-- Neutrixia, Hibiki and Hanabi for providing improvement ideas for the bot and extensively testing it!
-- Nothes, Sougata and PIKASONIC for allowing me to use your public servers as a platform for Ugoku ❤️
-- Everyone actively using my bot!
-
-<h2>Random screenshots</h2>
-
-<div align="center">
-  <img src="img/now_playing.png" alt="now playing embed"/>
-  <p>Playing a song</p>
-  <img src="img/song_queue.jpg" alt="song queue"/>
-  <p>Songs in queue</p>
-  <img src="img/spotify_download.jpg" alt="spotify song download"/>
-  <p>Spotify song download</p>
-  <img src="img/lyrics.jpg" alt="lyrics"/>
-  <p>Lyrics</p>
-  <img src="img/help_command.jpg" alt="help command"/>
-  <p>Help command</p>
-  <img src="img/danbooru.jpg" alt="danbooru"/>
-  <p>Danbooru</p>
-  <img src="img/jpdb_review.jpg" alt="review of a jpdb card"/>
-  <p>Review of a jpdb card</p>
-  <img src="img/jpdb_dict.jpg" alt="japanese word lookup"/>
-  <p>Japanese word lookup</p>
-</div>
